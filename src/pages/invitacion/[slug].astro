@@ -1,0 +1,101 @@
+---
+import Layout from '@/layouts/Layout.astro';
+import Navbar from '@/components/layout/Navbar.astro';
+import Footer from '@/components/layout/Footer.astro';
+import Button from '@/components/ui/Button.astro';
+import Badge from '@/components/ui/Badge.astro';
+import Card from '@/components/ui/Card.astro';
+import { CountdownTimer } from '@/components/invitation/CountdownTimer';
+import { TemplatesService } from '@/services/templates.service';
+
+export async function getStaticPaths() {
+  const templates = await TemplatesService.getAllTemplates();
+  return templates.map((template) => ({
+    params: { slug: template.slug },
+    props: { template },
+  }));
+}
+
+const { slug } = Astro.params;
+const { template } = Astro.props;
+
+if (!template) {
+  return Astro.redirect('/404');
+}
+
+// Sample target date 60 days into future
+const futureDate = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString();
+---
+
+<Layout title={`${template.title} | Demo Invitación - Celebra-Ya`}>
+  <Navbar />
+  
+  <main class="py-12 bg-slate-50 min-h-screen">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+      
+      <!-- Top banner notification -->
+      <div class="p-4 bg-purple-600 text-white rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-lg">
+        <div class="flex items-center gap-3">
+          <span class="text-xl">🎨</span>
+          <div>
+            <p class="font-bold text-sm">Estás viendo una plantilla interactiva</p>
+            <p class="text-xs text-purple-100">Personalízala con tus propios datos, música, mapas e invitados.</p>
+          </div>
+        </div>
+        <Button href="/contacto" variant="secondary" size="sm" class="shrink-0">
+          Personalizar Esta Plantilla
+        </Button>
+      </div>
+
+      <!-- Main Preview Card -->
+      <Card hoverEffect={false} class="overflow-hidden border border-slate-200">
+        <div class="relative h-80 sm:h-96">
+          <img 
+            src={template.thumbnailUrl} 
+            alt={template.title} 
+            class="w-full h-full object-cover"
+          />
+          <div class="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/40 to-transparent flex flex-col justify-end p-8 text-white">
+            <Badge variant="purple" class="w-fit mb-2">
+              {template.categoryName}
+            </Badge>
+            <h1 class="text-3xl sm:text-5xl font-extrabold">{template.title}</h1>
+            <p class="text-slate-300 text-sm mt-1">{template.description}</p>
+          </div>
+        </div>
+
+        <div class="p-8 space-y-8">
+          <!-- Countdown React 19 Component -->
+          <div class="text-center">
+            <h2 class="text-sm uppercase tracking-wider font-bold text-slate-500 mb-2">Cuenta Regresiva del Evento</h2>
+            <CountdownTimer client:load targetDate={futureDate} />
+          </div>
+
+          <!-- Event Details Mockup -->
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6 pt-6 border-t border-slate-100">
+            <div class="text-center p-4 rounded-xl bg-slate-50 border border-slate-100">
+              <span class="text-2xl block mb-1">📅</span>
+              <h3 class="font-bold text-slate-900 text-sm">Fecha & Hora</h3>
+              <p class="text-xs text-slate-500 mt-1">Sábado, 28 de Noviembre • 18:00 hrs</p>
+            </div>
+
+            <div class="text-center p-4 rounded-xl bg-slate-50 border border-slate-100">
+              <span class="text-2xl block mb-1">📍</span>
+              <h3 class="font-bold text-slate-900 text-sm">Ubicación GPS</h3>
+              <p class="text-xs text-slate-500 mt-1">Jardín de Eventos Las Palmas, CDMX</p>
+            </div>
+
+            <div class="text-center p-4 rounded-xl bg-slate-50 border border-slate-100">
+              <span class="text-2xl block mb-1">🎟️</span>
+              <h3 class="font-bold text-slate-900 text-sm">Pase de Acceso</h3>
+              <p class="text-xs text-slate-500 mt-1">Código QR Individual Incluido</p>
+            </div>
+          </div>
+        </div>
+      </Card>
+
+    </div>
+  </main>
+
+  <Footer />
+</Layout>

@@ -1,0 +1,69 @@
+---
+import Card from '../ui/Card.astro';
+import Badge from '../ui/Badge.astro';
+
+const STUDIO_FEATURES = [
+  {
+    icon: '⚡',
+    title: 'RSVP Automatizado por WhatsApp',
+    description: 'Programamos la confirmación directa para que recibas el nombre, número de acompañantes y comentarios de tus invitados en tu WhatsApp.'
+  },
+  {
+    icon: '📍',
+    title: 'Integración GPS & Mapas',
+    description: 'Enlazamos la ubicación exacta del templo y recepción con Waze, Google Maps y Uber para que tus invitados lleguen con un toque.'
+  },
+  {
+    icon: '🎟️',
+    title: 'Pases Digitales QR Personalizados',
+    description: 'Generamos un sistema de control de acceso digital con códigos QR únicos por familia o persona para tu recepción.'
+  },
+  {
+    icon: '⏱️',
+    title: 'Cuenta Regresiva Animada',
+    description: 'Implementamos contadores web dinámicos sincronizados con la zona horaria de tu evento para generar expectativa.'
+  },
+  {
+    icon: '🎵',
+    title: 'Audio & Galería Fotográfica HD',
+    description: 'Optimizamos e integramos tus fotografías en alta definición junto con tu canción favorita de fondo.'
+  },
+  {
+    icon: '🎁',
+    title: 'Mesa de Regalos & Datos Bancarios',
+    description: 'Integramos tus códigos de mesa de regalo (Liverpool, Palacio, etc.) o diseñamos una sección elegante de sobres.'
+  }
+];
+---
+
+<section id="features" class="py-20 lg:py-28 bg-slate-50 border-t border-slate-200/60">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    
+    <!-- Section Header -->
+    <div class="text-center max-w-3xl mx-auto space-y-4 mb-16">
+      <Badge variant="purple">Capacidades Web</Badge>
+      <h2 class="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
+        Lo que <span class="text-gradient">implementamos</span> en tu invitación
+      </h2>
+      <p class="text-slate-600 text-lg">
+        Cada funcionalidad es programada y probada minuciosamente para garantizar una navegación fluida en iPhone, Android y computadoras.
+      </p>
+    </div>
+
+    <!-- Features Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+      {
+        STUDIO_FEATURES.map((item) => (
+          <Card class="p-8 space-y-4">
+            <div class="w-12 h-12 rounded-2xl bg-purple-50 text-purple-600 border border-purple-100 flex items-center justify-center text-2xl shadow-sm">
+              {item.icon}
+            </div>
+            <h3 class="text-xl font-bold text-slate-900">{item.title}</h3>
+            <p class="text-slate-600 text-sm leading-relaxed">{item.description}</p>
+          </Card>
+        ))
+      }
+    </div>
+
+  </div>
+</section>

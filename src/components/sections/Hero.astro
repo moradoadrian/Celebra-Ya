@@ -1,0 +1,139 @@
+---
+import Button from '../ui/Button.astro';
+import Badge from '../ui/Badge.astro';
+---
+
+<section class="relative overflow-hidden pt-12 pb-20 lg:pt-20 lg:pb-32 bg-slate-50">
+  <!-- Soft Background Gradient Glows -->
+  <div class="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[650px] h-[650px] bg-gradient-to-tr from-purple-200/40 via-indigo-100/30 to-purple-300/30 rounded-full blur-3xl -z-10 pointer-events-none"></div>
+  <div class="absolute top-12 right-12 w-96 h-96 bg-purple-100/50 rounded-full blur-3xl -z-10 pointer-events-none"></div>
+
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
+      
+      <!-- Text & CTA Column (7 cols) -->
+      <div class="lg:col-span-7 space-y-8 text-center lg:text-left">
+        
+        <!-- Studio Badge -->
+        <div>
+          <Badge variant="purple" class="shadow-sm">
+            <span>✨</span> Estudio Creativo & Desarrollo Web Especializado
+          </Badge>
+        </div>
+
+        <!-- Main Headline -->
+        <h1 class="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-slate-900 leading-[1.14]">
+          Diseñamos e implementamos <span class="text-gradient">invitaciones digitales únicas</span> para tu celebración
+        </h1>
+
+        <!-- Subtitle -->
+        <p class="text-lg sm:text-xl text-slate-600 font-normal leading-relaxed max-w-2xl mx-auto lg:mx-0">
+          Creamos experiencias web inolvidables desarrolladas a la medida. Tú nos compartes los detalles e imágenes de tu evento y nosotros nos encargamos de todo el desarrollo.
+        </p>
+
+        <!-- CTAs -->
+        <div class="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 pt-2">
+          <Button href="/contacto" variant="primary" size="lg" class="w-full sm:w-auto">
+            Solicitar Cotización
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5 ml-2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+            </svg>
+          </Button>
+
+          <Button href="#proceso" variant="secondary" size="lg" class="w-full sm:w-auto">
+            Ver Cómo Trabajamos
+          </Button>
+        </div>
+
+        <!-- Trust Features -->
+        <div class="pt-6 border-t border-slate-200/80 flex items-center justify-center lg:justify-start gap-8 text-slate-600 text-sm">
+          <div>
+            <span class="block text-2xl font-extrabold text-slate-900">100%</span>
+            <span class="text-xs text-slate-500 font-medium">Desarrollo a la Medida</span>
+          </div>
+          <div class="h-8 w-px bg-slate-200"></div>
+          <div>
+            <span class="block text-2xl font-extrabold text-slate-900">1 a 1</span>
+            <span class="text-xs text-slate-500 font-medium">Atención Personalizada</span>
+          </div>
+          <div class="h-8 w-px bg-slate-200"></div>
+          <div>
+            <span class="block text-2xl font-extrabold text-slate-900">Listo</span>
+            <span class="text-xs text-slate-500 font-medium">Enlace para WhatsApp</span>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Studio Work Showcase Mockup (5 cols) -->
+      <div class="lg:col-span-5 relative flex justify-center">
+        <!-- Main Project Mockup -->
+        <div class="relative w-full max-w-sm sm:max-w-md bg-white rounded-3xl p-6 shadow-2xl border border-slate-100 glow-purple">
+          
+          <!-- Mockup Header Badge -->
+          <div class="flex items-center justify-between mb-4">
+            <span class="text-xs font-bold text-slate-400 uppercase tracking-widest">Proyecto Reciente</span>
+            <span class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+              Desarrollado por Celebra-Ya
+            </span>
+          </div>
+
+          <!-- Project Thumbnail -->
+          <div class="relative h-64 rounded-2xl overflow-hidden mb-6 bg-slate-100">
+            <img 
+              src="https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=800&q=80" 
+              alt="Proyecto Boda Sofía & Alejandro" 
+              class="w-full h-full object-cover"
+            />
+            <div class="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-950/20 to-transparent flex flex-col justify-end p-5 text-white">
+              <span class="text-xs uppercase tracking-widest text-purple-300 font-semibold mb-1">Boda de Ensueño</span>
+              <h3 class="text-2xl font-extrabold">Sofía & Alejandro</h3>
+              <p class="text-xs text-slate-300">Desarrollo web exclusivo • Hacienda Los Arcos</p>
+            </div>
+          </div>
+
+          <!-- Developer Details Checklist -->
+          <div class="space-y-3">
+            <div class="flex items-center justify-between p-3 rounded-xl bg-purple-50/70 border border-purple-100 text-xs">
+              <div class="flex items-center gap-2.5">
+                <div class="w-8 h-8 rounded-lg bg-purple-600 text-white flex items-center justify-center font-bold">
+                  💻
+                </div>
+                <div>
+                  <span class="block font-bold text-purple-950">Desarrollo Frontend Dedicado</span>
+                  <span class="text-slate-500">Diseño responsivo optimizado</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100 text-xs">
+              <div class="flex items-center gap-2.5">
+                <div class="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold">
+                  📲
+                </div>
+                <div>
+                  <span class="block font-bold text-slate-900">Integración de Confirmación RSVP</span>
+                  <span class="text-slate-500">Recibe invitados en tu WhatsApp</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Floating Badge -->
+        <div class="absolute -bottom-6 -left-4 bg-white p-4 rounded-2xl shadow-xl border border-slate-100 hidden sm:flex items-center gap-3 animate-bounce" style="animation-duration: 4s;">
+          <div class="w-10 h-10 rounded-full bg-purple-600 text-white flex items-center justify-center text-lg shadow-md">
+            ✍️
+          </div>
+          <div>
+            <p class="text-xs font-bold text-slate-900">Nosotros creamos todo</p>
+            <p class="text-[11px] text-slate-500">Sin complicaciones para ti</p>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+</section>

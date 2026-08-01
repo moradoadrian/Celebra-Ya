@@ -1,0 +1,82 @@
+---
+import Card from '../ui/Card.astro';
+import Button from '../ui/Button.astro';
+import Badge from '../ui/Badge.astro';
+import { PricingService } from '@/services/pricing.service';
+import { formatCurrency } from '@/utils/formatters';
+
+const packages = await PricingService.getPlans();
+---
+
+<section id="pricing" class="py-20 lg:py-28 bg-slate-50 border-t border-slate-200/60">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    
+    <!-- Header -->
+    <div class="text-center max-w-3xl mx-auto space-y-4 mb-16">
+      <Badge variant="purple">Paquetes de Desarrollo</Badge>
+      <h2 class="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
+        Inversión transparente para tu <span class="text-gradient">invitación a la medida</span>
+      </h2>
+      <p class="text-slate-600 text-lg">
+        Cada paquete representa mi trabajo profesional de maquetación, diseño gráfico y programación web. Sin pagos recurrentes.
+      </p>
+    </div>
+
+    <!-- Pricing Cards Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch">
+      {
+        packages.map((pkg) => (
+          <Card class={`p-8 flex flex-col justify-between relative ${pkg.isPopular ? 'border-2 border-purple-500 shadow-2xl scale-105 z-10' : 'border border-slate-200'}`}>
+            
+            {pkg.badge && (
+              <div class="absolute -top-4 left-1/2 -translate-x-1/2">
+                <span class="px-4 py-1.5 rounded-full text-xs font-bold bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md uppercase tracking-wider">
+                  {pkg.badge}
+                </span>
+              </div>
+            )}
+
+            <div>
+              <div class="flex items-center justify-between mb-2">
+                <h3 class="text-2xl font-bold text-slate-900">{pkg.name}</h3>
+              </div>
+              <span class="inline-block px-3 py-1 bg-purple-50 text-purple-700 text-[11px] font-bold rounded-md mb-4 border border-purple-100">
+                ⏱️ {pkg.deliveryTime}
+              </span>
+              <p class="text-slate-500 text-xs leading-relaxed mb-6 min-h-[36px]">{pkg.description}</p>
+              
+              <div class="flex items-baseline gap-1 mb-2">
+                <span class="text-4xl sm:text-5xl font-extrabold text-slate-900">
+                  {formatCurrency(pkg.price)}
+                </span>
+                <span class="text-slate-500 text-sm font-medium">MXN</span>
+              </div>
+              <p class="text-[11px] text-purple-700 font-semibold mb-6">✓ {pkg.revisions}</p>
+
+              <!-- Features checklist -->
+              <ul class="space-y-3.5 text-xs text-slate-600 mb-8 border-t border-slate-100 pt-6">
+                {pkg.features.map((feat) => (
+                  <li class="flex items-start gap-2.5">
+                    <svg class="w-4 h-4 text-purple-600 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
+                    </svg>
+                    <span>{feat}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <Button
+              href={`/contacto?paquete=${pkg.id}`}
+              variant={pkg.isPopular ? 'primary' : 'secondary'}
+              class="w-full"
+            >
+              {pkg.ctaText}
+            </Button>
+          </Card>
+        ))
+      }
+    </div>
+
+  </div>
+</section>

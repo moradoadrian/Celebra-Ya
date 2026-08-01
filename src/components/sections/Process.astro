@@ -1,0 +1,61 @@
+---
+import Badge from '../ui/Badge.astro';
+import Card from '../ui/Card.astro';
+import { WORK_STEPS } from '@/lib/constants';
+---
+
+<section id="proceso" class="py-20 lg:py-28 bg-white border-y border-slate-200/60">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    
+    <!-- Section Header -->
+    <div class="text-center max-w-3xl mx-auto space-y-4 mb-16">
+      <Badge variant="purple">Proceso de Trabajo</Badge>
+      <h2 class="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
+        ¿Cómo <span class="text-gradient">trabajamos</span>?
+      </h2>
+      <p class="text-slate-600 text-lg">
+        Tú no tienes que lidiar con editores ni configuraciones complejas. Nosotros desarrollamos completamente tu invitación web de principio a fin.
+      </p>
+    </div>
+
+    <!-- 5 Steps Process Timeline / Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6 relative">
+      {
+        WORK_STEPS.map((step) => (
+          <Card class="p-6 flex flex-col justify-between h-full relative border border-slate-100 hover:border-purple-200 hover:shadow-xl transition-all duration-300">
+            <div>
+              <div class="flex items-center justify-between mb-4">
+                <span class="w-10 h-10 rounded-2xl bg-purple-50 text-purple-700 font-extrabold text-sm flex items-center justify-center border border-purple-100 shadow-sm">
+                  0{step.stepNumber}
+                </span>
+                <span class="text-2xl">{step.icon}</span>
+              </div>
+              <h3 class="text-base font-bold text-slate-900 mb-2 leading-snug">
+                {step.title}
+              </h3>
+              <p class="text-slate-500 text-xs leading-relaxed">
+                {step.description}
+              </p>
+            </div>
+            
+            <div class="pt-4 mt-4 border-t border-slate-100 text-[11px] font-semibold text-purple-600">
+              Paso {step.stepNumber} de 5
+            </div>
+          </Card>
+        ))
+      }
+    </div>
+
+    <!-- CTA Banner beneath steps -->
+    <div class="mt-16 bg-slate-50 rounded-3xl p-8 sm:p-10 border border-slate-200/80 flex flex-col md:flex-row items-center justify-between gap-6">
+      <div class="space-y-2 text-center md:text-left">
+        <h3 class="text-xl font-bold text-slate-900">¿Listo para hacer realidad tu invitación digital?</h3>
+        <p class="text-slate-600 text-sm">Reserva tu fecha y déjanos el desarrollo en nuestras manos.</p>
+      </div>
+      <a href="/contacto" class="px-8 py-3.5 rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-semibold text-sm shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40 transition-all shrink-0">
+        Solicitar Cotización Sin Compromiso
+      </a>
+    </div>
+
+  </div>
+</section>

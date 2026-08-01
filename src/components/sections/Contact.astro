@@ -1,0 +1,186 @@
+---
+import Card from '../ui/Card.astro';
+import Button from '../ui/Button.astro';
+import Badge from '../ui/Badge.astro';
+import { EVENT_CATEGORIES, SITE_CONFIG } from '@/lib/constants';
+---
+
+<section id="contacto" class="py-20 lg:py-28 bg-white border-t border-slate-200/60">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
+      
+      <!-- Info Left (5 cols) -->
+      <div class="lg:col-span-5 space-y-6 lg:sticky lg:top-28">
+        <Badge variant="purple">Solicitud de Proyecto</Badge>
+        <h2 class="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight leading-tight">
+          Hablemos sobre tu <span class="text-gradient">celebración</span>
+        </h2>
+        <p class="text-slate-600 text-base leading-relaxed">
+          Cuéntame la visión de tu evento. Te responderé en menos de 24 horas con una cotización personalizada y sugerencias de diseño para tu invitación web.
+        </p>
+
+        <div class="space-y-4 pt-2">
+          <div class="flex items-center gap-4 p-4 rounded-2xl bg-slate-50 border border-slate-200/70 shadow-sm">
+            <div class="w-12 h-12 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center text-xl font-bold shrink-0">
+              💬
+            </div>
+            <div>
+              <p class="text-xs text-slate-500 font-semibold">Atención Directa 1 a 1</p>
+              <p class="text-sm font-bold text-slate-900">WhatsApp: +52 55 1234 5678</p>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-4 p-4 rounded-2xl bg-slate-50 border border-slate-200/70 shadow-sm">
+            <div class="w-12 h-12 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center text-xl font-bold shrink-0">
+              ✉️
+            </div>
+            <div>
+              <p class="text-xs text-slate-500 font-semibold">Correo de Trabajo</p>
+              <p class="text-sm font-bold text-slate-900">{SITE_CONFIG.email}</p>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-4 p-4 rounded-2xl bg-slate-50 border border-slate-200/70 shadow-sm">
+            <div class="w-12 h-12 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center text-xl font-bold shrink-0">
+              ⚡
+            </div>
+            <div>
+              <p class="text-xs text-slate-500 font-semibold">Garantía de Respuesta</p>
+              <p class="text-sm font-bold text-slate-900">Respuesta en menos de 24 horas</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quote Form Right (7 cols) -->
+      <div class="lg:col-span-7">
+        <Card class="p-8 sm:p-10 shadow-xl border border-slate-100">
+          <div class="mb-6">
+            <h3 class="text-2xl font-bold text-slate-900">Solicita una Cotización</h3>
+            <p class="text-slate-500 text-xs mt-1">Completa los datos de tu evento y comenzaremos a planear tu invitación web.</p>
+          </div>
+
+          <form class="space-y-6" onsubmit="event.preventDefault(); alert('¡Gracias por tu solicitud! Revisaré los detalles de tu evento y te contactaré por WhatsApp a la brevedad.');">
+            <!-- Row 1: Nombre & WhatsApp -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <div>
+                <label for="name" class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Nombre completo *</label>
+                <input 
+                  type="text" 
+                  id="name" 
+                  name="name" 
+                  required
+                  placeholder="Ej. Sofía Martínez"
+                  class="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50/50 text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:bg-white transition-all"
+                />
+              </div>
+
+              <div>
+                <label for="whatsapp" class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">WhatsApp de contacto *</label>
+                <input 
+                  type="tel" 
+                  id="whatsapp" 
+                  name="whatsapp" 
+                  required
+                  placeholder="+52 55 0000 0000"
+                  class="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50/50 text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:bg-white transition-all"
+                />
+              </div>
+            </div>
+
+            <!-- Row 2: Correo & Tipo de Evento -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <div>
+                <label for="email" class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Correo electrónico *</label>
+                <input 
+                  type="email" 
+                  id="email" 
+                  name="email" 
+                  required
+                  placeholder="correo@ejemplo.com"
+                  class="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50/50 text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:bg-white transition-all"
+                />
+              </div>
+
+              <div>
+                <label for="eventType" class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Tipo de evento *</label>
+                <select 
+                  id="eventType" 
+                  name="eventType"
+                  required
+                  class="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50/50 text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:bg-white transition-all"
+                >
+                  {
+                    EVENT_CATEGORIES.map((cat) => (
+                      <option value={cat.id}>{cat.name}</option>
+                    ))
+                  }
+                  <option value="otro">Otro tipo de evento</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Row 3: Fecha & Nº Estimado de Invitados -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <div>
+                <label for="eventDate" class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Fecha estimada del evento *</label>
+                <input 
+                  type="date" 
+                  id="eventDate" 
+                  name="eventDate" 
+                  required
+                  class="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50/50 text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:bg-white transition-all"
+                />
+              </div>
+
+              <div>
+                <label for="estimatedGuests" class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Número estimado de invitados</label>
+                <select 
+                  id="estimatedGuests" 
+                  name="estimatedGuests"
+                  class="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50/50 text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:bg-white transition-all"
+                >
+                  <option value="1-50">Menos de 50 invitados</option>
+                  <option value="50-150" selected>50 - 150 invitados</option>
+                  <option value="150-300">150 - 300 invitados</option>
+                  <option value="300+">Más de 300 invitados</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Row 4: Estilo deseado -->
+            <div>
+              <label for="desiredStyle" class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Estilo visual deseado</label>
+              <input 
+                type="text" 
+                id="desiredStyle" 
+                name="desiredStyle" 
+                placeholder="Ej. Minimalista dorado, Bohemio chic, Moderno con glitter, Elegante botánico..."
+                class="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50/50 text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:bg-white transition-all"
+              />
+            </div>
+
+            <!-- Row 5: Comentarios -->
+            <div>
+              <label for="comments" class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Comentarios o requerimientos especiales</label>
+              <textarea 
+                id="comments" 
+                name="comments" 
+                rows="4" 
+                placeholder="Platícanos si tienes requerimientos especiales (música particular, cuenta bancaria, mesa de regalos, código de vestimenta, etc.)..."
+                class="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50/50 text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:bg-white transition-all"
+              ></textarea>
+            </div>
+
+            <Button type="submit" variant="primary" class="w-full py-4 text-base shadow-lg">
+              Enviar Solicitud de Cotización
+            </Button>
+          </form>
+        </Card>
+      </div>
+
+    </div>
+
+  </div>
+</section>

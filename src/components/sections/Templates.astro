@@ -1,0 +1,105 @@
+---
+import Card from '../ui/Card.astro';
+import Button from '../ui/Button.astro';
+import Badge from '../ui/Badge.astro';
+import { TemplatesService } from '@/services/templates.service';
+import { EVENT_CATEGORIES } from '@/lib/constants';
+
+const portfolioItems = await TemplatesService.getAllTemplates();
+---
+
+<section id="portafolio" class="py-20 lg:py-28 bg-white border-t border-slate-200/60">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    
+    <!-- Header -->
+    <div class="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
+      <div class="space-y-3 max-w-2xl">
+        <Badge variant="purple">Portafolio & Estilos</Badge>
+        <h2 class="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
+          Trabajos recientes y <span class="text-gradient">diseños de referencia</span>
+        </h2>
+        <p class="text-slate-600 text-lg">
+          Explora proyectos entregados. Puedes elegir un estilo como base o solicitar un diseño completamente desde cero.
+        </p>
+      </div>
+      
+      <Button href="/contacto" variant="secondary">
+        Solicitar Diseño a la Medida →
+      </Button>
+    </div>
+
+    <!-- Category Pills Filter -->
+    <div class="flex items-center gap-2 overflow-x-auto pb-4 mb-8 no-scrollbar">
+      <a href="/plantillas" class="px-5 py-2 rounded-full text-xs font-semibold bg-purple-600 text-white shadow-sm whitespace-nowrap">
+        Todos los Proyectos
+      </a>
+      {
+        EVENT_CATEGORIES.map((cat) => (
+          <a href={`/plantillas?categoria=${cat.id}`} class="px-5 py-2 rounded-full text-xs font-semibold bg-white text-slate-700 hover:bg-purple-50 hover:text-purple-700 border border-slate-200 transition-colors whitespace-nowrap">
+            {cat.name}
+          </a>
+        ))
+      }
+    </div>
+
+    <!-- Portfolio Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+      {
+        portfolioItems.map((item) => (
+          <Card class="overflow-hidden group flex flex-col h-full border border-slate-100 hover:border-purple-200">
+            <div class="relative h-64 overflow-hidden bg-slate-100">
+              <img 
+                src={item.thumbnailUrl} 
+                alt={item.title}
+                class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+              />
+              <div class="absolute top-4 left-4">
+                <span class="px-3 py-1 rounded-full text-xs font-bold bg-white/90 backdrop-blur-md text-slate-900 shadow-sm">
+                  {item.categoryName}
+                </span>
+              </div>
+              {
+                item.isFeatured && (
+                  <div class="absolute top-4 right-4">
+                    <span class="px-3 py-1 rounded-full text-xs font-bold bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md">
+                      Destacado
+                    </span>
+                  </div>
+                )
+              }
+            </div>
+
+            <div class="p-6 flex-1 flex flex-col justify-between space-y-4">
+              <div>
+                <h3 class="text-xl font-bold text-slate-900 group-hover:text-purple-600 transition-colors">
+                  {item.title}
+                </h3>
+                <p class="text-slate-600 text-sm mt-2 line-clamp-2">
+                  {item.description}
+                </p>
+              </div>
+
+              <div class="pt-4 border-t border-slate-100 flex items-center justify-between">
+                <div class="flex flex-wrap gap-1.5">
+                  {item.tags.map((tag) => (
+                    <span class="text-[11px] font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
+                      #{tag}
+                    </span>
+                  ))}
+                </div>
+                <a 
+                  href={`/invitacion/${item.slug}`}
+                  class="text-xs font-bold text-purple-600 hover:text-purple-800 flex items-center gap-1"
+                >
+                  Ver Proyecto Demo
+                  <span>→</span>
+                </a>
+              </div>
+            </div>
+          </Card>
+        ))
+      }
+    </div>
+
+  </div>
+</section>

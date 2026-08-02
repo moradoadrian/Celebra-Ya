@@ -1,0 +1,221 @@
+---
+import Layout from '@/layouts/Layout.astro';
+import { CountdownTimer } from '@/components/invitation/CountdownTimer';
+import { XvMusicPlayer } from '@/components/invitation/XvMusicPlayer';
+import { XvRsvpForm } from '@/components/invitation/XvRsvpForm';
+
+export const prerender = true;
+
+const eventDate = '2027-08-15T18:00:00';
+
+const galleryPhotos = [
+  { url: 'https://images.unsplash.com/photo-1511795409834-ef04bbd61622?auto=format&fit=crop&w=800&q=80', alt: 'Vestido de XV Años Valentina' },
+  { url: 'https://images.unsplash.com/photo-1527529482837-4698179dc6ce?auto=format&fit=crop&w=800&q=80', alt: 'Luces de Celebración' },
+  { url: 'https://images.unsplash.com/photo-1464349095431-e9a21285b5f3?auto=format&fit=crop&w=800&q=80', alt: 'Pastel de XV Años' },
+  { url: 'https://images.unsplash.com/photo-1530103862676-de8c9debad1d?auto=format&fit=crop&w=800&q=80', alt: 'Decoración y Globos Festivos' },
+  { url: 'https://images.unsplash.com/photo-1513151233558-d860c5398176?auto=format&fit=crop&w=800&q=80', alt: 'Celebración y Confeti' },
+  { url: 'https://images.unsplash.com/photo-1566737236500-c8ac43014a67?auto=format&fit=crop&w=800&q=80', alt: 'Pista de Baile y Fiesta' },
+  { url: 'https://images.unsplash.com/photo-1528605248644-14dd04022da1?auto=format&fit=crop&w=800&q=80', alt: 'Corona y Arreglos Florales' },
+  { url: 'https://images.unsplash.com/photo-1519671482749-fd09be7ccebf?auto=format&fit=crop&w=800&q=80', alt: 'Brindis de Celebración' },
+];
+---
+
+<Layout title="XV Años de Valentina | 15 de Agosto de 2027">
+  {/* Google Fonts for XV Años Typography */}
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@600;700&family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,600;1,400&display=swap" rel="stylesheet" />
+
+  <style>
+    .font-script-xv {
+      font-family: 'Dancing Script', cursive;
+    }
+    .font-serif-xv {
+      font-family: 'Playfair Display', serif;
+    }
+    .font-sans-xv {
+      font-family: 'Montserrat', sans-serif;
+    }
+  </style>
+
+  {/* Background Music Player */}
+  <XvMusicPlayer client:load />
+
+  <main class="bg-[#faf5f8] text-slate-800 font-sans-xv min-h-screen">
+    
+    {/* HERO SECTION */}
+    <section class="relative py-16 sm:py-24 px-4 text-center bg-gradient-to-b from-pink-100/60 via-purple-50/40 to-[#faf5f8]">
+      <div class="max-w-3xl mx-auto space-y-6">
+        
+        {/* Main Photo Frame */}
+        <div class="w-48 h-48 sm:w-56 sm:h-56 mx-auto rounded-full p-2 bg-gradient-to-tr from-pink-300 via-purple-300 to-amber-200 shadow-xl">
+          <img 
+            src="https://images.unsplash.com/photo-1511795409834-ef04bbd61622?auto=format&fit=crop&w=800&q=80" 
+            alt="Valentina XV Años" 
+            class="w-full h-full object-cover rounded-full"
+          />
+        </div>
+
+        <div class="space-y-2">
+          <p class="text-xs uppercase tracking-[0.25em] font-semibold text-pink-600">
+            Mis XV Años
+          </p>
+          <h1 class="text-4xl sm:text-6xl font-script-xv font-bold text-purple-900">
+            XV Años de Valentina
+          </h1>
+          <p class="text-sm font-medium text-purple-700">
+            15 de Agosto de 2027
+          </p>
+        </div>
+
+        <p class="text-sm sm:text-base font-serif-xv italic text-slate-600 max-w-md mx-auto leading-relaxed">
+          "Hoy comienza una nueva etapa llena de sueños."
+        </p>
+
+        <div class="pt-2">
+          <a
+            href="#rsvp"
+            class="inline-block px-8 py-3 rounded-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white text-xs font-semibold uppercase tracking-wider shadow-md hover:shadow-lg transition-all duration-300"
+          >
+            Confirmar asistencia
+          </a>
+        </div>
+      </div>
+    </section>
+
+    {/* CUENTA REGRESIVA */}
+    <section class="py-12 px-4 max-w-2xl mx-auto text-center border-b border-pink-100">
+      <h2 class="text-xs font-semibold uppercase tracking-widest text-purple-700 mb-2">
+        Cuenta Regresiva
+      </h2>
+      <CountdownTimer client:load targetDate={eventDate} />
+    </section>
+
+    {/* FECHA Y LUGAR */}
+    <section class="py-16 px-4 max-w-4xl mx-auto text-center space-y-12">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+        
+        {/* Card Fecha */}
+        <div class="bg-white p-8 rounded-2xl border border-pink-100 shadow-sm space-y-3">
+          <span class="text-3xl block">📅</span>
+          <h3 class="text-xs font-bold uppercase tracking-wider text-pink-600">Fecha y Hora</h3>
+          <p class="text-xl font-serif-xv font-bold text-slate-900">Sábado 15 de Agosto</p>
+          <p class="text-sm text-slate-600">6:00 PM</p>
+        </div>
+
+        {/* Card Lugar */}
+        <div class="bg-white p-8 rounded-2xl border border-pink-100 shadow-sm space-y-4 flex flex-col justify-between">
+          <div class="space-y-2">
+            <span class="text-3xl block">📍</span>
+            <h3 class="text-xs font-bold uppercase tracking-wider text-purple-600">Ubicación del Evento</h3>
+            <p class="text-xl font-serif-xv font-bold text-slate-900">Salón Los Pinos</p>
+            <p class="text-xs text-slate-500">Av. de las Rosas #450, Ciudad de México</p>
+          </div>
+          <a
+            href="https://maps.google.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="inline-block py-2.5 px-6 rounded-full bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 text-xs font-semibold transition-colors"
+          >
+            Abrir en Google Maps
+          </a>
+        </div>
+
+      </div>
+    </section>
+
+    {/* CÓDIGO DE VESTIMENTA */}
+    <section class="py-12 px-4 max-w-2xl mx-auto text-center">
+      <div class="bg-white p-8 rounded-2xl border border-pink-100 shadow-sm space-y-4">
+        <span class="text-3xl block">👗</span>
+        <h3 class="text-xl font-serif-xv font-bold text-slate-900">Código de Vestimenta</h3>
+        <span class="inline-block px-4 py-1.5 rounded-full bg-pink-100 text-pink-800 text-xs font-semibold">
+          Elegante
+        </span>
+        <div class="pt-2">
+          <p class="text-xs text-slate-500 font-semibold mb-2">Colores sugeridos:</p>
+          <div class="flex items-center justify-center gap-3">
+            <span class="px-3 py-1 rounded-full bg-pink-50 text-pink-700 text-xs font-medium border border-pink-200">Rosa</span>
+            <span class="px-3 py-1 rounded-full bg-slate-50 text-slate-700 text-xs font-medium border border-slate-200">Blanco</span>
+            <span class="px-3 py-1 rounded-full bg-amber-50 text-amber-800 text-xs font-medium border border-amber-200">Beige</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    {/* GALERÍA SENCILLA (EXACTAMENTE 8 FOTOS - GRID SIMPLE) */}
+    <section class="py-16 px-4 max-w-4xl mx-auto text-center space-y-8">
+      <div class="space-y-2">
+        <h2 class="text-xs font-semibold uppercase tracking-widest text-pink-600">Galería</h2>
+        <h3 class="text-2xl font-serif-xv font-bold text-slate-900">Mis Recuerdos</h3>
+      </div>
+
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {galleryPhotos.map((photo) => (
+          <div class="h-44 sm:h-52 rounded-xl overflow-hidden shadow-xs border border-pink-100 bg-white">
+            <img 
+              src={photo.url} 
+              alt={photo.alt}
+              class="w-full h-full object-cover"
+              loading="lazy"
+            />
+          </div>
+        ))}
+      </div>
+    </section>
+
+    {/* MESA DE REGALOS (UNA SOLA TARJETA - LIVERPOOL) */}
+    <section class="py-16 px-4 max-w-xl mx-auto text-center space-y-6">
+      <div class="space-y-2">
+        <h2 class="text-xs font-semibold uppercase tracking-widest text-purple-600">Mesa de Regalos</h2>
+        <h3 class="text-2xl font-serif-xv font-bold text-slate-900">Sugerencia de Regalos</h3>
+      </div>
+
+      <div class="bg-white p-8 rounded-2xl border border-pink-100 shadow-sm space-y-4">
+        <span class="text-3xl block">🎁</span>
+        <h4 class="text-xl font-bold text-slate-900">Liverpool</h4>
+        <p class="text-xs text-slate-500">
+          Si deseas hacerme un obsequio, puedes consultar mi mesa de regalos registrada.
+        </p>
+        <a
+          href="https://liverpool.com.mx"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="inline-block py-2.5 px-6 rounded-full bg-pink-600 hover:bg-pink-700 text-white font-semibold text-xs shadow-xs transition-colors"
+        >
+          Ver Mesa
+        </a>
+      </div>
+    </section>
+
+    {/* CONFIRMACIÓN RSVP */}
+    <section id="rsvp" class="py-16 px-4 max-w-xl mx-auto text-center space-y-6">
+      <div class="space-y-2">
+        <h2 class="text-xs font-semibold uppercase tracking-widest text-pink-600">RSVP</h2>
+        <h3 class="text-2xl font-serif-xv font-bold text-slate-900">Confirmación de Asistencia</h3>
+      </div>
+
+      <div class="bg-white p-8 rounded-2xl border border-pink-100 shadow-sm">
+        <XvRsvpForm client:load />
+      </div>
+    </section>
+
+    {/* FOOTER */}
+    <footer class="py-12 bg-white border-t border-pink-100 text-center px-4 space-y-3">
+      <p class="text-sm font-serif-xv italic text-slate-600">
+        "Gracias por acompañarme en este día tan especial."
+      </p>
+      <p class="text-xl font-script-xv font-bold text-purple-900">
+        Valentina
+      </p>
+
+      {/* Discrete agency reference at the very bottom */}
+      <div class="pt-8 border-t border-slate-100 max-w-md mx-auto">
+        <p class="text-[11px] text-slate-400 font-medium">
+          Demostración del <strong>Paquete Básico</strong> de Celebra-Ya Studio.
+        </p>
+      </div>
+    </footer>
+
+  </main>
+</Layout>

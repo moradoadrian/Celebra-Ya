@@ -92,6 +92,7 @@ export const EVENT_CATEGORIES: EventCategoryInfo[] = [
 
 export const demos = {
   premiumWedding: '/demo/boda-sofia-alejandro',
+  basicXv: '/invitacion/xv-valentina-clasico',
 } as const;
 
 export const DEMOS = demos;

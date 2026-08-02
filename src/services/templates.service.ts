@@ -18,6 +18,7 @@ const MOCK_PORTFOLIO: PortfolioItem[] = [
   {
     id: 'xv-anos-corona-real',
     slug: 'xv-anos-corona-real',
+    demoUrl: demos.basicXv,
     title: 'XV Años Valentina',
     category: 'xv-anos',
     categoryName: 'XV Años',

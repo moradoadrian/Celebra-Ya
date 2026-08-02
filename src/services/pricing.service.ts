@@ -18,7 +18,8 @@ const MOCK_PRICING_PACKAGES: PricingPackage[] = [
       'Hosting y enlace exclusivo por 3 meses',
       'Entrega garantizada en 48 horas'
     ],
-    ctaText: 'Solicitar Paquete Básico'
+    ctaText: 'Solicitar Paquete Básico',
+    demoUrl: demos.basicXv
   },
   {
     id: 'premium',

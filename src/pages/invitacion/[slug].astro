@@ -18,9 +18,13 @@ if (!template) {
   return Astro.redirect('/404');
 }
 
-// Redirect all invitation demo slugs to their corresponding clean demo page
+// Redirect invitation demo slugs to their corresponding clean demo page
 if (slug === 'boda-elegancia-eterna' || slug === 'boda-sofia-alejandro') {
   return Astro.redirect('/demo/boda-sofia-alejandro');
+}
+
+if (slug === 'xv-anos-corona-real' || slug === 'xv-valentina-clasico') {
+  return Astro.redirect('/invitacion/xv-valentina-clasico');
 }
 
 // Default redirect to primary demo

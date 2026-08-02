@@ -1,30 +1,90 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 
 export const WeddingMusicPlayer: React.FC = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const intervalRef = useRef<any>(null);
 
-  const togglePlay = () => {
-    if (!audioRef.current) return;
-    if (isPlaying) {
-      audioRef.current.pause();
-      setIsPlaying(false);
-    } else {
-      audioRef.current.play().then(() => {
-        setIsPlaying(true);
-      }).catch(err => {
-        console.log('Audio autoplay prevented:', err);
-      });
+  // Local MP3 track for Wedding Demo
+  const mp3Url = "/music/boda.mp3";
+
+  const startSynthPiano = () => {
+    try {
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContextClass) return;
+
+      const ctx = new AudioContextClass();
+      audioCtxRef.current = ctx;
+
+      let step = 0;
+      // Romantic canon melody frequencies
+      const notes = [523.25, 659.25, 783.99, 1046.50, 783.99, 659.25, 587.33, 698.46];
+
+      intervalRef.current = setInterval(() => {
+        if (!audioCtxRef.current || audioCtxRef.current.state === 'closed') return;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(notes[step % notes.length], ctx.currentTime);
+        gain.gain.setValueAtTime(0.08, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.6);
+        step++;
+      }, 500);
+    } catch (e) {
+      console.log('Synth error:', e);
     }
   };
 
+  const stopSynthPiano = () => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+    if (audioCtxRef.current) {
+      try {
+        audioCtxRef.current.close();
+      } catch (e) {}
+      audioCtxRef.current = null;
+    }
+  };
+
+  const togglePlay = () => {
+    if (isPlaying) {
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
+      stopSynthPiano();
+      setIsPlaying(false);
+    } else {
+      setIsPlaying(true);
+      if (audioRef.current) {
+        audioRef.current.play().catch(() => {
+          startSynthPiano();
+        });
+      } else {
+        startSynthPiano();
+      }
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      stopSynthPiano();
+    };
+  }, []);
+
   return (
     <div className="fixed bottom-6 right-6 z-50">
-      {/* Hidden audio element with royalty free romantic wedding piano track */}
       <audio
         ref={audioRef}
         loop
-        src="https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf07a.mp3?filename=wedding-piano-112199.mp3"
+        preload="auto"
+        src={mp3Url}
       />
       <button
         onClick={togglePlay}

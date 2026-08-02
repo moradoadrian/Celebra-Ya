@@ -7,7 +7,7 @@ export const SITE_CONFIG = {
   url: 'https://celebra-ya.vercel.app',
   ogImage: '/images/og-default.jpg',
   whatsappNumber: '+525512345678',
-  email: 'hola@celebra-ya.com',
+  email: 'celebrayacotizacion@gmail.com',
 } as const;
 
 export const NAV_ITEMS: NavItem[] = [

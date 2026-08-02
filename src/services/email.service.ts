@@ -112,7 +112,7 @@ export class EmailService {
     try {
       const result = await resend.emails.send({
         from: 'Celebra-Ya Studio <onboarding@resend.dev>',
-        to: ['hola@celebra-ya.com'],
+        to: ['moradoadrian@gmail.com'], // Cambiado temporalmente a tu correo de Resend para pruebas
         subject: `Nueva Cotización: ${data.eventType.toUpperCase()} de ${data.name}`,
         html: htmlContent,
         replyTo: data.email,

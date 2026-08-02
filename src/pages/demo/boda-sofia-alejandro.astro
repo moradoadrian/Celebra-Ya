@@ -1,0 +1,485 @@
+---
+import Layout from '@/layouts/Layout.astro';
+import { CountdownTimer } from '@/components/invitation/CountdownTimer';
+import { WeddingMusicPlayer } from '@/components/invitation/WeddingMusicPlayer';
+import { PhotoGallery } from '@/components/invitation/PhotoGallery';
+import { RsvpForm } from '@/components/invitation/RsvpForm';
+import { CopyBankDetails } from '@/components/invitation/CopyBankDetails';
+import { DigitalPassModal } from '@/components/invitation/DigitalPassModal';
+
+export const prerender = true;
+
+// Wedding target date
+const weddingDate = '2026-11-28T17:00:00';
+
+const galleryPhotos = [
+  {
+    url: 'https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1200&q=80',
+    caption: 'Nuestra Sesión de Compromiso • Valle de Bravo'
+  },
+  {
+    url: 'https://images.unsplash.com/photo-1511285560929-80b456fea0bc?auto=format&fit=crop&w=1200&q=80',
+    caption: 'El Momento del Sí • Atardecer en la Playa'
+  },
+  {
+    url: 'https://images.unsplash.com/photo-1583939003579-730e3918a45a?auto=format&fit=crop&w=1200&q=80',
+    caption: 'Complicidad Eterna'
+  },
+  {
+    url: 'https://images.unsplash.com/photo-1520854221256-17451cc331bf?auto=format&fit=crop&w=1200&q=80',
+    caption: 'Celebrando el Amor'
+  },
+  {
+    url: 'https://images.unsplash.com/photo-1465495976277-4387d4b0b4c6?auto=format&fit=crop&w=1200&q=80',
+    caption: 'Caminando Juntos'
+  },
+  {
+    url: 'https://images.unsplash.com/photo-1519225421980-715cb0215aed?auto=format&fit=crop&w=1200&q=80',
+    caption: 'Detalles de Nuestro Gran Día'
+  },
+  {
+    url: '/images/primer_baile.png',
+    caption: 'El Primer Baile'
+  },
+  {
+    url: 'https://images.unsplash.com/photo-1515934751635-c81c6bc9a2d8?auto=format&fit=crop&w=1200&q=80',
+    caption: 'Nuestras Alianzas'
+  },
+  {
+    url: '/images/recepcion_boda.png',
+    caption: 'La Recepción Inolvidable'
+  }
+];
+---
+
+<Layout title="Boda Sofía & Alejandro | 28 de Noviembre de 2026">
+  {/* Google Fonts for Luxury Wedding Typography */}
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Great+Vibes&family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+
+  <style>
+    .font-serif-luxury {
+      font-family: 'Cormorant Garamond', Georgia, serif;
+    }
+    .font-script {
+      font-family: 'Great Vibes', cursive;
+    }
+    .font-sans-clean {
+      font-family: 'Montserrat', sans-serif;
+    }
+  </style>
+
+  {/* Background Music Player */}
+  <WeddingMusicPlayer client:load />
+
+  <main class="bg-[#faf8f5] text-stone-800 font-sans-clean selection:bg-rose-100 selection:text-rose-900 min-h-screen">
+    
+    {/* HERO SECTION */}
+    <section class="relative min-h-screen flex items-center justify-center text-center px-4 overflow-hidden py-20">
+      {/* Background Image with Gentle Zoom Animation */}
+      <div class="absolute inset-0 z-0">
+        <img 
+          src="https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=2000&q=90" 
+          alt="Sofía y Alejandro" 
+          class="w-full h-full object-cover scale-105 animate-[pulse_10s_ease-in-out_infinite]"
+        />
+        <div class="absolute inset-0 bg-gradient-to-t from-[#faf8f5] via-stone-950/60 to-stone-950/40"></div>
+      </div>
+
+      <div class="relative z-10 max-w-3xl mx-auto space-y-6 text-white pt-12">
+        {/* Monogram Seal */}
+        <div class="w-20 h-20 mx-auto rounded-full border border-amber-200/40 bg-stone-900/40 backdrop-blur-md flex items-center justify-center shadow-2xl">
+          <span class="font-script text-3xl text-amber-200">S & A</span>
+        </div>
+
+        <div class="space-y-2">
+          <p class="text-xs uppercase tracking-[0.3em] font-medium text-amber-200/90 font-sans-clean">
+            Nos Casamos
+          </p>
+          <h1 class="text-5xl sm:text-7xl font-serif-luxury tracking-wide text-stone-100 font-normal">
+            Sofía <span class="font-script text-4xl sm:text-6xl text-amber-200/90 font-normal mx-1">&</span> Alejandro
+          </h1>
+        </div>
+
+        <p class="text-sm sm:text-base font-serif-luxury italic text-stone-200 max-w-md mx-auto leading-relaxed">
+          "Con la bendición de Dios y nuestros padres, unimos nuestras vidas para siempre."
+        </p>
+
+        {/* Date & Location Pill */}
+        <div class="pt-4 flex flex-col sm:flex-row items-center justify-center gap-3 text-xs tracking-widest uppercase text-amber-100 font-medium">
+          <span class="px-4 py-2 rounded-full bg-stone-900/60 backdrop-blur-md border border-white/10">
+            📅 Sábado, 28 Noviembre 2026
+          </span>
+          <span class="px-4 py-2 rounded-full bg-stone-900/60 backdrop-blur-md border border-white/10">
+            📍 Jardín Las Palmas • CDMX
+          </span>
+        </div>
+
+        {/* Countdown */}
+        <div class="pt-6">
+          <p class="text-[11px] uppercase tracking-[0.25em] text-amber-200/80 mb-2 font-medium">Faltan únicamente</p>
+          <CountdownTimer client:load targetDate={weddingDate} />
+        </div>
+
+        {/* Digital Pass Button */}
+        <div class="pt-4">
+          <DigitalPassModal client:load />
+        </div>
+
+        {/* Scroll Indicator */}
+        <div class="pt-10 animate-bounce">
+          <span class="text-[10px] uppercase tracking-widest text-stone-300 font-light block mb-1">Desliza para explorar</span>
+          <span class="text-lg text-amber-200">↓</span>
+        </div>
+      </div>
+    </section>
+
+    {/* NUESTRA HISTORIA */}
+    <section class="py-24 px-4 max-w-4xl mx-auto text-center border-b border-stone-200/60">
+      <div class="space-y-4">
+        <span class="text-xs uppercase tracking-[0.3em] text-rose-700 font-semibold">Nuestra Historia</span>
+        <h2 class="text-3xl sm:text-5xl font-serif-luxury text-stone-900">
+          El comienzo de nuestro <span class="font-script text-4xl sm:text-6xl text-rose-800">Para Siempre</span>
+        </h2>
+        <div class="w-16 h-0.5 bg-amber-400 mx-auto rounded-full my-4"></div>
+        <p class="text-sm sm:text-base text-stone-600 font-serif-luxury italic leading-relaxed max-w-2xl mx-auto">
+          "Hay momentos en la vida que son inolvidables, pero compartirlos con las personas que más amamos los hace verdaderamente eternos. Gracias por ser parte de nuestra historia."
+        </p>
+      </div>
+
+      {/* Timeline Highlights */}
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mt-16 text-left">
+        <div class="bg-white p-8 rounded-3xl border border-stone-200/80 shadow-xs space-y-3">
+          <span class="text-xs font-serif italic text-amber-700 font-bold">2021 • El Primer Encuentro</span>
+          <h3 class="text-xl font-serif-luxury text-stone-900 font-bold">Donde todo inició</h3>
+          <p class="text-xs text-stone-600 leading-relaxed font-sans-clean">
+            Una coincidencia de miradas en una tarde de café en Coyoacán dio origen a incontables conversaciones y risas compartidas.
+          </p>
+        </div>
+
+        <div class="bg-white p-8 rounded-3xl border border-stone-200/80 shadow-xs space-y-3">
+          <span class="text-xs font-serif italic text-amber-700 font-bold">2025 • La Propuesta</span>
+          <h3 class="text-xl font-serif-luxury text-stone-900 font-bold">Bajo las estrellas</h3>
+          <p class="text-xs text-stone-600 leading-relaxed font-sans-clean">
+            En un viaje inolvidable a Valle de Bravo, entre montañas y un atardecer mágico, dijimos que SÍ a una vida juntos.
+          </p>
+        </div>
+
+        <div class="bg-white p-8 rounded-3xl border border-stone-200/80 shadow-xs space-y-3">
+          <span class="text-xs font-serif italic text-amber-700 font-bold">2026 • El Gran Día</span>
+          <h3 class="text-xl font-serif-luxury text-stone-900 font-bold">Nuestra Boda</h3>
+          <p class="text-xs text-stone-600 leading-relaxed font-sans-clean">
+            El día que hemos soñado finalmente ha llegado. No podemos imaginar celebrarlo sin tu valiosa presencia.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    {/* ITINERARIO DEL EVENTO */}
+    <section class="py-24 px-4 max-w-4xl mx-auto">
+      <div class="text-center space-y-3 mb-16">
+        <span class="text-xs uppercase tracking-[0.3em] text-rose-700 font-semibold">Itinerario</span>
+        <h2 class="text-3xl sm:text-5xl font-serif-luxury text-stone-900">
+          Programa del Gran Día
+        </h2>
+        <p class="text-xs text-stone-500 font-sans-clean">Sábado, 28 de Noviembre de 2026</p>
+      </div>
+
+      <div class="relative border-l-2 border-amber-200 ml-4 sm:ml-32 space-y-12 pl-6 sm:pl-10">
+        <div class="relative group">
+          <div class="absolute -left-[31px] sm:-left-[47px] top-1.5 w-5 h-5 rounded-full bg-rose-600 border-4 border-[#faf8f5] shadow-md"></div>
+          <div class="flex flex-col sm:flex-row sm:items-baseline justify-between gap-1">
+            <span class="text-xs font-bold uppercase tracking-wider text-rose-700 font-mono">16:30 HRS</span>
+            <h3 class="text-xl font-serif-luxury font-bold text-stone-900">Recepción de Invitados</h3>
+          </div>
+          <p class="text-xs text-stone-600 mt-1 font-sans-clean">Bienvenida con bebidas de cortesía en el atrio del jardín.</p>
+        </div>
+
+        <div class="relative group">
+          <div class="absolute -left-[31px] sm:-left-[47px] top-1.5 w-5 h-5 rounded-full bg-rose-600 border-4 border-[#faf8f5] shadow-md"></div>
+          <div class="flex flex-col sm:flex-row sm:items-baseline justify-between gap-1">
+            <span class="text-xs font-bold uppercase tracking-wider text-rose-700 font-mono">17:00 HRS</span>
+            <h3 class="text-xl font-serif-luxury font-bold text-stone-900">Ceremonia Religiosa & Votos</h3>
+          </div>
+          <p class="text-xs text-stone-600 mt-1 font-sans-clean">Bendición nupcial y momentos emotivos de entrega de anillos.</p>
+        </div>
+
+        <div class="relative group">
+          <div class="absolute -left-[31px] sm:-left-[47px] top-1.5 w-5 h-5 rounded-full bg-rose-600 border-4 border-[#faf8f5] shadow-md"></div>
+          <div class="flex flex-col sm:flex-row sm:items-baseline justify-between gap-1">
+            <span class="text-xs font-bold uppercase tracking-wider text-rose-700 font-mono">18:30 HRS</span>
+            <h3 class="text-xl font-serif-luxury font-bold text-stone-900">Cóctel de Bienvenida & Sesión</h3>
+          </div>
+          <p class="text-xs text-stone-600 mt-1 font-sans-clean">Música de violín en vivo y barra de canapés gourmet.</p>
+        </div>
+
+        <div class="relative group">
+          <div class="absolute -left-[31px] sm:-left-[47px] top-1.5 w-5 h-5 rounded-full bg-rose-600 border-4 border-[#faf8f5] shadow-md"></div>
+          <div class="flex flex-col sm:flex-row sm:items-baseline justify-between gap-1">
+            <span class="text-xs font-bold uppercase tracking-wider text-rose-700 font-mono">20:00 HRS</span>
+            <h3 class="text-xl font-serif-luxury font-bold text-stone-900">Cena de Gala & Primer Baile</h3>
+          </div>
+          <p class="text-xs text-stone-600 mt-1 font-sans-clean">Cena de 4 tiempos y brindis con la familia.</p>
+        </div>
+
+        <div class="relative group">
+          <div class="absolute -left-[31px] sm:-left-[47px] top-1.5 w-5 h-5 rounded-full bg-rose-600 border-4 border-[#faf8f5] shadow-md"></div>
+          <div class="flex flex-col sm:flex-row sm:items-baseline justify-between gap-1">
+            <span class="text-xs font-bold uppercase tracking-wider text-rose-700 font-mono">22:00 HRS</span>
+            <h3 class="text-xl font-serif-luxury font-bold text-stone-900">Fiesta, DJ & Mariachi</h3>
+          </div>
+          <p class="text-xs text-stone-600 mt-1 font-sans-clean">Apertura de la pista de baile hasta el amanecer.</p>
+        </div>
+      </div>
+    </section>
+
+    {/* UBICACIONES GPS */}
+    <section class="py-24 bg-white border-y border-stone-200/60 px-4">
+      <div class="max-w-5xl mx-auto space-y-16">
+        <div class="text-center space-y-3">
+          <span class="text-xs uppercase tracking-[0.3em] text-rose-700 font-semibold">Ubicaciones</span>
+          <h2 class="text-3xl sm:text-5xl font-serif-luxury text-stone-900">
+            ¿Cómo Llegar?
+          </h2>
+          <p class="text-xs text-stone-500 font-sans-clean">Te compartimos las ubicaciones con enlace directo a tu app de mapas preferida.</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+          {/* Ubicación 1: Ceremonia */}
+          <div class="bg-[#faf8f5] p-8 rounded-3xl border border-stone-200 space-y-6 flex flex-col justify-between">
+            <div class="space-y-4">
+              <div class="w-12 h-12 rounded-full bg-rose-100 text-rose-700 flex items-center justify-center text-xl font-serif">
+                ⛪
+              </div>
+              <div>
+                <span class="text-xs font-semibold uppercase tracking-wider text-rose-700">Ceremonia Religiosa</span>
+                <h3 class="text-2xl font-serif-luxury font-bold text-stone-900 mt-1">Parroquia de Santa Prisca</h3>
+                <p class="text-xs text-stone-600 mt-2 font-sans-clean">
+                  Av. Universidad 125, Col. Narvarte, Ciudad de México.
+                </p>
+                <p class="text-xs font-mono text-stone-500 mt-1">Hora: 17:00 HRS</p>
+              </div>
+            </div>
+
+            <div class="flex gap-3 pt-4 border-t border-stone-200/80">
+              <a
+                href="https://maps.google.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="flex-1 py-3 px-4 rounded-xl bg-white hover:bg-stone-50 text-stone-900 border border-stone-300 font-semibold text-xs text-center transition-all shadow-xs"
+              >
+                📍 Abrir Google Maps
+              </a>
+              <a
+                href="https://waze.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="flex-1 py-3 px-4 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white font-semibold text-xs text-center transition-all shadow-xs"
+              >
+                🚙 Abrir Waze
+              </a>
+            </div>
+          </div>
+
+          {/* Ubicación 2: Recepción */}
+          <div class="bg-[#faf8f5] p-8 rounded-3xl border border-stone-200 space-y-6 flex flex-col justify-between">
+            <div class="space-y-4">
+              <div class="w-12 h-12 rounded-full bg-amber-100 text-amber-800 flex items-center justify-center text-xl font-serif">
+                🏰
+              </div>
+              <div>
+                <span class="text-xs font-semibold uppercase tracking-wider text-amber-800">Recepción & Fiesta</span>
+                <h3 class="text-2xl font-serif-luxury font-bold text-stone-900 mt-1">Jardín de Eventos Las Palmas</h3>
+                <p class="text-xs text-stone-600 mt-2 font-sans-clean">
+                  Carretera Picacho Ajusco Km 4.5, Tlalpan, Ciudad de México.
+                </p>
+                <p class="text-xs font-mono text-stone-500 mt-1">Hora: 18:30 HRS</p>
+              </div>
+            </div>
+
+            <div class="flex gap-3 pt-4 border-t border-stone-200/80">
+              <a
+                href="https://maps.google.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="flex-1 py-3 px-4 rounded-xl bg-white hover:bg-stone-50 text-stone-900 border border-stone-300 font-semibold text-xs text-center transition-all shadow-xs"
+              >
+                📍 Abrir Google Maps
+              </a>
+              <a
+                href="https://waze.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="flex-1 py-3 px-4 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white font-semibold text-xs text-center transition-all shadow-xs"
+              >
+                🚙 Abrir Waze
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    {/* DRESS CODE */}
+    <section class="py-20 px-4 max-w-3xl mx-auto text-center border-b border-stone-200/60">
+      <div class="bg-white p-10 sm:p-14 rounded-3xl border border-stone-200 shadow-sm space-y-6">
+        <span class="text-2xl">👔 👗</span>
+        <h2 class="text-3xl font-serif-luxury font-bold text-stone-900">
+          Código de Vestimenta
+        </h2>
+        <div class="inline-block px-5 py-2 rounded-full bg-stone-900 text-amber-200 text-xs font-serif uppercase tracking-widest font-semibold">
+          Rigurosa Etiqueta / Rigorous Formal
+        </div>
+        <p class="text-xs sm:text-sm text-stone-600 leading-relaxed font-sans-clean max-w-lg mx-auto">
+          <strong>Caballeros:</strong> Esmoquin o Traje Oscuro.<br />
+          <strong>Damas:</strong> Vestido Largo de Noche.<br />
+          <span class="italic text-rose-700 mt-2 block font-serif">
+            Reservamos con todo cariño el color blanco e ivory exclusivamente para la novia ✨
+          </span>
+        </p>
+      </div>
+    </section>
+
+    {/* GALERÍA DE FOTOS */}
+    <section class="py-24 px-4 max-w-6xl mx-auto">
+      <div class="text-center space-y-3 mb-16">
+        <span class="text-xs uppercase tracking-[0.3em] text-rose-700 font-semibold">Momentos</span>
+        <h2 class="text-3xl sm:text-5xl font-serif-luxury text-stone-900">
+          Galería Fotográfica
+        </h2>
+        <p class="text-xs text-stone-500 font-sans-clean">Da clic sobre cualquier fotografía para ampliar la imagen.</p>
+      </div>
+
+      <PhotoGallery client:load images={galleryPhotos} />
+    </section>
+
+    {/* MESA DE REGALOS */}
+    <section class="py-24 bg-white border-y border-stone-200/60 px-4">
+      <div class="max-w-4xl mx-auto space-y-12 text-center">
+        <div class="space-y-3">
+          <span class="text-xs uppercase tracking-[0.3em] text-rose-700 font-semibold">Mesa de Regalos</span>
+          <h2 class="text-3xl sm:text-5xl font-serif-luxury text-stone-900">
+            Muestras de Cariño
+          </h2>
+          <p class="text-xs text-stone-600 max-w-xl mx-auto font-sans-clean leading-relaxed">
+            Tu presencia es nuestro mejor regalo. Si deseas hacernos un obsequio adicional, ponemos a tu disposición nuestras sugerencias:
+          </p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
+          {/* Card 1: Amazon */}
+          <div class="bg-[#faf8f5] p-6 rounded-2xl border border-stone-200 space-y-4 flex flex-col justify-between">
+            <div class="space-y-2">
+              <span class="text-2xl">📦</span>
+              <h3 class="text-lg font-serif-luxury font-bold text-stone-900">Amazon Weddings</h3>
+              <p class="text-xs text-stone-500">Mesa de regalos virtual con entrega directa a nuestro hogar.</p>
+            </div>
+            <a
+              href="https://amazon.com.mx"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="w-full py-2.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-stone-950 font-bold text-xs text-center transition-all shadow-xs"
+            >
+              Ver Mesa Amazon →
+            </a>
+          </div>
+
+          {/* Card 2: Liverpool */}
+          <div class="bg-[#faf8f5] p-6 rounded-2xl border border-stone-200 space-y-4 flex flex-col justify-between">
+            <div class="space-y-2">
+              <span class="text-2xl">🛍️</span>
+              <h3 class="text-lg font-serif-luxury font-bold text-stone-900">Liverpool</h3>
+              <p class="text-xs text-stone-500">Evento No. 5489201 • Sofía & Alejandro</p>
+            </div>
+            <a
+              href="https://liverpool.com.mx"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="w-full py-2.5 px-4 rounded-xl bg-pink-700 hover:bg-pink-800 text-white font-bold text-xs text-center transition-all shadow-xs"
+            >
+              Ver Mesa Liverpool →
+            </a>
+          </div>
+
+          {/* Card 3: Lluvia de Sobres */}
+          <div class="bg-[#faf8f5] p-6 rounded-2xl border border-stone-200 space-y-4 flex flex-col justify-between">
+            <div class="space-y-2">
+              <span class="text-2xl">✉️</span>
+              <h3 class="text-lg font-serif-luxury font-bold text-stone-900">Lluvia de Sobres</h3>
+              <p class="text-xs text-stone-500">Si prefieres apoyarnos para nuestra luna de miel, dispondremos de un buzón el día del evento.</p>
+            </div>
+            <span class="text-[11px] font-serif italic text-rose-700 font-medium">
+              ¡Infinitas gracias!
+            </span>
+          </div>
+        </div>
+
+        {/* Datos Bancarios Copy Component */}
+        <div class="max-w-xl mx-auto pt-4">
+          <CopyBankDetails
+            client:load
+            bankName="BBVA México"
+            accountHolder="Sofía Valenzuela & Alejandro Morales"
+            clabeNumber="012180015489201984"
+          />
+        </div>
+      </div>
+    </section>
+
+    {/* CONFIRMACIÓN RSVP */}
+    <section class="py-24 px-4 max-w-3xl mx-auto text-center">
+      <div class="space-y-4 mb-12">
+        <span class="text-xs uppercase tracking-[0.3em] text-rose-700 font-semibold">RSVP</span>
+        <h2 class="text-3xl sm:text-5xl font-serif-luxury text-stone-900">
+          Confirmación de Asistencia
+        </h2>
+        <p class="text-xs sm:text-sm text-stone-600 font-serif italic max-w-md mx-auto">
+          Agradecemos confirmar tu asistencia antes del 1 de Octubre de 2026 para coordinar tu pase de acceso y lugar en mesa.
+        </p>
+      </div>
+
+      <div class="bg-white p-8 sm:p-12 rounded-3xl border border-stone-200 shadow-md">
+        <RsvpForm
+          client:load
+          coupleNames="Sofía & Alejandro"
+          whatsappNumber="+525512345678"
+        />
+      </div>
+    </section>
+
+    {/* WEDDING FOOTER */}
+    <footer class="py-16 bg-stone-900 text-stone-200 text-center px-4 space-y-6">
+      <div class="w-16 h-16 mx-auto rounded-full border border-amber-200/30 bg-stone-800/80 flex items-center justify-center">
+        <span class="font-script text-2xl text-amber-200">S & A</span>
+      </div>
+      <div>
+        <h3 class="text-3xl font-serif-luxury font-bold text-amber-100">
+          Sofía & Alejandro
+        </h3>
+        <p class="text-xs font-serif italic text-stone-400 mt-1">28 • 11 • 2026</p>
+      </div>
+      <p class="text-xs text-stone-400 max-w-sm mx-auto font-serif italic">
+        "Con todo nuestro cariño, deseamos celebrar el mejor día de nuestras vidas a tu lado."
+      </p>
+
+      {/* DISCRETE AGENCY CALLOUT (ÚNICAMENTE AL FINAL ABSOLUTO DE LA DEMO) */}
+      <div class="max-w-xl mx-auto pt-16 border-t border-stone-800 text-center">
+        <div class="p-8 rounded-3xl bg-stone-950/80 border border-stone-800 space-y-4 text-stone-300">
+          <h4 class="text-lg font-serif font-bold text-amber-200">¿Te gustó esta invitación?</h4>
+          <p class="text-xs text-stone-400 leading-relaxed font-sans-clean">
+            Esta demostración pertenece a nuestro <strong>Paquete Premium</strong>.<br />
+            Desarrollamos una invitación completamente personalizada para tu evento utilizando tus fotografías, colores y estilo.
+          </p>
+          <a
+            href="/contacto?paquete=premium"
+            class="inline-block px-8 py-3.5 rounded-full bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-stone-950 font-bold text-xs uppercase tracking-wider shadow-lg hover:shadow-amber-500/25 transition-all duration-300 transform hover:-translate-y-0.5"
+          >
+            Solicitar Cotización →
+          </a>
+        </div>
+      </div>
+    </footer>
+
+  </main>
+</Layout>

@@ -25,14 +25,40 @@ export const CountdownTimer: React.FC<CountdownTimerProps> = ({ targetDate }) =>
     return { days: 0, hours: 0, minutes: 0, seconds: 0 };
   };
 
-  const [timeLeft, setTimeLeft] = useState<TimeLeft>(calculateTimeLeft());
+  const [timeLeft, setTimeLeft] = useState<TimeLeft>({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+  const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
+    setIsMounted(true);
+    setTimeLeft(calculateTimeLeft());
     const timer = setInterval(() => {
       setTimeLeft(calculateTimeLeft());
     }, 1000);
     return () => clearInterval(timer);
   }, [targetDate]);
+
+  if (!isMounted) {
+    return (
+      <div className="grid grid-cols-4 gap-3 text-center my-6 max-w-sm mx-auto">
+        {[
+          { label: 'Días', value: 0 },
+          { label: 'Horas', value: 0 },
+          { label: 'Min', value: 0 },
+          { label: 'Seg', value: 0 },
+        ].map((item, i) => (
+          <div
+            key={i}
+            className="bg-white/80 backdrop-blur-md p-3 rounded-2xl border border-purple-100 shadow-sm opacity-50"
+          >
+            <span className="block text-2xl font-extrabold text-purple-700">00</span>
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+              {item.label}
+            </span>
+          </div>
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className="grid grid-cols-4 gap-3 text-center my-6 max-w-sm mx-auto">

@@ -1,9 +1,11 @@
 import type { PortfolioItem, EventCategory } from '../types';
+import { demos } from '@/lib/constants';
 
 const MOCK_PORTFOLIO: PortfolioItem[] = [
   {
     id: 'boda-elegancia-eterna',
     slug: 'boda-elegancia-eterna',
+    demoUrl: demos.premiumWedding,
     title: 'Boda Sofía & Alejandro',
     category: 'bodas',
     categoryName: 'Boda Premium',
@@ -32,7 +34,7 @@ const MOCK_PORTFOLIO: PortfolioItem[] = [
     category: 'bautizos',
     categoryName: 'Bautizo',
     description: 'Paleta pastel botánica desarrollada a mano con cuenta regresiva e itinerario de misa y recepción.',
-    thumbnailUrl: 'https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&w=800&q=80',
+    thumbnailUrl: '/images/bautizo_mateo.png',
     tags: ['Pastel', 'Itinerario', 'Ubicación'],
     clientName: 'Familia Gómez'
   },
@@ -43,7 +45,7 @@ const MOCK_PORTFOLIO: PortfolioItem[] = [
     category: 'graduaciones',
     categoryName: 'Graduación',
     description: 'Invitación ejecutiva para 250 graduados con pases QR individuales y confirmaciones masivas.',
-    thumbnailUrl: 'https://images.unsplash.com/photo-1523050854058-8df90110c9f1?auto=format&fit=crop&w=800&q=80',
+    thumbnailUrl: '/images/gala_medicina.png',
     tags: ['Gala', 'Pases QR', 'Masivo'],
     clientName: 'Comité de Graduación'
   },

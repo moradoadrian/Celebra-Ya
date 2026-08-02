@@ -27,6 +27,7 @@ export interface PortfolioItem {
   description: string;
   thumbnailUrl: string;
   previewUrl?: string;
+  demoUrl?: string;
   isFeatured?: boolean;
   tags: string[];
   clientName?: string;
@@ -50,6 +51,7 @@ export interface PricingPackage {
   ctaText: string;
   badge?: string;
   revisions: string;
+  demoUrl?: string;
 }
 
 export interface NavItem {

@@ -1,4 +1,5 @@
 import type { PricingPackage } from '../types';
+import { demos } from '@/lib/constants';
 
 const MOCK_PRICING_PACKAGES: PricingPackage[] = [
   {
@@ -9,7 +10,7 @@ const MOCK_PRICING_PACKAGES: PricingPackage[] = [
     revisions: '1 Ronda de cambios incluida',
     description: 'Ideal para celebraciones ágiles con un diseño estilizado basado en nuestras estructuras probadas.',
     features: [
-      'Desarrollo y adaptación sobre plantilla elegida',
+      'Desarrollo y maquetación sobre diseño de catálogo elegido',
       'Personalización completa de textos, fechas y colores',
       'Música de fondo elegida por ti',
       'Cuenta regresiva interactiva en vivo',
@@ -38,7 +39,8 @@ const MOCK_PRICING_PACKAGES: PricingPackage[] = [
     ],
     isPopular: true,
     badge: 'Más Solicitado',
-    ctaText: 'Solicitar Paquete Premium'
+    ctaText: 'Solicitar Paquete Premium',
+    demoUrl: demos.premiumWedding
   },
   {
     id: 'exclusivo',

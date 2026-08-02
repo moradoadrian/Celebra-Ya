@@ -1,55 +1,84 @@
 ---
-import Card from '../ui/Card.astro';
-import Button from '../ui/Button.astro';
-import Badge from '../ui/Badge.astro';
-import { EVENT_CATEGORIES, SITE_CONFIG } from '@/lib/constants';
+import Card from "../ui/Card.astro";
+import Button from "../ui/Button.astro";
+import Badge from "../ui/Badge.astro";
+import { EVENT_CATEGORIES, SITE_CONFIG } from "@/lib/constants";
 
-const { selectedPackage = '', selectedCategory = '' } = Astro.props;
+const { selectedPackage = "", selectedCategory = "" } = Astro.props;
 ---
 
-<section id="contacto" class="py-20 lg:py-28 bg-white border-t border-slate-200/60">
+<section
+  id="contacto"
+  class="py-20 lg:py-28 bg-white border-t border-slate-200/60"
+>
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-    
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
-      
       <!-- Info Left (5 cols) -->
       <div class="lg:col-span-5 space-y-6 lg:sticky lg:top-28">
         <Badge variant="purple">Solicitud de Proyecto</Badge>
-        <h2 class="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight leading-tight">
+        <h2
+          class="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight leading-tight"
+        >
           Hablemos sobre tu <span class="text-gradient">celebración</span>
         </h2>
         <p class="text-slate-600 text-base leading-relaxed">
-          Cuéntame la visión de tu evento. Te responderé en menos de 24 horas con una cotización personalizada y sugerencias de diseño para tu invitación web.
+          Cuéntame la visión de tu evento. Te responderé en menos de 24 horas
+          con una cotización personalizada y sugerencias de diseño para tu
+          invitación web.
         </p>
 
         <div class="space-y-4 pt-2">
-          <div class="flex items-center gap-4 p-4 rounded-2xl bg-slate-50 border border-slate-200/70 shadow-sm">
-            <div class="w-12 h-12 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center text-xl font-bold shrink-0">
+          <div
+            class="flex items-center gap-4 p-4 rounded-2xl bg-slate-50 border border-slate-200/70 shadow-sm"
+          >
+            <div
+              class="w-12 h-12 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center text-xl font-bold shrink-0"
+            >
               💬
             </div>
             <div>
-              <p class="text-xs text-slate-500 font-semibold">Atención Directa 1 a 1</p>
-              <p class="text-sm font-bold text-slate-900">WhatsApp: +52 55 1234 5678</p>
+              <p class="text-xs text-slate-500 font-semibold">
+                Atención Directa 1 a 1
+              </p>
+              <p class="text-sm font-bold text-slate-900">
+                WhatsApp: +52 461 421 0058
+              </p>
             </div>
           </div>
 
-          <div class="flex items-center gap-4 p-4 rounded-2xl bg-slate-50 border border-slate-200/70 shadow-sm">
-            <div class="w-12 h-12 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center text-xl font-bold shrink-0">
+          <div
+            class="flex items-center gap-4 p-4 rounded-2xl bg-slate-50 border border-slate-200/70 shadow-sm"
+          >
+            <div
+              class="w-12 h-12 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center text-xl font-bold shrink-0"
+            >
               ✉️
             </div>
             <div>
-              <p class="text-xs text-slate-500 font-semibold">Correo de Trabajo</p>
-              <p class="text-sm font-bold text-slate-900">{SITE_CONFIG.email}</p>
+              <p class="text-xs text-slate-500 font-semibold">
+                Correo de Trabajo
+              </p>
+              <p class="text-sm font-bold text-slate-900">
+                {SITE_CONFIG.email}
+              </p>
             </div>
           </div>
 
-          <div class="flex items-center gap-4 p-4 rounded-2xl bg-slate-50 border border-slate-200/70 shadow-sm">
-            <div class="w-12 h-12 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center text-xl font-bold shrink-0">
+          <div
+            class="flex items-center gap-4 p-4 rounded-2xl bg-slate-50 border border-slate-200/70 shadow-sm"
+          >
+            <div
+              class="w-12 h-12 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center text-xl font-bold shrink-0"
+            >
               ⚡
             </div>
             <div>
-              <p class="text-xs text-slate-500 font-semibold">Garantía de Respuesta</p>
-              <p class="text-sm font-bold text-slate-900">Respuesta en menos de 24 horas</p>
+              <p class="text-xs text-slate-500 font-semibold">
+                Garantía de Respuesta
+              </p>
+              <p class="text-sm font-bold text-slate-900">
+                Respuesta en menos de 24 horas
+              </p>
             </div>
           </div>
         </div>
@@ -59,22 +88,35 @@ const { selectedPackage = '', selectedCategory = '' } = Astro.props;
       <div class="lg:col-span-7">
         <Card class="p-8 sm:p-10 shadow-xl border border-slate-100">
           <div class="mb-6">
-            <h3 class="text-2xl font-bold text-slate-900">Solicita una Cotización</h3>
-            <p class="text-slate-500 text-xs mt-1">Completa los datos de tu evento y enviaré la cotización directo a tu correo y WhatsApp.</p>
+            <h3 class="text-2xl font-bold text-slate-900">
+              Solicita una Cotización
+            </h3>
+            <p class="text-slate-500 text-xs mt-1">
+              Completa los datos de tu evento y enviaré la cotización directo a
+              tu correo y WhatsApp.
+            </p>
           </div>
 
           <!-- Alert Feedback Container -->
-          <div id="form-alert" class="hidden mb-6 p-4 rounded-2xl text-sm font-medium"></div>
+          <div
+            id="form-alert"
+            class="hidden mb-6 p-4 rounded-2xl text-sm font-medium"
+          >
+          </div>
 
           <form id="quote-form" class="space-y-6">
             <!-- Row 1: Nombre & WhatsApp -->
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
               <div>
-                <label for="name" class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Nombre completo *</label>
-                <input 
-                  type="text" 
-                  id="name" 
-                  name="name" 
+                <label
+                  for="name"
+                  class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2"
+                  >Nombre completo *</label
+                >
+                <input
+                  type="text"
+                  id="name"
+                  name="name"
                   required
                   placeholder="Ej. Sofía Martínez"
                   class="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50/50 text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:bg-white transition-all"
@@ -82,11 +124,15 @@ const { selectedPackage = '', selectedCategory = '' } = Astro.props;
               </div>
 
               <div>
-                <label for="whatsapp" class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">WhatsApp de contacto *</label>
-                <input 
-                  type="tel" 
-                  id="whatsapp" 
-                  name="whatsapp" 
+                <label
+                  for="whatsapp"
+                  class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2"
+                  >WhatsApp de contacto *</label
+                >
+                <input
+                  type="tel"
+                  id="whatsapp"
+                  name="whatsapp"
                   required
                   placeholder="+52 55 0000 0000"
                   class="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50/50 text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:bg-white transition-all"
@@ -97,11 +143,15 @@ const { selectedPackage = '', selectedCategory = '' } = Astro.props;
             <!-- Row 2: Correo & Tipo de Evento -->
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
               <div>
-                <label for="email" class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Correo electrónico *</label>
-                <input 
-                  type="email" 
-                  id="email" 
-                  name="email" 
+                <label
+                  for="email"
+                  class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2"
+                  >Correo electrónico *</label
+                >
+                <input
+                  type="email"
+                  id="email"
+                  name="email"
                   required
                   placeholder="correo@ejemplo.com"
                   class="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50/50 text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:bg-white transition-all"
@@ -109,16 +159,25 @@ const { selectedPackage = '', selectedCategory = '' } = Astro.props;
               </div>
 
               <div>
-                <label for="eventType" class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Tipo de evento *</label>
-                <select 
-                  id="eventType" 
+                <label
+                  for="eventType"
+                  class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2"
+                  >Tipo de evento *</label
+                >
+                <select
+                  id="eventType"
                   name="eventType"
                   required
                   class="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50/50 text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:bg-white transition-all"
                 >
                   {
                     EVENT_CATEGORIES.map((cat) => (
-                      <option value={cat.id} selected={cat.id === selectedCategory}>{cat.name}</option>
+                      <option
+                        value={cat.id}
+                        selected={cat.id === selectedCategory}
+                      >
+                        {cat.name}
+                      </option>
                     ))
                   }
                   <option value="otro">Otro tipo de evento</option>
@@ -129,19 +188,27 @@ const { selectedPackage = '', selectedCategory = '' } = Astro.props;
             <!-- Row 3: Fecha & Nº Estimado de Invitados -->
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
               <div>
-                <label for="eventDate" class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Fecha estimada del evento</label>
-                <input 
-                  type="date" 
-                  id="eventDate" 
-                  name="eventDate" 
+                <label
+                  for="eventDate"
+                  class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2"
+                  >Fecha estimada del evento</label
+                >
+                <input
+                  type="date"
+                  id="eventDate"
+                  name="eventDate"
                   class="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50/50 text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:bg-white transition-all"
                 />
               </div>
 
               <div>
-                <label for="estimatedGuests" class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Número estimado de invitados</label>
-                <select 
-                  id="estimatedGuests" 
+                <label
+                  for="estimatedGuests"
+                  class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2"
+                  >Número estimado de invitados</label
+                >
+                <select
+                  id="estimatedGuests"
                   name="estimatedGuests"
                   class="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50/50 text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:bg-white transition-all"
                 >
@@ -155,11 +222,15 @@ const { selectedPackage = '', selectedCategory = '' } = Astro.props;
 
             <!-- Row 4: Estilo deseado -->
             <div>
-              <label for="desiredStyle" class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Estilo visual deseado</label>
-              <input 
-                type="text" 
-                id="desiredStyle" 
-                name="desiredStyle" 
+              <label
+                for="desiredStyle"
+                class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2"
+                >Estilo visual deseado</label
+              >
+              <input
+                type="text"
+                id="desiredStyle"
+                name="desiredStyle"
                 placeholder="Ej. Minimalista dorado, Bohemio chic, Moderno con glitter, Elegante botánico..."
                 class="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50/50 text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:bg-white transition-all"
               />
@@ -167,61 +238,81 @@ const { selectedPackage = '', selectedCategory = '' } = Astro.props;
 
             <!-- Row 5: Comentarios -->
             <div>
-              <label for="comments" class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Comentarios o requerimientos especiales</label>
-              <textarea 
-                id="comments" 
-                name="comments" 
-                rows="4" 
+              <label
+                for="comments"
+                class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2"
+                >Comentarios o requerimientos especiales</label
+              >
+              <textarea
+                id="comments"
+                name="comments"
+                rows="4"
                 placeholder="Platícanos si tienes requerimientos especiales (música particular, cuenta bancaria, mesa de regalos, código de vestimenta, etc.)..."
                 class="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50/50 text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:bg-white transition-all"
               ></textarea>
             </div>
 
-            <button 
-              id="submit-btn" 
-              type="submit" 
+            <button
+              id="submit-btn"
+              type="submit"
               class="w-full py-4 px-6 rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-semibold text-base shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40 transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <span id="btn-text">Enviar Solicitud de Cotización</span>
-              <svg id="btn-spinner" class="animate-spin h-5 w-5 text-white hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              <svg
+                id="btn-spinner"
+                class="animate-spin h-5 w-5 text-white hidden"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  class="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  stroke-width="4"></circle>
+                <path
+                  class="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                ></path>
               </svg>
             </button>
           </form>
         </Card>
       </div>
-
     </div>
-
   </div>
 </section>
 
 <script>
-  const form = document.getElementById('quote-form') as HTMLFormElement | null;
-  const submitBtn = document.getElementById('submit-btn') as HTMLButtonElement | null;
-  const btnText = document.getElementById('btn-text');
-  const btnSpinner = document.getElementById('btn-spinner');
-  const alertBox = document.getElementById('form-alert');
+  const form = document.getElementById("quote-form") as HTMLFormElement | null;
+  const submitBtn = document.getElementById(
+    "submit-btn",
+  ) as HTMLButtonElement | null;
+  const btnText = document.getElementById("btn-text");
+  const btnSpinner = document.getElementById("btn-spinner");
+  const alertBox = document.getElementById("form-alert");
 
   if (form && submitBtn && btnText && btnSpinner && alertBox) {
-    form.addEventListener('submit', async (e) => {
+    form.addEventListener("submit", async (e) => {
       e.preventDefault();
 
       // UI Loading state
       submitBtn.disabled = true;
-      btnText.textContent = 'Enviando solicitud...';
-      btnSpinner.classList.remove('hidden');
-      alertBox.classList.add('hidden');
+      btnText.textContent = "Enviando solicitud...";
+      btnSpinner.classList.remove("hidden");
+      alertBox.classList.add("hidden");
 
       const formData = new FormData(form);
       const data = Object.fromEntries(formData.entries());
 
       try {
-        const response = await fetch('/api/quote', {
-          method: 'POST',
+        const response = await fetch("/api/quote", {
+          method: "POST",
           headers: {
-            'Content-Type': 'application/json'
+            "Content-Type": "application/json",
           },
           body: JSON.stringify(data),
         });
@@ -229,23 +320,29 @@ const { selectedPackage = '', selectedCategory = '' } = Astro.props;
         const result = await response.json();
 
         if (response.ok && result.success) {
-          alertBox.className = 'mb-6 p-4 rounded-2xl text-sm font-medium bg-emerald-50 text-emerald-800 border border-emerald-200';
+          alertBox.className =
+            "mb-6 p-4 rounded-2xl text-sm font-medium bg-emerald-50 text-emerald-800 border border-emerald-200";
           alertBox.textContent = result.message;
-          alertBox.classList.remove('hidden');
+          alertBox.classList.remove("hidden");
           form.reset();
         } else {
-          alertBox.className = 'mb-6 p-4 rounded-2xl text-sm font-medium bg-red-50 text-red-800 border border-red-200';
-          alertBox.textContent = result.error || 'Ocurrió un error al enviar tu solicitud. Inténtalo de nuevo o contáctanos por WhatsApp.';
-          alertBox.classList.remove('hidden');
+          alertBox.className =
+            "mb-6 p-4 rounded-2xl text-sm font-medium bg-red-50 text-red-800 border border-red-200";
+          alertBox.textContent =
+            result.error ||
+            "Ocurrió un error al enviar tu solicitud. Inténtalo de nuevo o contáctanos por WhatsApp.";
+          alertBox.classList.remove("hidden");
         }
       } catch (err) {
-        alertBox.className = 'mb-6 p-4 rounded-2xl text-sm font-medium bg-red-50 text-red-800 border border-red-200';
-        alertBox.textContent = 'Error de conexión. Por favor verifica tu red o escríbenos directamente por WhatsApp.';
-        alertBox.classList.remove('hidden');
+        alertBox.className =
+          "mb-6 p-4 rounded-2xl text-sm font-medium bg-red-50 text-red-800 border border-red-200";
+        alertBox.textContent =
+          "Error de conexión. Por favor verifica tu red o escríbenos directamente por WhatsApp.";
+        alertBox.classList.remove("hidden");
       } finally {
         submitBtn.disabled = false;
-        btnText.textContent = 'Enviar Solicitud de Cotización';
-        btnSpinner.classList.add('hidden');
+        btnText.textContent = "Enviar Solicitud de Cotización";
+        btnSpinner.classList.add("hidden");
       }
     });
   }

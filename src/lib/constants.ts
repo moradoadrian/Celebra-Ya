@@ -83,15 +83,17 @@ export const EVENT_CATEGORIES: EventCategoryInfo[] = [
     description: 'Celebra tus logros académicos con una presentación distinguida.'
   },
   {
-    id: 'baby-showers',
-    name: 'Baby Showers',
-    icon: 'gift',
-    description: 'Anuncia la bienvenida de tu bebé con invitaciones llenas de ternura.'
-  },
-  {
     id: 'empresariales',
     name: 'Empresariales',
     icon: 'briefcase',
     description: 'Sitios web de eventos corporativos, galas y conferencias de alto perfil.'
   }
 ];
+
+export const demos = {
+  premiumWedding: '/demo/boda-sofia-alejandro',
+} as const;
+
+export const DEMOS = demos;
+
+

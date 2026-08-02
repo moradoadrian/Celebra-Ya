@@ -11,7 +11,10 @@ export default defineConfig({
     webAnalytics: { enabled: true },
   }),
   vite: {
-    plugins: [tailwindcss()]
+    plugins: [tailwindcss()],
+    optimizeDeps: {
+      include: ['react', 'react/jsx-runtime', 'react/jsx-dev-runtime', 'react-dom/client']
+    }
   },
   integrations: [react()]
 });

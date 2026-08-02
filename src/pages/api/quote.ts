@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
-import { EmailService } from '@/services/email.service';
-import type { QuoteFormData } from '@/types';
+import { EmailService } from '../../services/email.service';
+import type { QuoteFormData } from '../../types';
 
 export const prerender = false;
 

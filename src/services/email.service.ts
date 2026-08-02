@@ -6,7 +6,8 @@ export class EmailService {
    * Send a quote request notification email to studio owner via Resend
    */
   static async sendQuoteNotification(data: QuoteFormData): Promise<{ success: boolean; error?: string }> {
-    const apiKey = import.meta.env.RESEND_API_KEY;
+    // Use import.meta.env first, fallback to process.env for Vercel Serverless
+    const apiKey = import.meta.env.RESEND_API_KEY || (typeof process !== 'undefined' ? process.env.RESEND_API_KEY : undefined);
 
     if (!apiKey) {
       console.warn('[EmailService] RESEND_API_KEY is not defined. Email dispatch skipped in dev mode.');

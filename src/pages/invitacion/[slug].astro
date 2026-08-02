@@ -8,6 +8,8 @@ import Card from '@/components/ui/Card.astro';
 import { CountdownTimer } from '@/components/invitation/CountdownTimer';
 import { TemplatesService } from '@/services/templates.service';
 
+export const prerender = true;
+
 export async function getStaticPaths() {
   const templates = await TemplatesService.getAllTemplates();
   return templates.map((template) => ({

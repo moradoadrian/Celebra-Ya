@@ -1,0 +1,75 @@
+---
+import { CopyBankDetails } from './CopyBankDetails';
+---
+
+<section class="py-24 bg-white border-y border-stone-200/60 px-4">
+  <div class="max-w-4xl mx-auto space-y-12 text-center">
+    <div class="space-y-3">
+      <span class="text-xs uppercase tracking-[0.3em] text-rose-700 font-semibold">Mesa de Regalos</span>
+      <h2 class="text-3xl sm:text-5xl font-serif-luxury text-stone-900">
+        Muestras de Cariño
+      </h2>
+      <p class="text-xs text-stone-600 max-w-xl mx-auto font-sans-clean leading-relaxed">
+        Tu presencia es nuestro mejor regalo. Si deseas hacernos un obsequio adicional, ponemos a tu disposición nuestras sugerencias:
+      </p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
+      {/* Card 1: Amazon */}
+      <div class="bg-[#faf8f5] p-6 rounded-2xl border border-stone-200 space-y-4 flex flex-col justify-between">
+        <div class="space-y-2">
+          <span class="text-2xl">📦</span>
+          <h3 class="text-lg font-serif-luxury font-bold text-stone-900">Amazon Weddings</h3>
+          <p class="text-xs text-stone-500">Mesa de regalos virtual con entrega directa a nuestro hogar.</p>
+        </div>
+        <a
+          href="https://amazon.com.mx"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="w-full py-2.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-stone-950 font-bold text-xs text-center transition-all shadow-xs"
+        >
+          Ver Mesa Amazon →
+        </a>
+      </div>
+
+      {/* Card 2: Liverpool */}
+      <div class="bg-[#faf8f5] p-6 rounded-2xl border border-stone-200 space-y-4 flex flex-col justify-between">
+        <div class="space-y-2">
+          <span class="text-2xl">🛍️</span>
+          <h3 class="text-lg font-serif-luxury font-bold text-stone-900">Liverpool</h3>
+          <p class="text-xs text-stone-500">Evento No. 5489201 • Sofía & Alejandro</p>
+        </div>
+        <a
+          href="https://liverpool.com.mx"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="w-full py-2.5 px-4 rounded-xl bg-pink-700 hover:bg-pink-800 text-white font-bold text-xs text-center transition-all shadow-xs"
+        >
+          Ver Mesa Liverpool →
+        </a>
+      </div>
+
+      {/* Card 3: Lluvia de Sobres */}
+      <div class="bg-[#faf8f5] p-6 rounded-2xl border border-stone-200 space-y-4 flex flex-col justify-between">
+        <div class="space-y-2">
+          <span class="text-2xl">✉️</span>
+          <h3 class="text-lg font-serif-luxury font-bold text-stone-900">Lluvia de Sobres</h3>
+          <p class="text-xs text-stone-500">Si prefieres apoyarnos para nuestra luna de miel, dispondremos de un buzón el día del evento.</p>
+        </div>
+        <span class="text-[11px] font-serif italic text-rose-700 font-medium">
+          ¡Infinitas gracias!
+        </span>
+      </div>
+    </div>
+
+    {/* Datos Bancarios Copy Component */}
+    <div class="max-w-xl mx-auto pt-4">
+      <CopyBankDetails
+        client:load
+        bankName="BBVA México"
+        accountHolder="Sofía Valenzuela & Alejandro Morales"
+        clabeNumber="012180015489201984"
+      />
+    </div>
+  </div>
+</section>

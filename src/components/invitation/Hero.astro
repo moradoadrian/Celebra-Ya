@@ -1,0 +1,77 @@
+---
+import { CountdownTimer } from './CountdownTimer';
+import { DigitalPassModal } from './DigitalPassModal';
+
+interface Props {
+  evento: any;
+  displayDate: string;
+  weddingDate: string;
+}
+
+const { evento, displayDate, weddingDate } = Astro.props;
+---
+
+<section class="relative min-h-screen flex items-center justify-center text-center px-4 overflow-hidden py-20">
+  {/* Background Image with Gentle Zoom Animation */}
+  <div class="absolute inset-0 z-0">
+    <img 
+      src="https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=2000&q=90" 
+      alt="Sofía y Alejandro" 
+      class="w-full h-full object-cover scale-105 animate-[pulse_10s_ease-in-out_infinite]"
+    />
+    <div class="absolute inset-0 bg-gradient-to-t from-[#faf8f5] via-stone-950/60 to-stone-950/40"></div>
+  </div>
+
+  <div class="relative z-10 max-w-3xl mx-auto space-y-6 text-white pt-12">
+    {/* Monogram Seal */}
+    <div class="w-20 h-20 mx-auto rounded-full border border-amber-200/40 bg-stone-900/40 backdrop-blur-md flex items-center justify-center shadow-2xl">
+      <span class="font-script text-3xl text-amber-200">S & A</span>
+    </div>
+
+    <div class="space-y-2">
+      <p class="text-xs uppercase tracking-[0.3em] font-medium text-amber-200/90 font-sans-clean">
+        Nos Casamos
+      </p>
+      <h1 class="text-5xl sm:text-7xl font-serif-luxury tracking-wide text-stone-100 font-normal">
+        {evento?.nombre?.includes(' & ') ? (
+          <>
+            {evento.nombre.split(' & ')[0]} <span class="font-script text-4xl sm:text-6xl text-amber-200/90 font-normal mx-1">&</span> {evento.nombre.split(' & ')[1]}
+          </>
+        ) : (
+          evento?.nombre || "Sofía & Alejandro"
+        )}
+      </h1>
+    </div>
+
+    <p class="text-sm sm:text-base font-serif-luxury italic text-stone-200 max-w-md mx-auto leading-relaxed">
+      "Con la bendición de Dios y nuestros padres, unimos nuestras vidas para siempre."
+    </p>
+
+    {/* Date & Location Pill */}
+    <div class="pt-4 flex flex-col sm:flex-row items-center justify-center gap-3 text-xs tracking-widest uppercase text-amber-100 font-medium">
+      <span class="px-4 py-2 rounded-full bg-stone-900/60 backdrop-blur-md border border-white/10">
+        📅 {displayDate}
+      </span>
+      <span class="px-4 py-2 rounded-full bg-stone-900/60 backdrop-blur-md border border-white/10">
+        📍 Jardín Las Palmas • CDMX
+      </span>
+    </div>
+
+    {/* Countdown */}
+    <div class="pt-6">
+      <p class="text-[11px] uppercase tracking-[0.25em] text-amber-200/80 mb-2 font-medium">Faltan únicamente</p>
+      <CountdownTimer client:load targetDate={weddingDate} />
+    </div>
+
+    {/* Digital Pass Button */}
+    <div class="pt-4">
+      <DigitalPassModal client:load />
+    </div>
+
+    {/* Scroll Indicator */}
+    <div class="pt-10 animate-bounce">
+      <span class="text-[10px] uppercase tracking-widest text-stone-300 font-light block mb-1">Desliza para explorar</span>
+      <span class="text-lg text-amber-200">↓</span>
+    </div>
+  </div>
+</section>

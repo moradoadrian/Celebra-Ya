@@ -1,0 +1,23 @@
+---
+import { RsvpForm } from './RsvpForm';
+---
+
+<section class="py-24 px-4 max-w-3xl mx-auto text-center">
+  <div class="space-y-4 mb-12">
+    <span class="text-xs uppercase tracking-[0.3em] text-rose-700 font-semibold">RSVP</span>
+    <h2 class="text-3xl sm:text-5xl font-serif-luxury text-stone-900">
+      Confirmación de Asistencia
+    </h2>
+    <p class="text-xs sm:text-sm text-stone-600 font-serif italic max-w-md mx-auto">
+      Agradecemos confirmar tu asistencia antes del 1 de Octubre de 2026 para coordinar tu pase de acceso y lugar en mesa.
+    </p>
+  </div>
+
+  <div class="bg-white p-8 sm:p-12 rounded-3xl border border-stone-200 shadow-md">
+    <RsvpForm
+      client:load
+      coupleNames="Sofía & Alejandro"
+      whatsappNumber="+525512345678"
+    />
+  </div>
+</section>

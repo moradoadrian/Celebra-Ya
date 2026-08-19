@@ -1,0 +1,156 @@
+---
+import Layout from '@/layouts/Layout.astro';
+import { WeddingMusicPlayer } from '@/components/invitation/WeddingMusicPlayer';
+import Hero from '@/components/invitation/Hero.astro';
+import Historia from '@/components/invitation/Historia.astro';
+import Programa from '@/components/invitation/Programa.astro';
+import Ubicacion from '@/components/invitation/Ubicacion.astro';
+import DressCode from '@/components/invitation/DressCode.astro';
+import Galeria from '@/components/invitation/Galeria.astro';
+import MesaRegalos from '@/components/invitation/MesaRegalos.astro';
+import Rsvp from '@/components/invitation/Rsvp.astro';
+import Footer from '@/components/invitation/Footer.astro';
+import { supabase } from '@/lib/supabase';
+
+const { slug } = Astro.params;
+
+const { data: evento, error } = await supabase
+  .from('eventos')
+  .select('*')
+  .eq('slug', slug)
+  .eq('estado', true)
+  .single();
+
+if (error || !evento) {
+  return new Response(null, {
+    status: 404,
+    statusText: 'Not Found',
+  });
+}
+
+// Helper para formatear la fecha que viene de Supabase
+const formatEventDate = (dateString: string) => {
+  if (!dateString) return 'Sábado, 28 Noviembre 2026';
+  const date = new Date(dateString + "T12:00:00Z");
+  const options: Intl.DateTimeFormatOptions = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' };
+  const formatted = new Intl.DateTimeFormat('es-MX', options).format(date);
+  return formatted.charAt(0).toUpperCase() + formatted.slice(1);
+};
+const displayDate = evento?.fecha_evento ? formatEventDate(evento.fecha_evento) : 'Sábado, 28 Noviembre 2026';
+
+// Wedding target date
+const weddingDate = '2026-11-28T17:00:00';
+
+const galleryPhotos = [
+  {
+    url: 'https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1200&q=80',
+    caption: 'Nuestra Sesión de Compromiso • Valle de Bravo'
+  },
+  {
+    url: 'https://images.unsplash.com/photo-1511285560929-80b456fea0bc?auto=format&fit=crop&w=1200&q=80',
+    caption: 'El Momento del Sí • Atardecer en la Playa'
+  },
+  {
+    url: 'https://images.unsplash.com/photo-1583939003579-730e3918a45a?auto=format&fit=crop&w=1200&q=80',
+    caption: 'Complicidad Eterna'
+  },
+  {
+    url: 'https://images.unsplash.com/photo-1520854221256-17451cc331bf?auto=format&fit=crop&w=1200&q=80',
+    caption: 'Celebrando el Amor'
+  },
+  {
+    url: 'https://images.unsplash.com/photo-1465495976277-4387d4b0b4c6?auto=format&fit=crop&w=1200&q=80',
+    caption: 'Caminando Juntos'
+  },
+  {
+    url: 'https://images.unsplash.com/photo-1519225421980-715cb0215aed?auto=format&fit=crop&w=1200&q=80',
+    caption: 'Detalles de Nuestro Gran Día'
+  },
+  {
+    url: '/images/primer_baile.png',
+    caption: 'El Primer Baile'
+  },
+  {
+    url: 'https://images.unsplash.com/photo-1515934751635-c81c6bc9a2d8?auto=format&fit=crop&w=1200&q=80',
+    caption: 'Nuestras Alianzas'
+  },
+  {
+    url: '/images/recepcion_boda.png',
+    caption: 'La Recepción Inolvidable'
+  }
+];
+---
+
+<Layout title="Boda Sofía & Alejandro | 28 de Noviembre de 2026">
+  {/* Google Fonts for Luxury Wedding Typography */}
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Great+Vibes&family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+
+  <style>
+    .font-serif-luxury {
+      font-family: 'Cormorant Garamond', Georgia, serif;
+    }
+    .font-script {
+      font-family: 'Great Vibes', cursive;
+    }
+    .font-sans-clean {
+      font-family: 'Montserrat', sans-serif;
+    }
+  </style>
+
+  {/* Background Music Player */}
+  <WeddingMusicPlayer client:load />
+
+  <main class="bg-[#faf8f5] text-stone-800 font-sans-clean selection:bg-rose-100 selection:text-rose-900 min-h-screen">
+    
+    {/* BLOQUE TEMPORAL DE DIAGNÓSTICO SUPABASE */}
+    <div class="max-w-3xl mx-auto mt-10 mb-4 p-6 bg-stone-900 text-stone-200 rounded-2xl border border-rose-500/30 relative z-50">
+      <h3 class="text-xl font-bold text-rose-400 mb-4 border-b border-rose-500/20 pb-2">Evento obtenido desde Supabase</h3>
+      {error ? (
+        <div class="bg-red-500/10 text-red-400 p-4 rounded-xl border border-red-500/20">
+          <p class="font-bold">Error al obtener el evento desde Supabase</p>
+          <pre class="mt-2 text-xs overflow-auto">{JSON.stringify(error, null, 2)}</pre>
+        </div>
+      ) : evento ? (
+        <div class="grid grid-cols-2 gap-4 text-sm font-mono">
+          <div class="text-stone-400">Nombre:</div><div class="text-white">{evento.nombre}</div>
+          <div class="text-stone-400">Tipo:</div><div class="text-white">{evento.tipo_evento}</div>
+          <div class="text-stone-400">Slug:</div><div class="text-white">{evento.slug}</div>
+          <div class="text-stone-400">Fecha:</div><div class="text-white">{evento.fecha_evento}</div>
+          <div class="text-stone-400">ID:</div><div class="text-white">{evento.id}</div>
+        </div>
+      ) : (
+        <div class="text-amber-400">No se encontró el evento.</div>
+      )}
+    </div>
+
+    {/* HERO SECTION */}
+    <Hero evento={evento} displayDate={displayDate} weddingDate={weddingDate} />
+
+    {/* NUESTRA HISTORIA */}
+    <Historia />
+
+    {/* ITINERARIO DEL EVENTO */}
+    <Programa />
+
+    {/* UBICACIONES GPS */}
+    <Ubicacion />
+
+    {/* DRESS CODE */}
+    <DressCode />
+
+    {/* GALERÍA DE FOTOS */}
+    <Galeria galleryPhotos={galleryPhotos} />
+
+    {/* MESA DE REGALOS */}
+    <MesaRegalos />
+
+    {/* CONFIRMACIÓN RSVP */}
+    <Rsvp />
+
+    {/* WEDDING FOOTER */}
+    <Footer />
+
+  </main>
+</Layout>

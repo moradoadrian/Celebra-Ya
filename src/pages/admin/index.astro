@@ -1,0 +1,336 @@
+---
+import AdminLayout from '@/components/admin/AdminLayout.astro';
+import { createSupabaseServerClient } from '@/lib/supabase-server';
+import type { Evento } from '@/types';
+
+// 1. Verificación defensiva de autenticación (el middleware ya protege /admin/*)
+const user = Astro.locals.user;
+if (!user) {
+  return Astro.redirect('/admin/login');
+}
+
+const userEmail = user.email || 'Administrador';
+
+// 2. Consulta SSR a public.eventos
+const supabase = createSupabaseServerClient({
+  headers: Astro.request.headers,
+  cookies: Astro.cookies,
+});
+
+let eventos: Evento[] = [];
+let queryError: string | null = null;
+
+try {
+  const { data, error } = await supabase
+    .from('eventos')
+    .select('id, cliente_id, nombre, slug, tipo_evento, fecha_evento, hora_evento, estado, portada_url, created_at')
+    .order('fecha_evento', { ascending: true });
+
+  if (error) {
+    console.error('Error cargando eventos en el Dashboard:', error.message);
+    queryError = error.message;
+  } else {
+    eventos = data ?? [];
+  }
+} catch (e) {
+  console.error('Excepción al conectar con Supabase en el Dashboard:', e);
+  queryError = 'Error inesperado al conectar con la base de datos.';
+}
+
+// 3. Cálculo de métricas dinámicas
+const totalEventos = eventos.length;
+const publicados = eventos.filter(
+  (e) => e.estado === true || e.estado === 'true'
+).length;
+const borradores = eventos.filter(
+  (e) => e.estado === false || e.estado === 'false'
+).length;
+
+const todayStr = new Date().toISOString().split('T')[0];
+const proximosEventos = eventos.filter(
+  (e) => Boolean(e.fecha_evento && e.fecha_evento >= todayStr)
+).length;
+
+// 4. Formateador de fechas para México
+const formatTableDate = (dateStr?: string) => {
+  if (!dateStr) return 'Sin fecha';
+  try {
+    const parts = dateStr.split('-').map(Number);
+    if (parts.length !== 3) return dateStr;
+    const [year, month, day] = parts;
+    const date = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+    return new Intl.DateTimeFormat('es-MX', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      timeZone: 'UTC',
+    }).format(date);
+  } catch {
+    return dateStr;
+  }
+};
+
+// Formateador de hora
+const formatTableTime = (timeStr?: string | null) => {
+  if (!timeStr) return null;
+  const clean = timeStr.trim();
+  if (!clean) return null;
+  const parts = clean.split(':');
+  if (parts.length >= 2) {
+    return `${parts[0]}:${parts[1]} HRS`;
+  }
+  return `${clean} HRS`;
+};
+---
+
+<AdminLayout title="Dashboard de Eventos | Celebra-Ya Admin" userEmail={userEmail}>
+  <div class="space-y-8">
+    
+    {/* ENCABEZADO */}
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div>
+        <h1 class="text-2xl sm:text-3xl font-serif-luxury font-bold text-stone-900">
+          Panel de administración
+        </h1>
+        <p class="text-xs sm:text-sm text-stone-500 mt-1">
+          Gestiona tus invitaciones digitales desde un solo lugar.
+        </p>
+      </div>
+
+      <div>
+        <a
+          href="/admin/eventos/nuevo"
+          class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-stone-900 hover:bg-stone-800 text-amber-200 font-semibold text-xs tracking-wide shadow-xs transition-all transform hover:-translate-y-0.5"
+        >
+          <span class="text-base leading-none font-bold">+</span>
+          <span>Nuevo evento</span>
+        </a>
+      </div>
+    </div>
+
+    {/* MÉTRICAS (4 CARDS) */}
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+      
+      {/* 1. Total Eventos */}
+      <div class="bg-white border border-stone-200/80 rounded-2xl p-5 shadow-xs flex items-center justify-between">
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-wider text-stone-400">Total de eventos</p>
+          <p class="text-3xl font-bold font-serif-luxury text-stone-900 mt-1">{totalEventos}</p>
+          <p class="text-[11px] text-stone-500 mt-1">Registrados en el sistema</p>
+        </div>
+        <div class="w-12 h-12 rounded-xl bg-stone-100 border border-stone-200 flex items-center justify-center text-xl shrink-0">
+          📋
+        </div>
+      </div>
+
+      {/* 2. Publicados */}
+      <div class="bg-white border border-stone-200/80 rounded-2xl p-5 shadow-xs flex items-center justify-between">
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-wider text-stone-400">Publicados</p>
+          <p class="text-3xl font-bold font-serif-luxury text-emerald-700 mt-1">{publicados}</p>
+          <p class="text-[11px] text-emerald-600 mt-1">Visibles al público</p>
+        </div>
+        <div class="w-12 h-12 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-xl shrink-0">
+          🌐
+        </div>
+      </div>
+
+      {/* 3. Borradores */}
+      <div class="bg-white border border-stone-200/80 rounded-2xl p-5 shadow-xs flex items-center justify-between">
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-wider text-stone-400">Borradores</p>
+          <p class="text-3xl font-bold font-serif-luxury text-amber-700 mt-1">{borradores}</p>
+          <p class="text-[11px] text-amber-600 mt-1">En configuración</p>
+        </div>
+        <div class="w-12 h-12 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center text-xl shrink-0">
+          📝
+        </div>
+      </div>
+
+      {/* 4. Próximos */}
+      <div class="bg-white border border-stone-200/80 rounded-2xl p-5 shadow-xs flex items-center justify-between">
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-wider text-stone-400">Próximos eventos</p>
+          <p class="text-3xl font-bold font-serif-luxury text-stone-900 mt-1">{proximosEventos}</p>
+          <p class="text-[11px] text-stone-500 mt-1">Fechas vigentes</p>
+        </div>
+        <div class="w-12 h-12 rounded-xl bg-stone-100 border border-stone-200 flex items-center justify-center text-xl shrink-0">
+          ⏳
+        </div>
+      </div>
+
+    </div>
+
+    {/* ESTADO DE ERROR */}
+    {queryError && (
+      <div class="bg-white border border-rose-200 rounded-2xl p-8 text-center max-w-lg mx-auto space-y-4 shadow-xs">
+        <div class="w-12 h-12 rounded-xl bg-rose-50 border border-rose-200 flex items-center justify-center text-rose-700 mx-auto">
+          <svg width="24" height="24" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+        </div>
+        <h3 class="text-base font-semibold text-stone-900">No pudimos cargar tus eventos</h3>
+        <p class="text-xs text-stone-500 max-w-sm mx-auto">
+          Intenta actualizar la página nuevamente.
+        </p>
+        <div class="pt-2">
+          <a
+            href="/admin"
+            class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-800 text-xs font-semibold transition-colors"
+          >
+            <span>↻ Reintentar</span>
+          </a>
+        </div>
+      </div>
+    )}
+
+    {/* ESTADO VACÍO */}
+    {!queryError && eventos.length === 0 && (
+      <div class="bg-white border border-stone-200/80 rounded-2xl p-12 text-center max-w-lg mx-auto space-y-4 shadow-xs">
+        <div class="w-16 h-16 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-700 text-2xl mx-auto">
+          💌
+        </div>
+        <h3 class="text-lg font-serif-luxury font-bold text-stone-900">Todavía no tienes eventos</h3>
+        <p class="text-xs text-stone-500 max-w-sm mx-auto leading-relaxed">
+          Crea tu primera invitación digital para comenzar.
+        </p>
+        <div class="pt-2">
+          <a
+            href="/admin/eventos/nuevo"
+            class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-stone-900 hover:bg-stone-800 text-amber-200 font-semibold text-xs tracking-wide transition-all shadow-xs"
+          >
+            <span class="text-sm font-bold">+</span>
+            <span>Crear mi primer evento</span>
+          </a>
+        </div>
+      </div>
+    )}
+
+    {/* TABLA DE EVENTOS */}
+    {!queryError && eventos.length > 0 && (
+      <div class="space-y-4">
+        <div class="flex items-center justify-between">
+          <h2 class="text-lg font-serif-luxury font-bold text-stone-900">
+            Mis eventos
+          </h2>
+          <span class="text-xs text-stone-400 font-medium">
+            {eventos.length} {eventos.length === 1 ? 'evento encontrado' : 'eventos encontrados'}
+          </span>
+        </div>
+
+        <div class="bg-white border border-stone-200/80 rounded-2xl shadow-xs overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="border-b border-stone-200/80 bg-stone-50/75 text-[11px] uppercase tracking-wider font-semibold text-stone-500">
+                  <th class="py-3.5 px-6">Evento</th>
+                  <th class="py-3.5 px-6">Tipo</th>
+                  <th class="py-3.5 px-6">Fecha</th>
+                  <th class="py-3.5 px-6">Estado</th>
+                  <th class="py-3.5 px-6 text-right">Acciones</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-stone-100 text-xs text-stone-700">
+                {eventos.map((ev) => {
+                  const isPublicado = ev.estado === true || ev.estado === 'true';
+                  const formattedDate = formatTableDate(ev.fecha_evento);
+                  const formattedTime = formatTableTime(ev.hora_evento);
+
+                  return (
+                    <tr class="hover:bg-stone-50/60 transition-colors">
+                      {/* Evento */}
+                      <td class="py-4 px-6">
+                        <div class="flex items-center gap-3">
+                          <div class="w-10 h-10 rounded-xl overflow-hidden bg-stone-100 border border-stone-200 shrink-0">
+                            {ev.portada_url ? (
+                              <img
+                                src={ev.portada_url}
+                                alt={ev.nombre}
+                                class="w-full h-full object-cover"
+                                loading="lazy"
+                              />
+                            ) : (
+                              <div class="w-full h-full flex items-center justify-center text-stone-400 text-xs">
+                                💌
+                              </div>
+                            )}
+                          </div>
+                          <div>
+                            <p class="font-semibold text-stone-900 text-sm">
+                              {ev.nombre}
+                            </p>
+                            <p class="font-mono text-[11px] text-stone-400">
+                              /{ev.slug}
+                            </p>
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* Tipo */}
+                      <td class="py-4 px-6 whitespace-nowrap">
+                        <span class="inline-block px-2.5 py-1 rounded-md text-[11px] font-medium bg-stone-100 text-stone-700 border border-stone-200/60">
+                          {ev.tipo_evento || 'Evento'}
+                        </span>
+                      </td>
+
+                      {/* Fecha */}
+                      <td class="py-4 px-6 whitespace-nowrap">
+                        <p class="font-medium text-stone-900">{formattedDate}</p>
+                        {formattedTime && (
+                          <p class="text-[11px] font-mono text-stone-400 mt-0.5">
+                            ⏰ {formattedTime}
+                          </p>
+                        )}
+                      </td>
+
+                      {/* Estado */}
+                      <td class="py-4 px-6 whitespace-nowrap">
+                        {isPublicado ? (
+                          <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                            Publicado
+                          </span>
+                        ) : (
+                          <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                            <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                            Borrador
+                          </span>
+                        )}
+                      </td>
+
+                      {/* Acciones */}
+                      <td class="py-4 px-6 whitespace-nowrap text-right space-x-2">
+                        <a
+                          href={`/demo/${ev.slug}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-stone-700 bg-stone-100 hover:bg-stone-200 hover:text-stone-900 transition-colors"
+                        >
+                          <span>Ver</span>
+                          <svg width="12" height="12" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                          </svg>
+                        </a>
+
+                        <a
+                          href={`/admin/eventos/${ev.id}`}
+                          class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-amber-900 bg-amber-100 hover:bg-amber-200 border border-amber-200 transition-colors"
+                        >
+                          <svg width="12" height="12" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                          </svg>
+                          <span>Editar</span>
+                        </a>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    )}
+
+  </div>
+</AdminLayout>

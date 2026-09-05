@@ -1,0 +1,762 @@
+---
+import AdminLayout from '@/components/admin/AdminLayout.astro';
+import { createSupabaseServerClient } from '@/lib/supabase-server';
+import type { Evento } from '@/types';
+
+// 1. Verificación defensiva de autenticación (el middleware ya protege /admin/*)
+const user = Astro.locals.user;
+if (!user) {
+  return Astro.redirect('/admin/login');
+}
+
+const userEmail = user.email || 'Administrador';
+
+// 2. Obtención y validación del parámetro ID
+const { id } = Astro.params;
+const eventId = Number(id);
+
+let evento: Evento | null = null;
+let notFound = false;
+let loadError: string | null = null;
+
+if (!id || isNaN(eventId) || eventId <= 0) {
+  notFound = true;
+  Astro.response.status = 404;
+} else {
+  // 3. Consulta SSR a public.eventos
+  const supabase = createSupabaseServerClient({
+    headers: Astro.request.headers,
+    cookies: Astro.cookies,
+  });
+
+  try {
+    const { data, error } = await supabase
+      .from('eventos')
+      .select('*')
+      .eq('id', eventId)
+      .single();
+
+    if (error || !data) {
+      notFound = true;
+      Astro.response.status = 404;
+    } else {
+      evento = data as Evento;
+    }
+  } catch (err) {
+    console.error('Error cargando evento para edición:', err);
+    loadError = 'Error de conexión con el servidor.';
+    notFound = true;
+    Astro.response.status = 500;
+  }
+}
+
+// 4. Parámetros de feedback recibidos por redirección (fallback sin JS)
+const isSaved = Astro.url.searchParams.get('saved') === 'true';
+const errorParam = Astro.url.searchParams.get('error');
+
+const isPublicado =
+  evento?.estado === true ||
+  evento?.estado === 'true' ||
+  evento?.estado === 'publicado';
+---
+
+{notFound || !evento ? (
+  <AdminLayout title="Evento no encontrado | Celebra-Ya Admin" userEmail={userEmail}>
+    <div class="max-w-xl mx-auto py-16 px-4 text-center space-y-6">
+      <div class="w-16 h-16 rounded-2xl bg-stone-200/70 border border-stone-300 text-stone-500 flex items-center justify-center text-2xl mx-auto shadow-xs">
+        🔍
+      </div>
+      <div>
+        <h1 class="text-2xl sm:text-3xl font-serif-luxury font-bold text-stone-900">
+          Evento no encontrado
+        </h1>
+        <p class="text-xs sm:text-sm text-stone-500 mt-2 max-w-md mx-auto leading-relaxed">
+          {loadError || `El evento #${id || ''} no existe o no se encuentra disponible en la base de datos.`}
+        </p>
+      </div>
+      <div class="pt-2">
+        <a
+          href="/admin"
+          class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-stone-900 hover:bg-stone-800 text-amber-200 font-semibold text-xs tracking-wide transition-all shadow-xs"
+        >
+          <span>←</span>
+          <span>Volver a eventos</span>
+        </a>
+      </div>
+    </div>
+  </AdminLayout>
+) : (
+  <AdminLayout title={`Editar: ${evento.nombre} | Celebra-Ya Admin`} userEmail={userEmail}>
+    <div class="max-w-5xl mx-auto space-y-8 pb-16">
+      
+      {/* HEADER DE PÁGINA */}
+      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-stone-200/80 pb-6">
+        <div>
+          <div class="flex items-center gap-2 mb-1.5">
+            <a
+              href="/admin"
+              class="inline-flex items-center gap-1 text-xs font-semibold text-stone-500 hover:text-stone-900 transition-colors"
+            >
+              <span>←</span>
+              <span>Volver a eventos</span>
+            </a>
+            <span class="text-stone-300">/</span>
+            <span class="text-xs font-mono text-stone-400">ID #{evento.id}</span>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-3">
+            <h1 class="text-2xl sm:text-3xl font-serif-luxury font-bold text-stone-900">
+              Editar evento
+            </h1>
+            <span class="px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-900 border border-amber-200/80 shadow-xs">
+              {evento.nombre}
+            </span>
+          </div>
+
+          <p class="text-xs sm:text-sm text-stone-500 mt-1">
+            Actualiza la información de tu invitación digital.
+          </p>
+        </div>
+
+        {/* ACCIONES SUPERIORES */}
+        <div class="flex items-center gap-3 shrink-0">
+          <a
+            id="preview-link-top"
+            href={`/demo/${evento.slug}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-white hover:bg-stone-50 text-stone-700 text-xs font-semibold border border-stone-300/80 shadow-xs transition-colors"
+          >
+            <span>Ver invitación</span>
+            <svg width="13" height="13" class="w-3.5 h-3.5 text-stone-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+            </svg>
+          </a>
+        </div>
+      </div>
+
+      {/* BANNER DE NOTIFICACIONES (FEEDBACK) */}
+      <div id="alert-container">
+        {isSaved && (
+          <div class="bg-emerald-50 border border-emerald-200 text-emerald-900 px-5 py-4 rounded-2xl flex items-center justify-between shadow-xs mb-6 animate-fade-in">
+            <div class="flex items-center gap-3">
+              <span class="w-7 h-7 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold text-sm shrink-0">✓</span>
+              <div>
+                <p class="text-xs sm:text-sm font-semibold">Evento actualizado correctamente.</p>
+                <p class="text-[11px] text-emerald-700">Los cambios ya están reflejados en la base de datos.</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {errorParam && (
+          <div class="bg-rose-50 border border-rose-200 text-rose-900 px-5 py-4 rounded-2xl flex items-center justify-between shadow-xs mb-6 animate-fade-in">
+            <div class="flex items-center gap-3">
+              <span class="w-7 h-7 rounded-full bg-rose-500 text-white flex items-center justify-center font-bold text-sm shrink-0">✕</span>
+              <div>
+                <p class="text-xs sm:text-sm font-semibold">No pudimos guardar los cambios.</p>
+                <p class="text-[11px] text-rose-700">{decodeURIComponent(errorParam)}</p>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* FORMULARIO PRINCIPAL */}
+      <form
+        id="event-form"
+        method="POST"
+        action={`/api/admin/eventos/${evento.id}/update`}
+        class="space-y-8"
+      >
+        
+        {/* SECCIÓN A: INFORMACIÓN GENERAL */}
+        <div class="bg-white border border-stone-200/80 rounded-2xl p-6 sm:p-8 shadow-xs space-y-6">
+          <div class="border-b border-stone-100 pb-4 flex items-center justify-between">
+            <div>
+              <h2 class="text-base font-semibold text-stone-900 flex items-center gap-2">
+                <span class="text-amber-600">A.</span> Información General
+              </h2>
+              <p class="text-xs text-stone-500 mt-0.5">
+                Datos identificadores principales del evento y enlace público.
+              </p>
+            </div>
+            <span class="text-[11px] font-mono text-stone-400 bg-stone-100 px-2 py-0.5 rounded-md">
+              Obligatorio
+            </span>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            {/* Nombre */}
+            <div class="md:col-span-2">
+              <label for="nombre" class="block text-xs font-semibold uppercase tracking-wider text-stone-600 mb-1.5">
+                Nombre del evento <span class="text-rose-500">*</span>
+              </label>
+              <input
+                type="text"
+                id="nombre"
+                name="nombre"
+                required
+                value={evento.nombre}
+                class="w-full px-4 py-2.5 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-stone-900 text-sm transition-all"
+                placeholder="Ej. César & Cristal o Boda Sofía & Alejandro"
+              />
+            </div>
+
+            {/* Tipo de evento */}
+            <div>
+              <label for="tipo_evento" class="block text-xs font-semibold uppercase tracking-wider text-stone-600 mb-1.5">
+                Tipo de evento <span class="text-rose-500">*</span>
+              </label>
+              <select
+                id="tipo_evento"
+                name="tipo_evento"
+                required
+                class="w-full px-4 py-2.5 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-stone-900 text-sm transition-all bg-white"
+              >
+                <option value="Boda" selected={evento.tipo_evento === 'Boda'}>Boda</option>
+                <option value="XV Años" selected={evento.tipo_evento === 'XV Años'}>XV Años</option>
+                <option value="Bautizo" selected={evento.tipo_evento === 'Bautizo'}>Bautizo</option>
+                <option value="Cumpleaños" selected={evento.tipo_evento === 'Cumpleaños'}>Cumpleaños</option>
+                <option value="Graduación" selected={evento.tipo_evento === 'Graduación'}>Graduación</option>
+                <option value="Baby Shower" selected={evento.tipo_evento === 'Baby Shower'}>Baby Shower</option>
+                <option value="Empresarial" selected={evento.tipo_evento === 'Empresarial'}>Empresarial</option>
+              </select>
+            </div>
+
+            {/* Slug */}
+            <div>
+              <label for="slug" class="block text-xs font-semibold uppercase tracking-wider text-stone-600 mb-1.5">
+                Slug (URL amigable) <span class="text-rose-500">*</span>
+              </label>
+              <div class="relative">
+                <input
+                  type="text"
+                  id="slug"
+                  name="slug"
+                  required
+                  pattern="^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                  value={evento.slug}
+                  class="w-full px-4 py-2.5 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-stone-900 font-mono text-xs transition-all"
+                  placeholder="ej. boda-cesar-adrian"
+                />
+              </div>
+              <p class="text-[11px] text-stone-400 mt-1">
+                URL actual: <code class="font-mono text-stone-600 bg-stone-100 px-1 py-0.5 rounded" id="slug-preview-text">/demo/{evento.slug}</code>
+              </p>
+            </div>
+
+            {/* Fecha */}
+            <div>
+              <label for="fecha_evento" class="block text-xs font-semibold uppercase tracking-wider text-stone-600 mb-1.5">
+                Fecha del evento <span class="text-rose-500">*</span>
+              </label>
+              <input
+                type="date"
+                id="fecha_evento"
+                name="fecha_evento"
+                required
+                value={evento.fecha_evento}
+                class="w-full px-4 py-2.5 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-stone-900 text-sm transition-all"
+              />
+            </div>
+
+            {/* Hora */}
+            <div>
+              <label for="hora_evento" class="block text-xs font-semibold uppercase tracking-wider text-stone-600 mb-1.5">
+                Hora del evento
+              </label>
+              <input
+                type="text"
+                id="hora_evento"
+                name="hora_evento"
+                value={evento.hora_evento || ''}
+                placeholder="Ej. 17:00 o 18:30"
+                class="w-full px-4 py-2.5 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-stone-900 text-sm transition-all"
+              />
+              <p class="text-[11px] text-stone-400 mt-1">Formato 24 hrs o texto informativo.</p>
+            </div>
+
+            {/* Estado del Evento (Toggle / Selector de Bloques) */}
+            <div class="md:col-span-2 pt-2">
+              <label class="block text-xs font-semibold uppercase tracking-wider text-stone-600 mb-2">
+                Estado de publicación
+              </label>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-md">
+                
+                {/* Opción Publicado */}
+                <label class="relative flex items-center gap-3 p-3.5 rounded-xl border cursor-pointer transition-all border-stone-200 hover:border-emerald-300 hover:bg-emerald-50/30 has-checked:border-emerald-500 has-checked:bg-emerald-50/50 has-checked:ring-1 has-checked:ring-emerald-500">
+                  <input
+                    type="radio"
+                    name="estado"
+                    value="true"
+                    checked={isPublicado}
+                    class="w-4 h-4 text-emerald-600 focus:ring-emerald-500 border-stone-300"
+                  />
+                  <div>
+                    <div class="flex items-center gap-1.5">
+                      <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                      <span class="text-xs font-bold text-stone-900">PUBLICADO</span>
+                    </div>
+                    <p class="text-[11px] text-stone-500 mt-0.5">Visible para invitados en su enlace público.</p>
+                  </div>
+                </label>
+
+                {/* Opción Borrador */}
+                <label class="relative flex items-center gap-3 p-3.5 rounded-xl border cursor-pointer transition-all border-stone-200 hover:border-amber-300 hover:bg-amber-50/30 has-checked:border-amber-500 has-checked:bg-amber-50/50 has-checked:ring-1 has-checked:ring-amber-500">
+                  <input
+                    type="radio"
+                    name="estado"
+                    value="false"
+                    checked={!isPublicado}
+                    class="w-4 h-4 text-amber-600 focus:ring-amber-500 border-stone-300"
+                  />
+                  <div>
+                    <div class="flex items-center gap-1.5">
+                      <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+                      <span class="text-xs font-bold text-stone-900">BORRADOR</span>
+                    </div>
+                    <p class="text-[11px] text-stone-500 mt-0.5">En edición o preparación privada.</p>
+                  </div>
+                </label>
+
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* SECCIÓN B: PORTADA Y HERO */}
+        <div class="bg-white border border-stone-200/80 rounded-2xl p-6 sm:p-8 shadow-xs space-y-6">
+          <div class="border-b border-stone-100 pb-4">
+            <h2 class="text-base font-semibold text-stone-900 flex items-center gap-2">
+              <span class="text-amber-600">B.</span> Portada y Hero
+            </h2>
+            <p class="text-xs text-stone-500 mt-0.5">
+              Imagen principal de cabecera y frases introductorias.
+            </p>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            {/* URL Portada */}
+            <div class="md:col-span-2">
+              <label for="portada_url" class="block text-xs font-semibold uppercase tracking-wider text-stone-600 mb-1.5">
+                URL de portada
+              </label>
+              <input
+                type="url"
+                id="portada_url"
+                name="portada_url"
+                value={evento.portada_url || ''}
+                class="w-full px-4 py-2.5 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-stone-900 font-mono text-xs transition-all"
+                placeholder="https://images.pexels.com/... o enlace de tu imagen"
+              />
+              <p class="text-[11px] text-stone-400 mt-1">Ingresa el enlace HTTPS directo a la fotografía principal.</p>
+
+              {/* Previsualización miniatura */}
+              <div class="mt-3 flex items-center gap-4 p-3 bg-stone-50 rounded-xl border border-stone-200/60">
+                <div class="w-20 h-14 rounded-lg bg-stone-200 overflow-hidden border border-stone-300 shrink-0 flex items-center justify-center text-xs text-stone-400">
+                  <img
+                    id="portada-preview-img"
+                    src={evento.portada_url || ''}
+                    alt="Previsualización de portada"
+                    class={`w-full h-full object-cover ${evento.portada_url ? '' : 'hidden'}`}
+                    onerror="this.classList.add('hidden'); document.getElementById('portada-preview-empty').classList.remove('hidden');"
+                    onload="this.classList.remove('hidden'); document.getElementById('portada-preview-empty').classList.add('hidden');"
+                  />
+                  <span id="portada-preview-empty" class={evento.portada_url ? 'hidden' : ''}>Sin foto</span>
+                </div>
+                <div>
+                  <p class="text-xs font-semibold text-stone-700">Previsualización de Portada</p>
+                  <p class="text-[11px] text-stone-400">Se actualizará en tiempo real si pegas una nueva URL.</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Subtítulo Hero */}
+            <div class="md:col-span-2">
+              <label for="subtitulo_hero" class="block text-xs font-semibold uppercase tracking-wider text-stone-600 mb-1.5">
+                Subtítulo del Hero
+              </label>
+              <input
+                type="text"
+                id="subtitulo_hero"
+                name="subtitulo_hero"
+                value={evento.subtitulo_hero || ''}
+                class="w-full px-4 py-2.5 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-stone-900 text-sm transition-all"
+                placeholder="Ej. Acompáñanos en este momento inolvidable de nuestras vidas"
+              />
+            </div>
+
+            {/* Iniciales Monograma */}
+            <div>
+              <label for="iniciales_monograma" class="block text-xs font-semibold uppercase tracking-wider text-stone-600 mb-1.5">
+                Iniciales del Monograma
+              </label>
+              <input
+                type="text"
+                id="iniciales_monograma"
+                name="iniciales_monograma"
+                value={evento.iniciales_monograma || ''}
+                class="w-full px-4 py-2.5 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-stone-900 text-sm font-serif-luxury transition-all"
+                placeholder="Ej. C & C o ALE & SOFI"
+              />
+            </div>
+
+            {/* Frase de Bienvenida */}
+            <div>
+              <label for="frase_bienvenida" class="block text-xs font-semibold uppercase tracking-wider text-stone-600 mb-1.5">
+                Frase de Bienvenida
+              </label>
+              <input
+                type="text"
+                id="frase_bienvenida"
+                name="frase_bienvenida"
+                value={evento.frase_bienvenida || ''}
+                class="w-full px-4 py-2.5 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-stone-900 text-sm transition-all"
+                placeholder="Ej. ¡Llegó el día, acompáñanos a celebrar!"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* SECCIÓN C: MÚSICA */}
+        <div class="bg-white border border-stone-200/80 rounded-2xl p-6 sm:p-8 shadow-xs space-y-6">
+          <div class="border-b border-stone-100 pb-4">
+            <h2 class="text-base font-semibold text-stone-900 flex items-center gap-2">
+              <span class="text-amber-600">C.</span> Música de Fondo
+            </h2>
+            <p class="text-xs text-stone-500 mt-0.5">
+              Enlace directo al archivo de audio para reproducción en la invitación.
+            </p>
+          </div>
+
+          <div>
+            <label for="musica_url" class="block text-xs font-semibold uppercase tracking-wider text-stone-600 mb-1.5">
+              URL del audio (MP3)
+            </label>
+            <input
+              type="url"
+              id="musica_url"
+              name="musica_url"
+              value={evento.musica_url || ''}
+              class="w-full px-4 py-2.5 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-stone-900 font-mono text-xs transition-all"
+              placeholder="https://ejemplo.com/audio/cancion-nupcial.mp3"
+            />
+            <p class="text-[11px] text-stone-400 mt-1">Debe ser un archivo accesible públicamente (ej. MP3 o WAV).</p>
+          </div>
+        </div>
+
+        {/* SECCIÓN D: UBICACIÓN */}
+        <div class="bg-white border border-stone-200/80 rounded-2xl p-6 sm:p-8 shadow-xs space-y-6">
+          <div class="border-b border-stone-100 pb-4">
+            <h2 class="text-base font-semibold text-stone-900 flex items-center gap-2">
+              <span class="text-amber-600">D.</span> Resumen de Ubicación
+            </h2>
+            <p class="text-xs text-stone-500 mt-0.5">
+              Texto general descriptivo de la ceremonia o recepción para los invitados.
+            </p>
+          </div>
+
+          <div>
+            <label for="ubicacion_resumen" class="block text-xs font-semibold uppercase tracking-wider text-stone-600 mb-1.5">
+              Resumen de ubicación
+            </label>
+            <textarea
+              id="ubicacion_resumen"
+              name="ubicacion_resumen"
+              rows="3"
+              class="w-full px-4 py-2.5 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-stone-900 text-sm transition-all"
+              placeholder="Ej. La ceremonia religiosa será en el Templo del Carmen ubicado en el Centro de Celaya, Gto."
+            >{evento.ubicacion_resumen || ''}</textarea>
+          </div>
+        </div>
+
+        {/* SECCIÓN E: CÓDIGO DE VESTIMENTA */}
+        <div class="bg-white border border-stone-200/80 rounded-2xl p-6 sm:p-8 shadow-xs space-y-6">
+          <div class="border-b border-stone-100 pb-4">
+            <h2 class="text-base font-semibold text-stone-900 flex items-center gap-2">
+              <span class="text-amber-600">E.</span> Código de Vestimenta
+            </h2>
+            <p class="text-xs text-stone-500 mt-0.5">
+              Pautas de vestuario para los asistentes.
+            </p>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            {/* Título */}
+            <div class="md:col-span-2">
+              <label for="codigo_vestimenta_titulo" class="block text-xs font-semibold uppercase tracking-wider text-stone-600 mb-1.5">
+                Título del código
+              </label>
+              <input
+                type="text"
+                id="codigo_vestimenta_titulo"
+                name="codigo_vestimenta_titulo"
+                value={evento.codigo_vestimenta_titulo || ''}
+                class="w-full px-4 py-2.5 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-stone-900 text-sm transition-all"
+                placeholder="Ej. Rigurosa Etiqueta / Formal / Guayabera Elegante"
+              />
+            </div>
+
+            {/* Caballeros */}
+            <div>
+              <label for="codigo_vestimenta_caballeros" class="block text-xs font-semibold uppercase tracking-wider text-stone-600 mb-1.5">
+                Caballeros
+              </label>
+              <input
+                type="text"
+                id="codigo_vestimenta_caballeros"
+                name="codigo_vestimenta_caballeros"
+                value={evento.codigo_vestimenta_caballeros || ''}
+                class="w-full px-4 py-2.5 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-stone-900 text-sm transition-all"
+                placeholder="Ej. Traje oscuro o smoking"
+              />
+            </div>
+
+            {/* Damas */}
+            <div>
+              <label for="codigo_vestimenta_damas" class="block text-xs font-semibold uppercase tracking-wider text-stone-600 mb-1.5">
+                Damas
+              </label>
+              <input
+                type="text"
+                id="codigo_vestimenta_damas"
+                name="codigo_vestimenta_damas"
+                value={evento.codigo_vestimenta_damas || ''}
+                class="w-full px-4 py-2.5 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-stone-900 text-sm transition-all"
+                placeholder="Ej. Vestido largo de noche"
+              />
+            </div>
+
+            {/* Notas */}
+            <div class="md:col-span-2">
+              <label for="codigo_vestimenta_notas" class="block text-xs font-semibold uppercase tracking-wider text-stone-600 mb-1.5">
+                Notas adicionales de vestimenta
+              </label>
+              <textarea
+                id="codigo_vestimenta_notas"
+                name="codigo_vestimenta_notas"
+                rows="2"
+                class="w-full px-4 py-2.5 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-stone-900 text-sm transition-all"
+                placeholder="Ej. Nos reservamos el color blanco exclusivamente para la novia."
+              >{evento.codigo_vestimenta_notas || ''}</textarea>
+            </div>
+          </div>
+        </div>
+
+        {/* SECCIÓN F: CONFIRMACIÓN RSVP */}
+        <div class="bg-white border border-stone-200/80 rounded-2xl p-6 sm:p-8 shadow-xs space-y-6">
+          <div class="border-b border-stone-100 pb-4">
+            <h2 class="text-base font-semibold text-stone-900 flex items-center gap-2">
+              <span class="text-amber-600">F.</span> Confirmación RSVP
+            </h2>
+            <p class="text-xs text-stone-500 mt-0.5">
+              Canal de confirmación y fecha límite para los invitados.
+            </p>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            {/* WhatsApp */}
+            <div>
+              <label for="whatsapp_confirmacion" class="block text-xs font-semibold uppercase tracking-wider text-stone-600 mb-1.5">
+                WhatsApp de confirmación
+              </label>
+              <input
+                type="text"
+                id="whatsapp_confirmacion"
+                name="whatsapp_confirmacion"
+                value={evento.whatsapp_confirmacion || ''}
+                class="w-full px-4 py-2.5 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-stone-900 text-sm transition-all"
+                placeholder="Ej. 4614210058 o texto con instrucciones"
+              />
+            </div>
+
+            {/* Fecha límite */}
+            <div>
+              <label for="fecha_limite_confirmacion" class="block text-xs font-semibold uppercase tracking-wider text-stone-600 mb-1.5">
+                Fecha límite de confirmación
+              </label>
+              <input
+                type="text"
+                id="fecha_limite_confirmacion"
+                name="fecha_limite_confirmacion"
+                value={evento.fecha_limite_confirmacion || ''}
+                class="w-full px-4 py-2.5 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-stone-900 text-sm transition-all"
+                placeholder="Ej. 2026-11-30 o Lo antes posible"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* SECCIÓN G: PIE DE INVITACIÓN */}
+        <div class="bg-white border border-stone-200/80 rounded-2xl p-6 sm:p-8 shadow-xs space-y-6">
+          <div class="border-b border-stone-100 pb-4">
+            <h2 class="text-base font-semibold text-stone-900 flex items-center gap-2">
+              <span class="text-amber-600">G.</span> Pie de Invitación
+            </h2>
+            <p class="text-xs text-stone-500 mt-0.5">
+              Mensaje final de despedida o agradecimiento al final de la página.
+            </p>
+          </div>
+
+          <div>
+            <label for="frase_despedida" class="block text-xs font-semibold uppercase tracking-wider text-stone-600 mb-1.5">
+              Frase de despedida
+            </label>
+            <textarea
+              id="frase_despedida"
+              name="frase_despedida"
+              rows="2"
+              class="w-full px-4 py-2.5 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-stone-900 text-sm transition-all"
+              placeholder="Ej. ¡Esperamos contar con tu valiosa presencia en este día tan especial!"
+            >{evento.frase_despedida || ''}</textarea>
+          </div>
+        </div>
+
+        {/* BOTONES DE ACCIÓN INFERIOR */}
+        <div class="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-stone-200/80">
+          <a
+            href="/admin"
+            class="w-full sm:w-auto inline-flex items-center justify-center px-6 py-3 rounded-xl border border-stone-300 bg-white hover:bg-stone-50 text-stone-700 text-xs font-semibold shadow-xs transition-colors"
+          >
+            Cancelar
+          </a>
+
+          <button
+            type="submit"
+            id="submit-btn"
+            class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-3 rounded-xl bg-stone-900 hover:bg-stone-800 text-amber-200 text-xs font-bold tracking-wide shadow-md hover:shadow-lg transition-all transform hover:-translate-y-0.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <svg id="save-icon" width="14" height="14" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+            </svg>
+            <span id="btn-text">Guardar cambios</span>
+          </button>
+        </div>
+
+      </form>
+
+    </div>
+
+    {/* CLIENT-SIDE ENHANCEMENT: ENVÍO ASÍNCRONO SIN PÉRDIDA DE DATOS Y PREVIEW DINÁMICO */}
+    <script is:inline>
+      document.addEventListener('DOMContentLoaded', () => {
+        const form = document.getElementById('event-form');
+        const submitBtn = document.getElementById('submit-btn');
+        const btnText = document.getElementById('btn-text');
+        const alertContainer = document.getElementById('alert-container');
+        const slugInput = document.getElementById('slug');
+        const slugPreviewText = document.getElementById('slug-preview-text');
+        const previewLinkTop = document.getElementById('preview-link-top');
+        const portadaInput = document.getElementById('portada_url');
+        const portadaImg = document.getElementById('portada-preview-img');
+        const portadaEmpty = document.getElementById('portada-preview-empty');
+
+        // Actualizar preview del slug en vivo
+        if (slugInput && slugPreviewText && previewLinkTop) {
+          slugInput.addEventListener('input', () => {
+            const cleanSlug = slugInput.value.trim().toLowerCase();
+            slugPreviewText.textContent = `/demo/${cleanSlug || 'slug'}`;
+            if (cleanSlug) {
+              previewLinkTop.setAttribute('href', `/demo/${cleanSlug}`);
+            }
+          });
+        }
+
+        // Actualizar previsualización de imagen de portada en vivo
+        if (portadaInput && portadaImg && portadaEmpty) {
+          portadaInput.addEventListener('input', () => {
+            const url = portadaInput.value.trim();
+            if (url) {
+              portadaImg.src = url;
+              portadaImg.classList.remove('hidden');
+              portadaEmpty.classList.add('hidden');
+            } else {
+              portadaImg.src = '';
+              portadaImg.classList.add('hidden');
+              portadaEmpty.classList.remove('hidden');
+            }
+          });
+        }
+
+        // Manejo de envío asíncrono vía fetch para evitar recargas completas y retener datos
+        if (form && submitBtn && btnText && alertContainer) {
+          form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            // Bloquear botón durante guardado
+            submitBtn.disabled = true;
+            const originalText = btnText.textContent;
+            btnText.textContent = 'Guardando cambios...';
+
+            const formData = new FormData(form);
+
+            try {
+              const res = await fetch(form.action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                  'Accept': 'application/json'
+                }
+              });
+
+              const result = await res.json();
+
+              if (res.ok && result.success) {
+                alertContainer.innerHTML = `
+                  <div class="bg-emerald-50 border border-emerald-200 text-emerald-900 px-5 py-4 rounded-2xl flex items-center justify-between shadow-xs mb-6 animate-fade-in">
+                    <div class="flex items-center gap-3">
+                      <span class="w-7 h-7 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold text-sm shrink-0">✓</span>
+                      <div>
+                        <p class="text-xs sm:text-sm font-semibold">${result.message || 'Evento actualizado correctamente.'}</p>
+                        <p class="text-[11px] text-emerald-700">Los cambios ya están reflejados en la base de datos.</p>
+                      </div>
+                    </div>
+                  </div>
+                `;
+                // Desplazar suavemente hacia arriba para ver confirmación
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                btnText.textContent = '✓ Guardado';
+                setTimeout(() => {
+                  btnText.textContent = originalText;
+                  submitBtn.disabled = false;
+                }, 2000);
+              } else {
+                alertContainer.innerHTML = `
+                  <div class="bg-rose-50 border border-rose-200 text-rose-900 px-5 py-4 rounded-2xl flex items-center justify-between shadow-xs mb-6 animate-fade-in">
+                    <div class="flex items-center gap-3">
+                      <span class="w-7 h-7 rounded-full bg-rose-500 text-white flex items-center justify-center font-bold text-sm shrink-0">✕</span>
+                      <div>
+                        <p class="text-xs sm:text-sm font-semibold">No pudimos guardar los cambios.</p>
+                        <p class="text-[11px] text-rose-700">${result.error || 'Verifica los campos ingresados e intenta nuevamente.'}</p>
+                      </div>
+                    </div>
+                  </div>
+                `;
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                btnText.textContent = originalText;
+                submitBtn.disabled = false;
+              }
+            } catch (networkError) {
+              console.error('Error de red al guardar:', networkError);
+              alertContainer.innerHTML = `
+                <div class="bg-rose-50 border border-rose-200 text-rose-900 px-5 py-4 rounded-2xl flex items-center justify-between shadow-xs mb-6 animate-fade-in">
+                  <div class="flex items-center gap-3">
+                    <span class="w-7 h-7 rounded-full bg-rose-500 text-white flex items-center justify-center font-bold text-sm shrink-0">✕</span>
+                    <div>
+                      <p class="text-xs sm:text-sm font-semibold">No pudimos guardar los cambios.</p>
+                      <p class="text-[11px] text-rose-700">Error de conexión con el servidor. Intenta de nuevo.</p>
+                    </div>
+                  </div>
+                </div>
+              `;
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+              btnText.textContent = originalText;
+              submitBtn.disabled = false;
+            }
+          });
+        }
+      });
+    </script>
+  </AdminLayout>
+)}

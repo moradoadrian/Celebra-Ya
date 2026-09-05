@@ -1,0 +1,141 @@
+---
+import Layout from '@/layouts/Layout.astro';
+import { createSupabaseServerClient } from '@/lib/supabase-server';
+
+let errorMessage = '';
+
+if (Astro.request.method === 'POST') {
+  try {
+    const formData = await Astro.request.formData();
+    const email = formData.get('email')?.toString().trim() || '';
+    const password = formData.get('password')?.toString() || '';
+
+    if (!email || !password) {
+      errorMessage = 'Por favor ingresa tu correo electrónico y contraseña.';
+    } else {
+      const supabase = createSupabaseServerClient({
+        headers: Astro.request.headers,
+        cookies: Astro.cookies,
+      });
+
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        errorMessage = 'Credenciales inválidas. Verifica tu correo y contraseña.';
+      } else if (data.session) {
+        return Astro.redirect('/admin');
+      }
+    }
+  } catch (e) {
+    errorMessage = 'Ocurrió un error inesperado al procesar el inicio de sesión.';
+  }
+}
+---
+
+<Layout title="Acceso Administrativo | Celebra-Ya">
+  <main class="min-h-screen bg-stone-950 flex flex-col justify-center items-center px-4 py-12 relative overflow-hidden font-sans">
+    
+    {/* Fondo decorativo sutil */}
+    <div class="absolute -top-40 -left-40 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none"></div>
+    <div class="absolute -bottom-40 -right-40 w-96 h-96 bg-rose-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+    <div class="w-full max-w-md bg-stone-900/90 border border-stone-800 rounded-3xl p-8 sm:p-10 shadow-2xl backdrop-blur-xl relative z-10">
+      
+      {/* Cabecera */}
+      <div class="text-center space-y-2 mb-8">
+        <a href="/" class="inline-block hover:opacity-90 transition-opacity">
+          <span class="font-serif text-2xl font-bold tracking-wider text-amber-200">
+            Celebra<span class="text-white">-Ya</span>
+          </span>
+        </a>
+        <h1 class="text-xl font-serif text-stone-100 font-semibold pt-2">
+          Panel de Administración
+        </h1>
+        <p class="text-xs text-stone-400">
+          Acceso restringido para gestión de invitaciones
+        </p>
+      </div>
+
+      {/* Alerta de Error */}
+      {errorMessage && (
+        <div class="mb-6 p-4 rounded-xl bg-rose-950/60 border border-rose-800/80 text-rose-200 text-xs flex items-start gap-3">
+          <svg class="w-4 h-4 text-rose-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+          <span>{errorMessage}</span>
+        </div>
+      )}
+
+      {/* Formulario Server-Side */}
+      <form method="POST" id="login-form" class="space-y-5 text-left">
+        <div>
+          <label for="email" class="block text-xs uppercase tracking-wider text-stone-300 font-semibold mb-2">
+            Correo Electrónico
+          </label>
+          <input
+            type="email"
+            id="email"
+            name="email"
+            required
+            autocomplete="email"
+            placeholder="admin@celebra-ya.com"
+            class="w-full px-4 py-3 rounded-xl bg-stone-950 border border-stone-800 text-stone-100 text-sm focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400 transition-all placeholder:text-stone-600"
+          />
+        </div>
+
+        <div>
+          <label for="password" class="block text-xs uppercase tracking-wider text-stone-300 font-semibold mb-2">
+            Contraseña
+          </label>
+          <input
+            type="password"
+            id="password"
+            name="password"
+            required
+            autocomplete="current-password"
+            placeholder="••••••••••••"
+            class="w-full px-4 py-3 rounded-xl bg-stone-950 border border-stone-800 text-stone-100 text-sm focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400 transition-all placeholder:text-stone-600"
+          />
+        </div>
+
+        <button
+          type="submit"
+          id="submit-btn"
+          class="w-full py-3.5 px-6 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-stone-950 font-bold text-sm tracking-wide shadow-lg shadow-amber-500/10 transition-all duration-200 transform hover:-translate-y-0.5 flex items-center justify-center gap-2 cursor-pointer mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <span id="btn-text">Iniciar Sesión</span>
+          <svg id="btn-spinner" class="hidden animate-spin w-4 h-4 text-stone-950" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+        </button>
+      </form>
+
+      {/* Pie de página discreto */}
+      <div class="mt-8 text-center pt-6 border-t border-stone-800/80">
+        <a href="/" class="text-xs text-stone-500 hover:text-stone-400 transition-colors">
+          ← Volver a la página principal
+        </a>
+      </div>
+
+    </div>
+  </main>
+
+  <script>
+    const form = document.getElementById('login-form') as HTMLFormElement | null;
+    const btn = document.getElementById('submit-btn') as HTMLButtonElement | null;
+    const btnText = document.getElementById('btn-text');
+    const btnSpinner = document.getElementById('btn-spinner');
+
+    if (form && btn && btnText && btnSpinner) {
+      form.addEventListener('submit', () => {
+        btn.disabled = true;
+        btnText.textContent = 'Verificando...';
+        btnSpinner.classList.remove('hidden');
+      });
+    }
+  </script>
+</Layout>

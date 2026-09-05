@@ -1,4 +1,12 @@
 ---
+import type { Evento } from '@/types';
+
+interface Props {
+  evento?: Evento;
+  displayDate?: string;
+}
+
+const { evento } = Astro.props;
 ---
 
 <footer class="py-16 bg-stone-900 text-stone-200 text-center px-4 space-y-6">
@@ -7,7 +15,7 @@
   </div>
   <div>
     <h3 class="text-3xl font-serif-luxury font-bold text-amber-100">
-      Sofía & Alejandro
+      {evento?.nombre || 'Sofía & Alejandro'}
     </h3>
     <p class="text-xs font-serif italic text-stone-400 mt-1">28 • 11 • 2026</p>
   </div>

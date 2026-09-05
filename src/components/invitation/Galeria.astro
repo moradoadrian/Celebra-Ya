@@ -1,24 +1,31 @@
 ---
 import { PhotoGallery } from './PhotoGallery';
+import type { GaleriaItem } from '@/types';
 
 interface Props {
-  galleryPhotos: Array<{
-    url: string;
-    caption: string;
-  }>;
+  galeria?: GaleriaItem[];
 }
 
-const { galleryPhotos } = Astro.props;
+const { galeria = [] } = Astro.props;
+
+const sortedGaleria = [...galeria].sort((a, b) => a.orden - b.orden);
+
+const galleryImages = sortedGaleria.map((item) => ({
+  url: item.imagen_url,
+  caption: item.descripcion || '',
+}));
 ---
 
-<section class="py-24 px-4 max-w-6xl mx-auto">
-  <div class="text-center space-y-3 mb-16">
-    <span class="text-xs uppercase tracking-[0.3em] text-rose-700 font-semibold">Momentos</span>
-    <h2 class="text-3xl sm:text-5xl font-serif-luxury text-stone-900">
-      Galería Fotográfica
-    </h2>
-    <p class="text-xs text-stone-500 font-sans-clean">Da clic sobre cualquier fotografía para ampliar la imagen.</p>
-  </div>
+{galleryImages.length > 0 && (
+  <section class="py-24 px-4 max-w-6xl mx-auto">
+    <div class="text-center space-y-3 mb-16">
+      <span class="text-xs uppercase tracking-[0.3em] text-rose-700 font-semibold">Momentos</span>
+      <h2 class="text-3xl sm:text-5xl font-serif-luxury text-stone-900">
+        Galería Fotográfica
+      </h2>
+      <p class="text-xs text-stone-500 font-sans-clean">Da clic sobre cualquier fotografía para ampliar la imagen.</p>
+    </div>
 
-  <PhotoGallery client:load images={galleryPhotos} />
-</section>
+    <PhotoGallery client:load images={galleryImages} />
+  </section>
+)}

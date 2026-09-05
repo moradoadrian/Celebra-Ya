@@ -1,33 +1,25 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
-async function testConnection() {
+async function inspectData() {
   const { supabase } = await import('./src/lib/supabase.ts');
   
-  console.log('\n--- INICIANDO PRUEBA DE CONEXIÓN A SUPABASE ---');
-  try {
+  const tables = ['ubicaciones', 'programa_evento', 'galeria', 'historias', 'mesa_regalos', 'invitados'];
+
+  for (const table of tables) {
     const { data, error } = await supabase
-      .from('eventos')
-      .select('id, nombre, slug')
-      .limit(1);
-
-    if (error) {
-      console.error('❌ Error devuelto por Supabase:', error);
-      process.exit(1);
-    }
-
-    console.log('✅ Conexión a Supabase exitosa.');
-    console.log(`📊 Total de registros obtenidos: ${data?.length || 0}`);
+      .from(table)
+      .select('*')
+      .eq('evento_id', 1);
+    
+    console.log(`\n========================================`);
+    console.log(`TABLA: ${table}`);
+    console.log(`Registros obtenidos: ${data ? data.length : 0}`);
+    console.log(`Error:`, error?.message || 'Ninguno');
     if (data && data.length > 0) {
-      console.log(`📝 Primer registro encontrado: ID=${data[0].id}, Nombre="${data[0].nombre}"`);
-    } else {
-      console.log('ℹ️ La tabla "eventos" está vacía, pero la conexión funciona.');
+      console.log(`Datos:`, JSON.stringify(data, null, 2));
     }
-    console.log('--- FIN DE LA PRUEBA ---\n');
-  } catch (err) {
-    console.error('❌ Error inesperado:', err);
-    process.exit(1);
   }
 }
 
-testConnection();
+inspectData();

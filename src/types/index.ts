@@ -69,3 +69,6 @@ export interface QuoteFormData {
   desiredStyle: string;
   comments: string;
 }
+
+export * from './database';
+

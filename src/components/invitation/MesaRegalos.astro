@@ -1,75 +1,127 @@
 ---
 import { CopyBankDetails } from './CopyBankDetails';
+import type { MesaRegalosItem } from '@/types';
+
+interface Props {
+  mesaRegalos?: MesaRegalosItem[];
+  regalos?: MesaRegalosItem[];
+}
+
+const { mesaRegalos, regalos } = Astro.props;
+
+const allItems = [...(mesaRegalos || regalos || [])].sort((a, b) => a.orden - b.orden);
+
+// Separate registry cards and bank transfer items
+const transferItems = allItems.filter(
+  (r) => r.tipo?.toLowerCase() === 'transferencia' || (r.datos && typeof r.datos === 'object' && ('clabe' in r.datos || 'clabeNumber' in r.datos))
+);
+
+const cardItems = allItems.filter(
+  (r) => r.tipo?.toLowerCase() !== 'transferencia' && !(r.datos && typeof r.datos === 'object' && ('clabe' in r.datos || 'clabeNumber' in r.datos))
+);
+
+const parseBankData = (datos: any) => {
+  let parsed = datos;
+  if (typeof datos === 'string') {
+    try {
+      parsed = JSON.parse(datos);
+    } catch {
+      parsed = {};
+    }
+  }
+  return {
+    bankName: parsed?.bankName || parsed?.banco || 'BBVA México',
+    accountHolder: parsed?.accountHolder || parsed?.titular || 'Sofía Valenzuela & Alejandro Morales',
+    clabeNumber: parsed?.clabeNumber || parsed?.clabe || parsed?.cuenta || '012180015489201984',
+  };
+};
+
+const getCardStyle = (item: MesaRegalosItem) => {
+  const nameLower = (item.nombre || '').toLowerCase();
+  const typeLower = (item.tipo || '').toLowerCase();
+
+  if (nameLower.includes('amazon') || typeLower.includes('amazon')) {
+    return {
+      icon: '📦',
+      buttonClass: 'bg-amber-500 hover:bg-amber-600 text-stone-950',
+      buttonText: 'Ver Mesa Amazon →'
+    };
+  }
+  if (nameLower.includes('liverpool') || typeLower.includes('liverpool')) {
+    return {
+      icon: '🛍️',
+      buttonClass: 'bg-pink-700 hover:bg-pink-800 text-white',
+      buttonText: 'Ver Mesa Liverpool →'
+    };
+  }
+  return {
+    icon: '🎁',
+    buttonClass: 'bg-amber-500 hover:bg-amber-600 text-stone-950',
+    buttonText: 'Ver Mesa de Regalos →'
+  };
+};
 ---
 
-<section class="py-24 bg-white border-y border-stone-200/60 px-4">
-  <div class="max-w-4xl mx-auto space-y-12 text-center">
-    <div class="space-y-3">
-      <span class="text-xs uppercase tracking-[0.3em] text-rose-700 font-semibold">Mesa de Regalos</span>
-      <h2 class="text-3xl sm:text-5xl font-serif-luxury text-stone-900">
-        Muestras de Cariño
-      </h2>
-      <p class="text-xs text-stone-600 max-w-xl mx-auto font-sans-clean leading-relaxed">
-        Tu presencia es nuestro mejor regalo. Si deseas hacernos un obsequio adicional, ponemos a tu disposición nuestras sugerencias:
-      </p>
-    </div>
-
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
-      {/* Card 1: Amazon */}
-      <div class="bg-[#faf8f5] p-6 rounded-2xl border border-stone-200 space-y-4 flex flex-col justify-between">
-        <div class="space-y-2">
-          <span class="text-2xl">📦</span>
-          <h3 class="text-lg font-serif-luxury font-bold text-stone-900">Amazon Weddings</h3>
-          <p class="text-xs text-stone-500">Mesa de regalos virtual con entrega directa a nuestro hogar.</p>
-        </div>
-        <a
-          href="https://amazon.com.mx"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="w-full py-2.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-stone-950 font-bold text-xs text-center transition-all shadow-xs"
-        >
-          Ver Mesa Amazon →
-        </a>
+{allItems.length > 0 && (
+  <section class="py-24 bg-white border-y border-stone-200/60 px-4">
+    <div class="max-w-4xl mx-auto space-y-12 text-center">
+      <div class="space-y-3">
+        <span class="text-xs uppercase tracking-[0.3em] text-rose-700 font-semibold">Mesa de Regalos</span>
+        <h2 class="text-3xl sm:text-5xl font-serif-luxury text-stone-900">
+          Muestras de Cariño
+        </h2>
+        <p class="text-xs text-stone-600 max-w-xl mx-auto font-sans-clean leading-relaxed">
+          Tu presencia es nuestro mejor regalo. Si deseas hacernos un obsequio adicional, ponemos a tu disposición nuestras sugerencias:
+        </p>
       </div>
 
-      {/* Card 2: Liverpool */}
-      <div class="bg-[#faf8f5] p-6 rounded-2xl border border-stone-200 space-y-4 flex flex-col justify-between">
-        <div class="space-y-2">
-          <span class="text-2xl">🛍️</span>
-          <h3 class="text-lg font-serif-luxury font-bold text-stone-900">Liverpool</h3>
-          <p class="text-xs text-stone-500">Evento No. 5489201 • Sofía & Alejandro</p>
-        </div>
-        <a
-          href="https://liverpool.com.mx"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="w-full py-2.5 px-4 rounded-xl bg-pink-700 hover:bg-pink-800 text-white font-bold text-xs text-center transition-all shadow-xs"
-        >
-          Ver Mesa Liverpool →
-        </a>
-      </div>
+      {cardItems.length > 0 && (
+        <div class={`grid grid-cols-1 ${cardItems.length >= 3 ? 'md:grid-cols-3' : cardItems.length === 2 ? 'md:grid-cols-2 max-w-2xl mx-auto' : 'max-w-md mx-auto'} gap-6 text-left`}>
+          {cardItems.map((item) => {
+            const style = getCardStyle(item);
+            const isEnvelope = !item.url || item.tipo?.toLowerCase() === 'efectivo' || item.tipo?.toLowerCase() === 'sobres';
 
-      {/* Card 3: Lluvia de Sobres */}
-      <div class="bg-[#faf8f5] p-6 rounded-2xl border border-stone-200 space-y-4 flex flex-col justify-between">
-        <div class="space-y-2">
-          <span class="text-2xl">✉️</span>
-          <h3 class="text-lg font-serif-luxury font-bold text-stone-900">Lluvia de Sobres</h3>
-          <p class="text-xs text-stone-500">Si prefieres apoyarnos para nuestra luna de miel, dispondremos de un buzón el día del evento.</p>
-        </div>
-        <span class="text-[11px] font-serif italic text-rose-700 font-medium">
-          ¡Infinitas gracias!
-        </span>
-      </div>
-    </div>
+            return (
+              <div class="bg-[#faf8f5] p-6 rounded-2xl border border-stone-200 space-y-4 flex flex-col justify-between">
+                <div class="space-y-2">
+                  <span class="text-2xl">{isEnvelope ? '✉️' : style.icon}</span>
+                  <h3 class="text-lg font-serif-luxury font-bold text-stone-900">{item.nombre}</h3>
+                  <p class="text-xs text-stone-500">{item.descripcion}</p>
+                </div>
 
-    {/* Datos Bancarios Copy Component */}
-    <div class="max-w-xl mx-auto pt-4">
-      <CopyBankDetails
-        client:load
-        bankName="BBVA México"
-        accountHolder="Sofía Valenzuela & Alejandro Morales"
-        clabeNumber="012180015489201984"
-      />
+                {item.url ? (
+                  <a
+                    href={item.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class={`w-full py-2.5 px-4 rounded-xl font-bold text-xs text-center transition-all shadow-xs ${style.buttonClass}`}
+                  >
+                    {style.buttonText}
+                  </a>
+                ) : (
+                  <span class="text-[11px] font-serif italic text-rose-700 font-medium">
+                    ¡Infinitas gracias!
+                  </span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {transferItems.map((transfer) => {
+        const bankData = parseBankData(transfer.datos);
+        return (
+          <div class="max-w-xl mx-auto pt-4">
+            <CopyBankDetails
+              client:load
+              bankName={bankData.bankName}
+              accountHolder={bankData.accountHolder}
+              clabeNumber={bankData.clabeNumber}
+            />
+          </div>
+        );
+      })}
     </div>
-  </div>
-</section>
+  </section>
+)}

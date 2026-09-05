@@ -1,5 +1,16 @@
 ---
 import { RsvpForm } from './RsvpForm';
+import type { Evento } from '@/types';
+
+interface Props {
+  evento?: Evento;
+}
+
+const { evento } = Astro.props;
+
+const coupleNames = evento?.nombre || "Sofía & Alejandro";
+const whatsappNumber = evento?.whatsapp_confirmacion?.trim() || "+525512345678";
+const fechaLimite = evento?.fecha_limite_confirmacion?.trim() || "1 de Octubre de 2026";
 ---
 
 <section class="py-24 px-4 max-w-3xl mx-auto text-center">
@@ -9,15 +20,15 @@ import { RsvpForm } from './RsvpForm';
       Confirmación de Asistencia
     </h2>
     <p class="text-xs sm:text-sm text-stone-600 font-serif italic max-w-md mx-auto">
-      Agradecemos confirmar tu asistencia antes del 1 de Octubre de 2026 para coordinar tu pase de acceso y lugar en mesa.
+      Agradecemos confirmar tu asistencia antes del {fechaLimite} para coordinar tu pase de acceso y lugar en mesa.
     </p>
   </div>
 
   <div class="bg-white p-8 sm:p-12 rounded-3xl border border-stone-200 shadow-md">
     <RsvpForm
       client:load
-      coupleNames="Sofía & Alejandro"
-      whatsappNumber="+525512345678"
+      coupleNames={coupleNames}
+      whatsappNumber={whatsappNumber}
     />
   </div>
 </section>

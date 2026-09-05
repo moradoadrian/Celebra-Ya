@@ -1,4 +1,16 @@
 ---
+import type { Evento } from '@/types';
+
+interface Props {
+  evento?: Evento;
+}
+
+const { evento } = Astro.props;
+
+const titulo = evento?.codigo_vestimenta_titulo?.trim() || "Rigurosa Etiqueta / Rigorous Formal";
+const caballeros = evento?.codigo_vestimenta_caballeros?.trim() || "Esmoquin o Traje Oscuro.";
+const damas = evento?.codigo_vestimenta_damas?.trim() || "Vestido Largo de Noche.";
+const notas = evento?.codigo_vestimenta_notas?.trim() || "Reservamos con todo cariño el color blanco e ivory exclusivamente para la novia ✨";
 ---
 
 <section class="py-20 px-4 max-w-3xl mx-auto text-center border-b border-stone-200/60">
@@ -8,14 +20,16 @@
       Código de Vestimenta
     </h2>
     <div class="inline-block px-5 py-2 rounded-full bg-stone-900 text-amber-200 text-xs font-serif uppercase tracking-widest font-semibold">
-      Rigurosa Etiqueta / Rigorous Formal
+      {titulo}
     </div>
     <p class="text-xs sm:text-sm text-stone-600 leading-relaxed font-sans-clean max-w-lg mx-auto">
-      <strong>Caballeros:</strong> Esmoquin o Traje Oscuro.<br />
-      <strong>Damas:</strong> Vestido Largo de Noche.<br />
-      <span class="italic text-rose-700 mt-2 block font-serif">
-        Reservamos con todo cariño el color blanco e ivory exclusivamente para la novia ✨
-      </span>
+      <strong>Caballeros:</strong> {caballeros}<br />
+      <strong>Damas:</strong> {damas}<br />
+      {notas && (
+        <span class="italic text-rose-700 mt-2 block font-serif">
+          {notas}
+        </span>
+      )}
     </p>
   </div>
 </section>

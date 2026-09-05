@@ -8,6 +8,20 @@ export interface Evento {
   cliente_id?: number;
   created_at?: string;
   updated_at?: string;
+  hora_evento?: string | null;
+  subtitulo_hero?: string | null;
+  iniciales_monograma?: string | null;
+  frase_bienvenida?: string | null;
+  portada_url?: string | null;
+  musica_url?: string | null;
+  ubicacion_resumen?: string | null;
+  codigo_vestimenta_titulo?: string | null;
+  codigo_vestimenta_caballeros?: string | null;
+  codigo_vestimenta_damas?: string | null;
+  codigo_vestimenta_notas?: string | null;
+  whatsapp_confirmacion?: string | null;
+  fecha_limite_confirmacion?: string | null;
+  frase_despedida?: string | null;
 }
 
 export interface UbicacionItem {

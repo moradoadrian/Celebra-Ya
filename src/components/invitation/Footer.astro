@@ -7,20 +7,31 @@ interface Props {
 }
 
 const { evento } = Astro.props;
+
+const formatNumericDate = (dateStr?: string) => {
+  if (!dateStr) return '28 • 11 • 2026';
+  const parts = dateStr.split('-');
+  if (parts.length === 3) {
+    const [year, month, day] = parts;
+    return `${day} • ${month} • ${year}`;
+  }
+  return '28 • 11 • 2026';
+};
+const numericDate = formatNumericDate(evento?.fecha_evento);
 ---
 
 <footer class="py-16 bg-stone-900 text-stone-200 text-center px-4 space-y-6">
   <div class="w-16 h-16 mx-auto rounded-full border border-amber-200/30 bg-stone-800/80 flex items-center justify-center">
-    <span class="font-script text-2xl text-amber-200">S & A</span>
+    <span class="font-script text-2xl text-amber-200">{evento?.iniciales_monograma?.trim() || 'S & A'}</span>
   </div>
   <div>
     <h3 class="text-3xl font-serif-luxury font-bold text-amber-100">
       {evento?.nombre || 'Sofía & Alejandro'}
     </h3>
-    <p class="text-xs font-serif italic text-stone-400 mt-1">28 • 11 • 2026</p>
+    <p class="text-xs font-serif italic text-stone-400 mt-1">{numericDate}</p>
   </div>
   <p class="text-xs text-stone-400 max-w-sm mx-auto font-serif italic">
-    "Con todo nuestro cariño, deseamos celebrar el mejor día de nuestras vidas a tu lado."
+    {evento?.frase_despedida?.trim() ? `"${evento.frase_despedida.trim().replace(/^["']|["']$/g, '')}"` : '"Con todo nuestro cariño, deseamos celebrar el mejor día de nuestras vidas a tu lado."'}
   </p>
 
   {/* DISCRETE AGENCY CALLOUT (ÚNICAMENTE AL FINAL ABSOLUTO DE LA DEMO) */}

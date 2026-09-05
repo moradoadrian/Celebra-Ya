@@ -1,13 +1,17 @@
 import React, { useState, useRef, useEffect } from 'react';
 
-export const WeddingMusicPlayer: React.FC = () => {
+interface WeddingMusicPlayerProps {
+  musicaUrl?: string | null;
+}
+
+export const WeddingMusicPlayer: React.FC<WeddingMusicPlayerProps> = ({ musicaUrl }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const intervalRef = useRef<any>(null);
 
-  // Local MP3 track for Wedding Demo
-  const mp3Url = "/music/boda.mp3";
+  // MP3 track from Supabase with safe fallback
+  const mp3Url = (musicaUrl && musicaUrl.trim() !== '') ? musicaUrl.trim() : "/music/boda.mp3";
 
   const startSynthPiano = () => {
     try {

@@ -16,8 +16,8 @@ const { evento, displayDate, weddingDate } = Astro.props;
   {/* Background Image with Gentle Zoom Animation */}
   <div class="absolute inset-0 z-0">
     <img 
-      src="https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=2000&q=90" 
-      alt="Sofía y Alejandro" 
+      src={evento?.portada_url?.trim() || "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=2000&q=90"} 
+      alt={evento?.nombre || "Sofía y Alejandro"} 
       class="w-full h-full object-cover scale-105 animate-[pulse_10s_ease-in-out_infinite]"
     />
     <div class="absolute inset-0 bg-gradient-to-t from-[#faf8f5] via-stone-950/60 to-stone-950/40"></div>
@@ -26,12 +26,12 @@ const { evento, displayDate, weddingDate } = Astro.props;
   <div class="relative z-10 max-w-3xl mx-auto space-y-6 text-white pt-12">
     {/* Monogram Seal */}
     <div class="w-20 h-20 mx-auto rounded-full border border-amber-200/40 bg-stone-900/40 backdrop-blur-md flex items-center justify-center shadow-2xl">
-      <span class="font-script text-3xl text-amber-200">S & A</span>
+      <span class="font-script text-3xl text-amber-200">{evento?.iniciales_monograma?.trim() || "S & A"}</span>
     </div>
 
     <div class="space-y-2">
       <p class="text-xs uppercase tracking-[0.3em] font-medium text-amber-200/90 font-sans-clean">
-        Nos Casamos
+        {evento?.subtitulo_hero?.trim() || "Nos Casamos"}
       </p>
       <h1 class="text-5xl sm:text-7xl font-serif-luxury tracking-wide text-stone-100 font-normal">
         {evento?.nombre?.includes(' & ') ? (
@@ -45,7 +45,7 @@ const { evento, displayDate, weddingDate } = Astro.props;
     </div>
 
     <p class="text-sm sm:text-base font-serif-luxury italic text-stone-200 max-w-md mx-auto leading-relaxed">
-      "Con la bendición de Dios y nuestros padres, unimos nuestras vidas para siempre."
+      {evento?.frase_bienvenida?.trim() ? `"${evento.frase_bienvenida.trim().replace(/^["']|["']$/g, '')}"` : '"Con la bendición de Dios y nuestros padres, unimos nuestras vidas para siempre."'}
     </p>
 
     {/* Date & Location Pill */}
@@ -54,7 +54,7 @@ const { evento, displayDate, weddingDate } = Astro.props;
         📅 {displayDate}
       </span>
       <span class="px-4 py-2 rounded-full bg-stone-900/60 backdrop-blur-md border border-white/10">
-        📍 Jardín Las Palmas • CDMX
+        📍 {evento?.ubicacion_resumen?.trim() || "Jardín Las Palmas • CDMX"}
       </span>
     </div>
 

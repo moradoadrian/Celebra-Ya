@@ -30,6 +30,9 @@ let historias: HistoriaItem[] = [];
 let galeria: GaleriaItem[] = [];
 let mesaRegalos: MesaRegalosItem[] = [];
 
+let totalInvitadosCount = 0;
+let totalPasesCount = 0;
+
 if (!id || isNaN(eventId) || eventId <= 0) {
   notFound = true;
   Astro.response.status = 404;
@@ -53,19 +56,21 @@ if (!id || isNaN(eventId) || eventId <= 0) {
     } else {
       evento = data as Evento;
 
-      // Cargar tablas relacionadas del evento en paralelo
+      // Cargar tablas relacionadas del evento y conteo de invitados en paralelo
       const [
         { data: resUbicaciones },
         { data: resPrograma },
         { data: resHistorias },
         { data: resGaleria },
         { data: resMesaRegalos },
+        { data: resInvitados },
       ] = await Promise.all([
         supabase.from('ubicaciones').select('*').eq('evento_id', eventId).order('id'),
         supabase.from('programa_evento').select('*').eq('evento_id', eventId).order('orden'),
         supabase.from('historias').select('*').eq('evento_id', eventId).order('orden'),
         supabase.from('galeria').select('*').eq('evento_id', eventId).order('orden'),
         supabase.from('mesa_regalos').select('*').eq('evento_id', eventId).order('orden'),
+        supabase.from('invitados').select('id, numero_pases').eq('evento_id', eventId),
       ]);
 
       ubicaciones = (resUbicaciones as UbicacionItem[]) ?? [];
@@ -73,6 +78,11 @@ if (!id || isNaN(eventId) || eventId <= 0) {
       historias = (resHistorias as HistoriaItem[]) ?? [];
       galeria = (resGaleria as GaleriaItem[]) ?? [];
       mesaRegalos = (resMesaRegalos as MesaRegalosItem[]) ?? [];
+
+      if (resInvitados && Array.isArray(resInvitados)) {
+        totalInvitadosCount = resInvitados.length;
+        totalPasesCount = resInvitados.reduce((sum, item: any) => sum + (Number(item.numero_pases) || 1), 0);
+      }
     }
   } catch (err) {
     console.error('Error cargando evento para edición:', err);
@@ -152,6 +162,13 @@ const isPublicado =
 
         {/* ACCIONES SUPERIORES */}
         <div class="flex items-center gap-3 shrink-0">
+          <a
+            href={`/admin/invitados?evento_id=${evento.id}`}
+            class="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-stone-950 text-xs font-bold shadow-xs transition-colors"
+          >
+            <span>👥</span>
+            <span>Invitados ({totalInvitadosCount})</span>
+          </a>
           <a
             id="preview-link-top"
             href={`/demo/${evento.slug}`}
@@ -667,6 +684,34 @@ const isPublicado =
         </div>
 
       </form>
+
+      {/* SECCIÓN: ACCESO DIRECTO AL MÓDULO DE INVITADOS Y FAMILIAS */}
+      <div class="bg-gradient-to-r from-amber-50 via-orange-50/40 to-stone-50 border border-amber-200/80 rounded-2xl p-6 sm:p-7 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-5">
+        <div class="space-y-1.5">
+          <div class="flex items-center gap-2.5 flex-wrap">
+            <span class="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-900 border border-amber-300/60 flex items-center justify-center text-base">
+              👥
+            </span>
+            <h3 class="text-base font-bold text-stone-900">
+              Gestión de Invitados y Familias
+            </h3>
+            <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-200/70 text-amber-950 border border-amber-300">
+              {totalInvitadosCount} {totalInvitadosCount === 1 ? 'registro' : 'registros'} ({totalPasesCount} pases)
+            </span>
+          </div>
+          <p class="text-xs text-stone-600 max-w-xl leading-relaxed">
+            Administra los invitados y grupos familiares para este evento, códigos de pase, cantidad de personas asignadas y estado de confirmación RSVP.
+          </p>
+        </div>
+
+        <a
+          href={`/admin/invitados?evento_id=${evento.id}`}
+          class="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-stone-900 hover:bg-stone-800 text-amber-200 text-xs font-bold shadow-md hover:shadow-lg transition-all shrink-0 cursor-pointer"
+        >
+          <span>Administrar Invitados</span>
+          <span class="text-amber-400">→</span>
+        </a>
+      </div>
 
       {/* SECCIÓN: CONTENIDO DE LA INVITACIÓN (TABLAS RELACIONADAS) */}
       <div class="pt-8 border-t-2 border-stone-200/90 space-y-8">

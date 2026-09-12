@@ -1,0 +1,818 @@
+---
+import AdminLayout from '@/components/admin/AdminLayout.astro';
+import { createSupabaseServerClient } from '@/lib/supabase-server';
+import type { Evento, InvitadoItem } from '@/types';
+
+// 1. Verificación defensiva de autenticación SSR
+const user = Astro.locals.user;
+if (!user) {
+  return Astro.redirect('/admin/login');
+}
+
+const userEmail = user.email || 'Administrador';
+
+// 2. Cliente SSR
+const supabase = createSupabaseServerClient({
+  headers: Astro.request.headers,
+  cookies: Astro.cookies,
+});
+
+// 3. Parámetros de URL para filtros y contexto de evento
+const eventoIdParam = Astro.url.searchParams.get('evento_id');
+const searchParam = Astro.url.searchParams.get('search')?.trim() || '';
+const estadoParam = Astro.url.searchParams.get('estado') || '';
+
+const eventId = eventoIdParam ? Number(eventoIdParam) : null;
+const isValidEventContext = Boolean(eventId && !isNaN(eventId) && eventId > 0);
+
+// 4. Consultar lista de eventos para el selector de filtro
+let eventosList: Pick<Evento, 'id' | 'nombre' | 'slug'>[] = [];
+try {
+  const { data: evData } = await supabase
+    .from('eventos')
+    .select('id, nombre, slug')
+    .order('fecha_evento', { ascending: true });
+  eventosList = evData ?? [];
+} catch (e) {
+  console.error('[Admin Invitados] Error cargando lista de eventos:', e);
+}
+
+// 5. Cargar evento actual si se especificó evento_id
+let currentEvento: Evento | null = null;
+if (isValidEventContext) {
+  try {
+    const { data: ev } = await supabase
+      .from('eventos')
+      .select('*')
+      .eq('id', eventId)
+      .single();
+    currentEvento = ev as Evento;
+  } catch (e) {
+    console.error('[Admin Invitados] Error cargando evento actual:', e);
+  }
+}
+
+// 6. Consultar invitados desde public.invitados con filtros
+let invitados: InvitadoItem[] = [];
+let loadError: string | null = null;
+
+try {
+  let query = supabase
+    .from('invitados')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (isValidEventContext) {
+    query = query.eq('evento_id', eventId);
+  }
+
+  if (searchParam) {
+    // Búsqueda en columnas existentes: nombre, telefono, codigo
+    query = query.or(`nombre.ilike.%${searchParam}%,telefono.ilike.%${searchParam}%,codigo.ilike.%${searchParam}%`);
+  }
+
+  if (estadoParam === 'confirmados') {
+    query = query.eq('confirmado', true);
+  } else if (estadoParam === 'no_asistiran') {
+    query = query.eq('confirmado', false);
+  } else if (estadoParam === 'pendientes') {
+    query = query.is('confirmado', null);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.error('[Admin Invitados] Error al cargar invitados:', error.message, error.code);
+    loadError = 'No pudimos cargar los invitados. Intenta actualizar la página nuevamente.';
+  } else {
+    invitados = (data as InvitadoItem[]) ?? [];
+  }
+} catch (err) {
+  console.error('[Admin Invitados Exception]', err);
+  loadError = 'No pudimos cargar los invitados. Intenta actualizar la página nuevamente.';
+}
+
+// 7. Cálculo de métricas dinámicas (usando columnas reales: confirmado y numero_pases)
+const totalRegistros = invitados.length;
+const totalPases = invitados.reduce((acc, inv) => acc + (inv.numero_pases || 1), 0);
+
+const confirmadosList = invitados.filter((i) => i.confirmado === true || i.confirmado === 'true');
+const totalConfirmados = confirmadosList.length;
+const pasesConfirmados = confirmadosList.reduce((acc, inv) => acc + (inv.numero_pases || 1), 0);
+
+const noAsistiranList = invitados.filter((i) => i.confirmado === false || i.confirmado === 'false');
+const totalNoAsistiran = noAsistiranList.length;
+
+const pendientesList = invitados.filter((i) => i.confirmado === null || i.confirmado === undefined);
+const totalPendientes = pendientesList.length;
+const pasesPendientes = pendientesList.reduce((acc, inv) => acc + (inv.numero_pases || 1), 0);
+---
+
+<AdminLayout title={currentEvento ? `Invitados: ${currentEvento.nombre} | Celebra-Ya` : 'Gestión de Invitados | Celebra-Ya'} userEmail={userEmail}>
+  <div class="space-y-8 max-w-7xl mx-auto pb-16">
+
+    {/* ENCABEZADO PRINCIPAL */}
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-stone-200/80 pb-6">
+      <div>
+        {currentEvento && (
+          <div class="flex items-center gap-2 mb-1.5">
+            <a
+              href={`/admin/eventos/${currentEvento.id}`}
+              class="inline-flex items-center gap-1 text-xs font-semibold text-stone-500 hover:text-stone-900 transition-colors"
+            >
+              <span>←</span>
+              <span>Volver al evento</span>
+            </a>
+            <span class="text-stone-300">/</span>
+            <span class="text-xs font-mono text-stone-400">ID #{currentEvento.id}</span>
+          </div>
+        )}
+
+        <div class="flex flex-wrap items-center gap-3">
+          <h1 class="text-2xl sm:text-3xl font-serif-luxury font-bold text-stone-900">
+            Invitados
+          </h1>
+          {currentEvento ? (
+            <span class="px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-900 border border-amber-200/80 shadow-xs">
+              Evento: {currentEvento.nombre}
+            </span>
+          ) : (
+            <span class="px-3 py-1 rounded-full text-xs font-semibold bg-stone-100 text-stone-700 border border-stone-200 shadow-xs">
+              Vista Global de Eventos
+            </span>
+          )}
+        </div>
+
+        <p class="text-xs sm:text-sm text-stone-500 mt-1">
+          {currentEvento
+            ? `Administra los invitados y familias para ${currentEvento.nombre}.`
+            : 'Administra las personas y familias invitadas a todos tus eventos.'}
+        </p>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <button
+          type="button"
+          id="btn-open-new-invitado"
+          class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-stone-900 hover:bg-stone-800 text-amber-200 text-xs font-bold tracking-wide shadow-xs transition-all transform hover:-translate-y-0.5 cursor-pointer"
+        >
+          <span class="text-base leading-none font-bold">+</span>
+          <span>Nuevo invitado</span>
+        </button>
+      </div>
+    </div>
+
+    {/* MENSAJE DE ERROR DE CARGA (SI OCURRIÓ) */}
+    {loadError && (
+      <div class="bg-rose-50 border border-rose-200 text-rose-900 px-5 py-4 rounded-2xl flex items-center gap-3 shadow-xs">
+        <span class="w-7 h-7 rounded-full bg-rose-500 text-white flex items-center justify-center font-bold text-sm shrink-0">!</span>
+        <div>
+          <p class="text-xs sm:text-sm font-semibold">{loadError}</p>
+          <p class="text-[11px] text-rose-700">Comprueba la conexión con la base de datos o permisos RLS.</p>
+        </div>
+      </div>
+    )}
+
+    {/* TARJETAS DE MÉTRICAS (4 CARDS CON DATOS REALES) */}
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+      {/* 1. Total Invitados / Pases */}
+      <div class="bg-white border border-stone-200/80 rounded-2xl p-5 shadow-xs flex items-center justify-between">
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-wider text-stone-400">Total Invitados</p>
+          <p class="text-3xl font-bold font-serif-luxury text-stone-900 mt-1">{totalRegistros}</p>
+          <p class="text-[11px] text-stone-500 mt-1">
+            <span class="font-bold text-stone-700">{totalPases}</span> pases asignados en total
+          </p>
+        </div>
+        <div class="w-12 h-12 rounded-xl bg-stone-50 border border-stone-200 flex items-center justify-center text-xl text-stone-600">
+          👥
+        </div>
+      </div>
+
+      {/* 2. Confirmados */}
+      <div class="bg-white border border-stone-200/80 rounded-2xl p-5 shadow-xs flex items-center justify-between">
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-wider text-emerald-600">Confirmados</p>
+          <p class="text-3xl font-bold font-serif-luxury text-emerald-700 mt-1">{totalConfirmados}</p>
+          <p class="text-[11px] text-stone-500 mt-1">
+            <span class="font-bold text-emerald-700">{pasesConfirmados}</span> pases asegurados
+          </p>
+        </div>
+        <div class="w-12 h-12 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-xl text-emerald-600">
+          ✓
+        </div>
+      </div>
+
+      {/* 3. Pendientes */}
+      <div class="bg-white border border-stone-200/80 rounded-2xl p-5 shadow-xs flex items-center justify-between">
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-wider text-amber-600">Pendientes</p>
+          <p class="text-3xl font-bold font-serif-luxury text-amber-700 mt-1">{totalPendientes}</p>
+          <p class="text-[11px] text-stone-500 mt-1">
+            <span class="font-bold text-amber-700">{pasesPendientes}</span> pases por confirmar
+          </p>
+        </div>
+        <div class="w-12 h-12 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center text-xl text-amber-600">
+          ⏳
+        </div>
+      </div>
+
+      {/* 4. No asistirán */}
+      <div class="bg-white border border-stone-200/80 rounded-2xl p-5 shadow-xs flex items-center justify-between">
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-wider text-stone-400">No Asistirán</p>
+          <p class="text-3xl font-bold font-serif-luxury text-stone-600 mt-1">{totalNoAsistiran}</p>
+          <p class="text-[11px] text-stone-400 mt-1">Lamentaron no poder ir</p>
+        </div>
+        <div class="w-12 h-12 rounded-xl bg-stone-100 border border-stone-200 flex items-center justify-center text-xl text-stone-400">
+          ✕
+        </div>
+      </div>
+    </div>
+
+    {/* BARRA DE BÚSQUEDA Y FILTROS */}
+    <div class="bg-white border border-stone-200/80 rounded-2xl p-4 shadow-xs">
+      <form method="GET" class="flex flex-col md:flex-row items-center gap-3">
+        {/* Mantener evento_id si existe */}
+        {isValidEventContext && (
+          <input type="hidden" name="evento_id" value={eventId} />
+        )}
+
+        {/* Input de Búsqueda */}
+        <div class="relative flex-1 w-full">
+          <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-stone-400 text-sm">
+            🔍
+          </span>
+          <input
+            type="text"
+            name="search"
+            value={searchParam}
+            placeholder="Buscar por nombre, familia, teléfono o código..."
+            class="w-full pl-10 pr-4 py-2 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-xs text-stone-800"
+          />
+        </div>
+
+        {/* Filtro por Evento (si no está bloqueado a un evento_id) */}
+        {!isValidEventContext && (
+          <div class="w-full md:w-56">
+            <select
+              name="evento_id"
+              class="w-full px-3 py-2 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-xs text-stone-800 bg-white"
+            >
+              <option value="">Todos los eventos</option>
+              {eventosList.map((ev) => (
+                <option value={ev.id} selected={String(ev.id) === eventoIdParam}>
+                  {ev.nombre}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {/* Filtro por Estado */}
+        <div class="w-full md:w-44">
+          <select
+            name="estado"
+            class="w-full px-3 py-2 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-xs text-stone-800 bg-white"
+          >
+            <option value="">Todos los estados</option>
+            <option value="confirmados" selected={estadoParam === 'confirmados'}>Confirmados</option>
+            <option value="pendientes" selected={estadoParam === 'pendientes'}>Pendientes</option>
+            <option value="no_asistiran" selected={estadoParam === 'no_asistiran'}>No asistirán</option>
+          </select>
+        </div>
+
+        {/* Botón Aplicar y Limpiar */}
+        <div class="flex items-center gap-2 w-full md:w-auto shrink-0">
+          <button
+            type="submit"
+            class="w-full md:w-auto px-4 py-2 rounded-xl bg-stone-900 hover:bg-stone-800 text-amber-200 text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+          >
+            Filtrar
+          </button>
+          {(searchParam || estadoParam || (!isValidEventContext && eventoIdParam)) && (
+            <a
+              href={isValidEventContext ? `/admin/invitados?evento_id=${eventId}` : '/admin/invitados'}
+              class="px-3 py-2 rounded-xl border border-stone-200 text-stone-500 hover:text-stone-800 hover:bg-stone-50 text-xs transition-colors"
+              title="Limpiar filtros"
+            >
+              Limpiar
+            </a>
+          )}
+        </div>
+      </form>
+    </div>
+
+    {/* LISTADO DE INVITADOS (TABLA / TARJETAS SAAS) */}
+    <div class="bg-white border border-stone-200/80 rounded-2xl shadow-xs overflow-hidden">
+      {invitados.length === 0 ? (
+        <div class="text-center py-16 px-4 space-y-4">
+          <div class="w-16 h-16 rounded-2xl bg-stone-100 border border-stone-200 text-stone-400 flex items-center justify-center text-3xl mx-auto shadow-xs">
+            💌
+          </div>
+          <div>
+            <h3 class="text-base font-bold text-stone-900">No hay invitados todavía.</h3>
+            <p class="text-xs text-stone-500 mt-1 max-w-sm mx-auto">
+              Agrega el primer invitado para comenzar a organizar tu lista y controlar los pases de acceso.
+            </p>
+          </div>
+          <div>
+            <button
+              type="button"
+              id="btn-empty-add-invitado"
+              class="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-stone-900 hover:bg-stone-800 text-amber-200 text-xs font-bold shadow-xs transition-colors cursor-pointer"
+            >
+              <span>+</span>
+              <span>Agregar invitado</span>
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs text-stone-700">
+            <thead class="bg-stone-50/80 border-b border-stone-200/80 text-[11px] font-semibold text-stone-400 uppercase tracking-wider">
+              <tr>
+                <th class="py-3.5 px-6">Invitado / Familia</th>
+                {!isValidEventContext && <th class="py-3.5 px-6">Evento</th>}
+                <th class="py-3.5 px-6">Teléfono</th>
+                <th class="py-3.5 px-6 text-center">Pases</th>
+                <th class="py-3.5 px-6">Código de Acceso</th>
+                <th class="py-3.5 px-6 text-center">Estado</th>
+                <th class="py-3.5 px-6 text-right">Acciones</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-stone-100">
+              {invitados.map((item) => {
+                const isFamily = item.nombre.toLowerCase().includes('familia');
+                const eventInfo = eventosList.find((e) => e.id === item.evento_id);
+
+                return (
+                  <tr class="hover:bg-stone-50/50 transition-colors">
+                    {/* Nombre y tipo */}
+                    <td class="py-4 px-6 whitespace-nowrap">
+                      <div class="flex items-center gap-2.5">
+                        <span class={`w-8 h-8 rounded-lg flex items-center justify-center text-sm shrink-0 border ${
+                          isFamily
+                            ? 'bg-amber-50 text-amber-800 border-amber-200/80'
+                            : 'bg-stone-100 text-stone-700 border-stone-200'
+                        }`}>
+                          {isFamily ? '👨‍👩‍👧‍👦' : '👤'}
+                        </span>
+                        <div>
+                          <p class="font-bold text-stone-900 text-xs sm:text-sm">
+                            {item.nombre}
+                          </p>
+                          {isFamily && (
+                            <span class="text-[10px] font-semibold uppercase tracking-wider text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded">
+                              Familia / Grupo
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* Evento (si es vista global) */}
+                    {!isValidEventContext && (
+                      <td class="py-4 px-6 whitespace-nowrap">
+                        <span class="px-2.5 py-1 rounded-md text-[11px] font-semibold bg-stone-100 text-stone-800 border border-stone-200/60">
+                          {eventInfo?.nombre || `Evento #${item.evento_id}`}
+                        </span>
+                      </td>
+                    )}
+
+                    {/* Teléfono */}
+                    <td class="py-4 px-6 whitespace-nowrap font-mono text-stone-600">
+                      {item.telefono ? (
+                        <a
+                          href={`https://wa.me/${item.telefono.replace(/[^0-9]/g, '')}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          class="hover:text-emerald-700 hover:underline flex items-center gap-1"
+                        >
+                          <span>📱 {item.telefono}</span>
+                        </a>
+                      ) : (
+                        <span class="text-stone-300 italic font-sans text-[11px]">Sin teléfono</span>
+                      )}
+                    </td>
+
+                    {/* Pases asignados */}
+                    <td class="py-4 px-6 whitespace-nowrap text-center">
+                      <span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-stone-100 text-stone-800 font-bold font-mono text-xs border border-stone-200">
+                        {item.numero_pases || 1}
+                      </span>
+                    </td>
+
+                    {/* Código de Pase */}
+                    <td class="py-4 px-6 whitespace-nowrap">
+                      {item.codigo ? (
+                        <code class="px-2 py-0.5 rounded bg-stone-100 text-stone-700 font-mono text-[11px] border border-stone-200/80">
+                          {item.codigo}
+                        </code>
+                      ) : (
+                        <span class="text-stone-300 italic text-[11px]">—</span>
+                      )}
+                    </td>
+
+                    {/* Estado de Confirmación */}
+                    <td class="py-4 px-6 whitespace-nowrap text-center">
+                      {item.confirmado === true || item.confirmado === 'true' ? (
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                          Confirmado
+                        </span>
+                      ) : item.confirmado === false || item.confirmado === 'false' ? (
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-rose-50 text-rose-700 border border-rose-200">
+                          <span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+                          No asistirá
+                        </span>
+                      ) : (
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                          <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                          Pendiente
+                        </span>
+                      )}
+                    </td>
+
+                    {/* Acciones */}
+                    <td class="py-4 px-6 whitespace-nowrap text-right space-x-2">
+                      <button
+                        type="button"
+                        class="btn-edit-invitado px-2.5 py-1.5 rounded-lg text-xs font-semibold text-stone-700 bg-white hover:bg-stone-100 border border-stone-200 shadow-2xs transition-colors cursor-pointer"
+                        data-id={item.id}
+                        data-evento-id={item.evento_id}
+                        data-nombre={item.nombre}
+                        data-telefono={item.telefono || ''}
+                        data-numero-pases={item.numero_pases || 1}
+                        data-confirmado={String(item.confirmado)}
+                        data-codigo={item.codigo || ''}
+                      >
+                        Editar
+                      </button>
+                      <button
+                        type="button"
+                        class="btn-delete-invitado px-2.5 py-1.5 rounded-lg text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 shadow-2xs transition-colors cursor-pointer"
+                        data-id={item.id}
+                        data-evento-id={item.evento_id}
+                        data-nombre={item.nombre}
+                      >
+                        Eliminar
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+
+    {/* MODAL CREAR Y EDITAR INVITADO */}
+    <dialog id="modal-invitado" class="rounded-2xl backdrop:bg-stone-900/60 p-0 border border-stone-200 shadow-2xl max-w-md w-full bg-white text-stone-800 m-auto">
+      <div class="p-6 space-y-4">
+        <div class="flex items-center justify-between border-b border-stone-100 pb-3">
+          <h3 id="modal-invitado-title" class="text-base font-semibold text-stone-900">
+            Nuevo Invitado
+          </h3>
+          <button type="button" id="btn-close-invitado" class="text-stone-400 hover:text-stone-700 text-lg leading-none cursor-pointer">
+            ✕
+          </button>
+        </div>
+
+        <form id="form-invitado" class="space-y-4">
+          <input type="hidden" id="invitado-id" name="id" value="" />
+
+          {/* Evento Selector */}
+          <div>
+            <label for="invitado-evento-id" class="block text-xs font-semibold uppercase tracking-wider text-stone-600 mb-1">
+              Evento asignado <span class="text-rose-500">*</span>
+            </label>
+            {isValidEventContext ? (
+              <input type="hidden" id="invitado-evento-id" name="evento_id" value={eventId} />
+            ) : (
+              <select
+                id="invitado-evento-id"
+                name="evento_id"
+                required
+                class="w-full px-3.5 py-2 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-xs text-stone-900 bg-white"
+              >
+                <option value="">Selecciona un evento...</option>
+                {eventosList.map((ev) => (
+                  <option value={ev.id}>{ev.nombre}</option>
+                ))}
+              </select>
+            )}
+            {isValidEventContext && (
+              <div class="px-3.5 py-2 rounded-xl bg-stone-100 text-xs font-semibold text-stone-800 border border-stone-200/80">
+                {currentEvento?.nombre}
+              </div>
+            )}
+          </div>
+
+          {/* Nombre / Familia */}
+          <div>
+            <label for="invitado-nombre" class="block text-xs font-semibold uppercase tracking-wider text-stone-600 mb-1">
+              Nombre o Familia <span class="text-rose-500">*</span>
+            </label>
+            <input
+              type="text"
+              id="invitado-nombre"
+              name="nombre"
+              required
+              placeholder="Ej. Familia Valenzuela Morales o Juan Pérez"
+              class="w-full px-3.5 py-2 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-xs text-stone-900"
+            />
+          </div>
+
+          {/* Teléfono y Pases */}
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label for="invitado-telefono" class="block text-xs font-semibold uppercase tracking-wider text-stone-600 mb-1">
+                Teléfono / WhatsApp
+              </label>
+              <input
+                type="text"
+                id="invitado-telefono"
+                name="telefono"
+                placeholder="Ej. 4614210058"
+                class="w-full px-3.5 py-2 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-xs text-stone-900 font-mono"
+              />
+            </div>
+
+            <div>
+              <label for="invitado-pases" class="block text-xs font-semibold uppercase tracking-wider text-stone-600 mb-1">
+                Número de pases <span class="text-rose-500">*</span>
+              </label>
+              <input
+                type="number"
+                id="invitado-pases"
+                name="numero_pases"
+                min="1"
+                max="50"
+                value="1"
+                required
+                class="w-full px-3.5 py-2 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-xs text-stone-900 font-mono"
+              />
+            </div>
+          </div>
+
+          {/* Estado de Confirmación y Código */}
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label for="invitado-confirmado" class="block text-xs font-semibold uppercase tracking-wider text-stone-600 mb-1">
+                Confirmación RSVP
+              </label>
+              <select
+                id="invitado-confirmado"
+                name="confirmado"
+                class="w-full px-3.5 py-2 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-xs text-stone-900 bg-white"
+              >
+                <option value="null">⏳ Pendiente</option>
+                <option value="true">✓ Confirmado (Asistirá)</option>
+                <option value="false">✕ No asistirá</option>
+              </select>
+            </div>
+
+            <div>
+              <label for="invitado-codigo" class="block text-xs font-semibold uppercase tracking-wider text-stone-600 mb-1">
+                Código de pase
+              </label>
+              <input
+                type="text"
+                id="invitado-codigo"
+                name="codigo"
+                placeholder="Auto-generado si está vacío"
+                class="w-full px-3.5 py-2 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-xs text-stone-900 font-mono uppercase"
+              />
+            </div>
+          </div>
+
+          <div id="modal-invitado-error" class="hidden text-xs text-rose-600 bg-rose-50 border border-rose-200 p-2.5 rounded-xl"></div>
+
+          <div class="flex items-center justify-end gap-2 pt-3 border-t border-stone-100">
+            <button
+              type="button"
+              id="btn-cancel-invitado"
+              class="px-4 py-2 rounded-xl border border-stone-300 text-stone-600 hover:bg-stone-50 text-xs font-semibold cursor-pointer"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              id="btn-save-invitado"
+              class="px-5 py-2 rounded-xl bg-stone-900 hover:bg-stone-800 text-amber-200 text-xs font-bold shadow-xs cursor-pointer"
+            >
+              Guardar invitado
+            </button>
+          </div>
+        </form>
+      </div>
+    </dialog>
+
+    {/* MODAL DE CONFIRMACIÓN PARA ELIMINAR */}
+    <dialog id="modal-confirm-delete-invitado" class="rounded-2xl backdrop:bg-stone-900/60 p-0 border border-stone-200 shadow-2xl max-w-sm w-full bg-white text-stone-800 m-auto">
+      <div class="p-6 text-center space-y-4">
+        <div class="w-12 h-12 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center text-xl mx-auto border border-rose-100">
+          🗑️
+        </div>
+        <div>
+          <h3 class="text-sm font-bold text-stone-900">¿Eliminar este invitado?</h3>
+          <p class="text-xs text-stone-500 mt-1" id="delete-invitado-name-text">
+            Esta acción no se puede deshacer.
+          </p>
+        </div>
+        <div class="flex items-center justify-center gap-3 pt-2">
+          <button
+            type="button"
+            id="btn-cancel-delete-invitado"
+            class="px-4 py-2 rounded-xl border border-stone-300 text-stone-600 hover:bg-stone-50 text-xs font-semibold cursor-pointer"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            id="btn-confirm-delete-invitado"
+            class="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-xs cursor-pointer"
+          >
+            Eliminar
+          </button>
+        </div>
+      </div>
+    </dialog>
+
+  </div>
+</AdminLayout>
+
+<script is:inline define:vars={{ defaultEventId: eventId }}>
+  document.addEventListener('DOMContentLoaded', () => {
+    const modal = document.getElementById('modal-invitado');
+    const form = document.getElementById('form-invitado');
+    const modalTitle = document.getElementById('modal-invitado-title');
+    const modalError = document.getElementById('modal-invitado-error');
+    const btnOpenNew = document.getElementById('btn-open-new-invitado');
+    const btnEmptyAdd = document.getElementById('btn-empty-add-invitado');
+    const btnClose = document.getElementById('btn-close-invitado');
+    const btnCancel = document.getElementById('btn-cancel-invitado');
+
+    const modalDelete = document.getElementById('modal-confirm-delete-invitado');
+    const deleteText = document.getElementById('delete-invitado-name-text');
+    const btnCancelDelete = document.getElementById('btn-cancel-delete-invitado');
+    const btnConfirmDelete = document.getElementById('btn-confirm-delete-invitado');
+    let targetDelete = null;
+
+    const openCreateModal = () => {
+      form.reset();
+      document.getElementById('invitado-id').value = '';
+      if (defaultEventId) {
+        const evInput = document.getElementById('invitado-evento-id');
+        if (evInput) evInput.value = defaultEventId;
+      }
+      document.getElementById('invitado-pases').value = '1';
+      document.getElementById('invitado-confirmado').value = 'null';
+      modalTitle.textContent = 'Nuevo Invitado';
+      modalError.classList.add('hidden');
+      modal?.showModal();
+    };
+
+    btnOpenNew?.addEventListener('click', openCreateModal);
+    btnEmptyAdd?.addEventListener('click', openCreateModal);
+
+    const closeModal = () => modal?.close();
+    btnClose?.addEventListener('click', closeModal);
+    btnCancel?.addEventListener('click', closeModal);
+
+    // Botones de Editar
+    document.querySelectorAll('.btn-edit-invitado').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const id = btn.getAttribute('data-id');
+        const eventoId = btn.getAttribute('data-evento-id');
+        const nombre = btn.getAttribute('data-nombre');
+        const telefono = btn.getAttribute('data-telefono');
+        const numeroPases = btn.getAttribute('data-numero-pases');
+        const confirmado = btn.getAttribute('data-confirmado');
+        const codigo = btn.getAttribute('data-codigo');
+
+        document.getElementById('invitado-id').value = id;
+        const evInput = document.getElementById('invitado-evento-id');
+        if (evInput) evInput.value = eventoId;
+        document.getElementById('invitado-nombre').value = nombre || '';
+        document.getElementById('invitado-telefono').value = telefono || '';
+        document.getElementById('invitado-pases').value = numeroPases || '1';
+
+        const confSelect = document.getElementById('invitado-confirmado');
+        if (confirmado === 'true') confSelect.value = 'true';
+        else if (confirmado === 'false') confSelect.value = 'false';
+        else confSelect.value = 'null';
+
+        document.getElementById('invitado-codigo').value = codigo || '';
+
+        modalTitle.textContent = 'Editar Invitado';
+        modalError.classList.add('hidden');
+        modal?.showModal();
+      });
+    });
+
+    // Envío del Formulario
+    form?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const saveBtn = document.getElementById('btn-save-invitado');
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Guardando...';
+      modalError.classList.add('hidden');
+
+      const id = document.getElementById('invitado-id').value;
+      const action = id ? 'update' : 'create';
+      const eventoIdVal = document.getElementById('invitado-evento-id').value;
+
+      const confVal = document.getElementById('invitado-confirmado').value;
+      let confirmado = null;
+      if (confVal === 'true') confirmado = true;
+      if (confVal === 'false') confirmado = false;
+
+      const payload = {
+        action,
+        evento_id: Number(eventoIdVal),
+        id: id ? Number(id) : undefined,
+        nombre: document.getElementById('invitado-nombre').value,
+        telefono: document.getElementById('invitado-telefono').value,
+        numero_pases: Number(document.getElementById('invitado-pases').value) || 1,
+        confirmado,
+        codigo: document.getElementById('invitado-codigo').value,
+      };
+
+      try {
+        const res = await fetch('/api/admin/invitados', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const result = await res.json();
+
+        if (res.ok && result.success) {
+          modal?.close();
+          window.location.reload();
+        } else {
+          modalError.textContent = result.error || 'Error al guardar el invitado.';
+          modalError.classList.remove('hidden');
+          saveBtn.disabled = false;
+          saveBtn.textContent = 'Guardar invitado';
+        }
+      } catch (err) {
+        modalError.textContent = 'Error de conexión con el servidor.';
+        modalError.classList.remove('hidden');
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Guardar invitado';
+      }
+    });
+
+    // Botones de Eliminar
+    document.querySelectorAll('.btn-delete-invitado').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        targetDelete = {
+          id: btn.getAttribute('data-id'),
+          eventoId: btn.getAttribute('data-evento-id'),
+          nombre: btn.getAttribute('data-nombre'),
+        };
+        deleteText.textContent = `¿Seguro que deseas eliminar a "${targetDelete.nombre}"? Esta acción no se puede deshacer.`;
+        modalDelete?.showModal();
+      });
+    });
+
+    btnCancelDelete?.addEventListener('click', () => {
+      targetDelete = null;
+      modalDelete?.close();
+    });
+
+    btnConfirmDelete?.addEventListener('click', async () => {
+      if (!targetDelete) return;
+      btnConfirmDelete.disabled = true;
+      btnConfirmDelete.textContent = 'Eliminando...';
+
+      try {
+        const res = await fetch('/api/admin/invitados', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'delete',
+            evento_id: Number(targetDelete.eventoId),
+            id: Number(targetDelete.id),
+          }),
+        });
+        const result = await res.json();
+        if (res.ok && result.success) {
+          modalDelete?.close();
+          window.location.reload();
+        } else {
+          alert(result.error || 'Error al eliminar.');
+          btnConfirmDelete.disabled = false;
+          btnConfirmDelete.textContent = 'Eliminar';
+        }
+      } catch (err) {
+        alert('Error de conexión.');
+        btnConfirmDelete.disabled = false;
+        btnConfirmDelete.textContent = 'Eliminar';
+      }
+    });
+  });
+</script>

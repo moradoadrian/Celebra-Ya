@@ -71,3 +71,15 @@ export interface MesaRegalosItem {
   datos?: Record<string, any> | string | null;
   orden: number;
 }
+
+export interface InvitadoItem {
+  id: number;
+  evento_id: number;
+  nombre: string;
+  telefono?: string | null;
+  numero_pases: number;
+  confirmado: boolean | string | null;
+  codigo?: string | null;
+  created_at?: string;
+}
+

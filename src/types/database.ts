@@ -80,6 +80,7 @@ export interface InvitadoItem {
   numero_pases: number;
   confirmado: boolean | string | null;
   codigo?: string | null;
+  pases_confirmados?: number | null;
   created_at?: string;
 }
 

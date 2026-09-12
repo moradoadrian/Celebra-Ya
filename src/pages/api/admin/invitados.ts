@@ -58,6 +58,44 @@ export const POST: APIRoute = async (context) => {
         confirmado = false;
       }
 
+      // Validación y cálculo de pases_confirmados según reglas oficiales
+      let pases_confirmados: number | null = null;
+      if (confirmado === null) {
+        pases_confirmados = null;
+      } else if (confirmado === false) {
+        pases_confirmados = 0;
+      } else if (confirmado === true) {
+        const rawPasesConf = body.pases_confirmados !== undefined && body.pases_confirmados !== ''
+          ? Number(body.pases_confirmados)
+          : numero_pases;
+
+        if (isNaN(rawPasesConf) || rawPasesConf <= 0) {
+          return new Response(
+            JSON.stringify({ success: false, error: 'Un invitado confirmado debe tener al menos 1 pase confirmado.' }),
+            { status: 400, headers: { 'Content-Type': 'application/json' } }
+          );
+        }
+
+        if (rawPasesConf < 0) {
+          return new Response(
+            JSON.stringify({ success: false, error: 'Los pases confirmados no pueden ser negativos.' }),
+            { status: 400, headers: { 'Content-Type': 'application/json' } }
+          );
+        }
+
+        if (rawPasesConf > numero_pases) {
+          return new Response(
+            JSON.stringify({
+              success: false,
+              error: `Los pases confirmados (${rawPasesConf}) no pueden superar los pases asignados (${numero_pases}).`,
+            }),
+            { status: 400, headers: { 'Content-Type': 'application/json' } }
+          );
+        }
+
+        pases_confirmados = Math.floor(rawPasesConf);
+      }
+
       // Código de pase / invitación: si no se proporciona, generar uno legible
       let codigo = body.codigo?.toString().trim() || null;
       if (!codigo) {
@@ -72,19 +110,35 @@ export const POST: APIRoute = async (context) => {
         );
       }
 
-      const { data, error } = await supabase
+      const insertPayload: Record<string, any> = {
+        evento_id: eventId,
+        nombre,
+        telefono,
+        numero_pases,
+        confirmado,
+        pases_confirmados,
+        codigo,
+        created_at: new Date().toISOString(),
+      };
+
+      let { data, error } = await supabase
         .from('invitados')
-        .insert({
-          evento_id: eventId,
-          nombre,
-          telefono,
-          numero_pases,
-          confirmado,
-          codigo,
-          created_at: new Date().toISOString(),
-        })
+        .insert(insertPayload)
         .select()
         .single();
+
+      // Fallback si la columna pases_confirmados aún no existe en Supabase (error 42703)
+      if (error && error.code === '42703') {
+        console.warn('[API Invitados Create] Columna pases_confirmados no existe aún. Insertando sin la columna.');
+        delete insertPayload.pases_confirmados;
+        const retryResult = await supabase
+          .from('invitados')
+          .insert(insertPayload)
+          .select()
+          .single();
+        data = retryResult.data;
+        error = retryResult.error;
+      }
 
       if (error) {
         console.error('[API Invitados Error - Create]', error.message, error.code);
@@ -127,6 +181,44 @@ export const POST: APIRoute = async (context) => {
         confirmado = false;
       }
 
+      // Validación y cálculo de pases_confirmados según reglas oficiales
+      let pases_confirmados: number | null = null;
+      if (confirmado === null) {
+        pases_confirmados = null;
+      } else if (confirmado === false) {
+        pases_confirmados = 0;
+      } else if (confirmado === true) {
+        const rawPasesConf = body.pases_confirmados !== undefined && body.pases_confirmados !== ''
+          ? Number(body.pases_confirmados)
+          : numero_pases;
+
+        if (isNaN(rawPasesConf) || rawPasesConf <= 0) {
+          return new Response(
+            JSON.stringify({ success: false, error: 'Un invitado confirmado debe tener al menos 1 pase confirmado.' }),
+            { status: 400, headers: { 'Content-Type': 'application/json' } }
+          );
+        }
+
+        if (rawPasesConf < 0) {
+          return new Response(
+            JSON.stringify({ success: false, error: 'Los pases confirmados no pueden ser negativos.' }),
+            { status: 400, headers: { 'Content-Type': 'application/json' } }
+          );
+        }
+
+        if (rawPasesConf > numero_pases) {
+          return new Response(
+            JSON.stringify({
+              success: false,
+              error: `Los pases confirmados (${rawPasesConf}) no pueden superar los pases asignados (${numero_pases}).`,
+            }),
+            { status: 400, headers: { 'Content-Type': 'application/json' } }
+          );
+        }
+
+        pases_confirmados = Math.floor(rawPasesConf);
+      }
+
       const codigo = body.codigo?.toString().trim() || null;
 
       if (!nombre) {
@@ -137,19 +229,37 @@ export const POST: APIRoute = async (context) => {
       }
 
       // CRÍTICO: Validar aislamiento de evento_id
-      const { data, error } = await supabase
+      const updatePayload: Record<string, any> = {
+        nombre,
+        telefono,
+        numero_pases,
+        confirmado,
+        pases_confirmados,
+        codigo,
+      };
+
+      let { data, error } = await supabase
         .from('invitados')
-        .update({
-          nombre,
-          telefono,
-          numero_pases,
-          confirmado,
-          codigo,
-        })
+        .update(updatePayload)
         .eq('id', recordId)
         .eq('evento_id', eventId)
         .select()
         .single();
+
+      // Fallback si la columna pases_confirmados aún no existe en Supabase (error 42703)
+      if (error && error.code === '42703') {
+        console.warn('[API Invitados Update] Columna pases_confirmados no existe aún. Actualizando sin la columna.');
+        delete updatePayload.pases_confirmados;
+        const retryResult = await supabase
+          .from('invitados')
+          .update(updatePayload)
+          .eq('id', recordId)
+          .eq('evento_id', eventId)
+          .select()
+          .single();
+        data = retryResult.data;
+        error = retryResult.error;
+      }
 
       if (error) {
         console.error('[API Invitados Error - Update]', error.message, error.code);

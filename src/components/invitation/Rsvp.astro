@@ -1,34 +1,84 @@
 ---
+import { DigitalPassRsvp } from './DigitalPassRsvp';
 import { RsvpForm } from './RsvpForm';
-import type { Evento } from '@/types';
+import type { Evento, InvitadoItem } from '@/types';
 
 interface Props {
   evento?: Evento;
+  invitado?: InvitadoItem | null;
 }
 
-const { evento } = Astro.props;
+const { evento, invitado } = Astro.props;
 
 const coupleNames = evento?.nombre || "Sofía & Alejandro";
 const whatsappNumber = evento?.whatsapp_confirmacion?.trim() || "+525512345678";
 const fechaLimite = evento?.fecha_limite_confirmacion?.trim() || "1 de Octubre de 2026";
 ---
 
-<section class="py-24 px-4 max-w-3xl mx-auto text-center">
-  <div class="space-y-4 mb-12">
-    <span class="text-xs uppercase tracking-[0.3em] text-rose-700 font-semibold">RSVP</span>
+<section id="rsvp" class="py-24 px-4 max-w-3xl mx-auto text-center scroll-mt-10">
+  <div class="space-y-4 mb-10">
+    <span class="text-xs uppercase tracking-[0.3em] text-amber-700 font-semibold">RSVP</span>
     <h2 class="text-3xl sm:text-5xl font-serif-luxury text-stone-900">
       Confirmación de Asistencia
     </h2>
     <p class="text-xs sm:text-sm text-stone-600 font-serif italic max-w-md mx-auto">
-      Agradecemos confirmar tu asistencia antes del {fechaLimite} para coordinar tu pase de acceso y lugar en mesa.
+      Agradecemos confirmar tu asistencia antes del {fechaLimite} para coordinar tus pases de acceso y recepción.
     </p>
   </div>
 
-  <div class="bg-white p-8 sm:p-12 rounded-3xl border border-stone-200 shadow-md">
-    <RsvpForm
-      client:load
-      coupleNames={coupleNames}
-      whatsappNumber={whatsappNumber}
-    />
-  </div>
+  {invitado ? (
+    <div class="animate-fade-in">
+      <DigitalPassRsvp
+        client:load
+        eventoId={evento?.id ?? 0}
+        invitado={invitado}
+        coupleNames={coupleNames}
+      />
+    </div>
+  ) : (
+    <div class="space-y-8">
+      {/* TARJETA PARA INGRESAR CÓDIGO DE INVITACIÓN */}
+      <div class="bg-amber-50/70 border border-amber-200/80 rounded-3xl p-6 sm:p-8 text-center max-w-xl mx-auto shadow-2xs">
+        <div class="w-12 h-12 rounded-2xl bg-white border border-amber-200 text-amber-800 flex items-center justify-center text-xl mx-auto mb-3 shadow-xs">
+          🎟️
+        </div>
+        <h3 class="text-lg font-serif-luxury font-bold text-stone-900">
+          ¿Cuentas con un código de pase?
+        </h3>
+        <p class="text-xs text-stone-600 mt-1 max-w-md mx-auto">
+          Ingresa el código alfanumérico que recibiste en tu invitación para consultar tus pases y confirmar tu asistencia.
+        </p>
+
+        <form method="GET" class="mt-5 flex flex-col sm:flex-row items-center gap-2 max-w-md mx-auto">
+          <input
+            type="text"
+            name="codigo"
+            required
+            placeholder="Ej. INV-3-A1B2"
+            class="w-full px-4 py-2.5 rounded-xl border border-stone-300 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 bg-white text-stone-900 text-xs font-mono uppercase tracking-wider text-center sm:text-left"
+          />
+          <button
+            type="submit"
+            class="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-stone-900 hover:bg-stone-800 text-amber-200 text-xs font-bold whitespace-nowrap shadow-xs transition-colors cursor-pointer"
+          >
+            Acceder a mi pase
+          </button>
+        </form>
+      </div>
+
+      {/* FORMULARIO DE CONTACTO / WHATSAPP (DEMO) */}
+      <div class="bg-white p-6 sm:p-10 rounded-3xl border border-stone-200 shadow-sm max-w-xl mx-auto text-left">
+        <div class="text-center mb-6">
+          <span class="text-[10px] font-bold uppercase tracking-wider text-stone-400">Modo de Demostración</span>
+          <h4 class="text-base font-bold text-stone-800 mt-0.5">Confirmación Directa</h4>
+          <p class="text-xs text-stone-500">También puedes comunicarte directamente con los anfitriones vía WhatsApp.</p>
+        </div>
+        <RsvpForm
+          client:load
+          coupleNames={coupleNames}
+          whatsappNumber={whatsappNumber}
+        />
+      </div>
+    </div>
+  )}
 </section>

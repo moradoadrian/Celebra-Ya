@@ -92,20 +92,23 @@ try {
   loadError = 'No pudimos cargar los invitados. Intenta actualizar la página nuevamente.';
 }
 
-// 7. Cálculo de métricas dinámicas (usando columnas reales: confirmado y numero_pases)
+// 7. Cálculo de métricas dinámicas (separando estrictamente pases asignados vs confirmados)
 const totalRegistros = invitados.length;
-const totalPases = invitados.reduce((acc, inv) => acc + (inv.numero_pases || 1), 0);
+const totalPases = invitados.reduce((acc, inv) => acc + (Number(inv.numero_pases) || 1), 0);
 
 const confirmadosList = invitados.filter((i) => i.confirmado === true || i.confirmado === 'true');
 const totalConfirmados = confirmadosList.length;
-const pasesConfirmados = confirmadosList.reduce((acc, inv) => acc + (inv.numero_pases || 1), 0);
+const pasesConfirmados = confirmadosList.reduce(
+  (acc, inv) => acc + (inv.pases_confirmados != null ? Number(inv.pases_confirmados) : (Number(inv.numero_pases) || 1)),
+  0
+);
 
 const noAsistiranList = invitados.filter((i) => i.confirmado === false || i.confirmado === 'false');
 const totalNoAsistiran = noAsistiranList.length;
 
 const pendientesList = invitados.filter((i) => i.confirmado === null || i.confirmado === undefined);
 const totalPendientes = pendientesList.length;
-const pasesPendientes = pendientesList.reduce((acc, inv) => acc + (inv.numero_pases || 1), 0);
+const pasesPendientes = pendientesList.reduce((acc, inv) => acc + (Number(inv.numero_pases) || 1), 0);
 ---
 
 <AdminLayout title={currentEvento ? `Invitados: ${currentEvento.nombre} | Celebra-Ya` : 'Gestión de Invitados | Celebra-Ya'} userEmail={userEmail}>
@@ -195,7 +198,7 @@ const pasesPendientes = pendientesList.reduce((acc, inv) => acc + (inv.numero_pa
           <p class="text-xs font-semibold uppercase tracking-wider text-emerald-600">Confirmados</p>
           <p class="text-3xl font-bold font-serif-luxury text-emerald-700 mt-1">{totalConfirmados}</p>
           <p class="text-[11px] text-stone-500 mt-1">
-            <span class="font-bold text-emerald-700">{pasesConfirmados}</span> pases asegurados
+            <span class="font-bold text-emerald-700">{pasesConfirmados}</span> pases confirmados
           </p>
         </div>
         <div class="w-12 h-12 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-xl text-emerald-600">
@@ -222,7 +225,9 @@ const pasesPendientes = pendientesList.reduce((acc, inv) => acc + (inv.numero_pa
         <div>
           <p class="text-xs font-semibold uppercase tracking-wider text-stone-400">No Asistirán</p>
           <p class="text-3xl font-bold font-serif-luxury text-stone-600 mt-1">{totalNoAsistiran}</p>
-          <p class="text-[11px] text-stone-400 mt-1">Lamentaron no poder ir</p>
+          <p class="text-[11px] text-stone-400 mt-1">
+            <span class="font-bold text-stone-500">0</span> pases confirmados
+          </p>
         </div>
         <div class="w-12 h-12 rounded-xl bg-stone-100 border border-stone-200 flex items-center justify-center text-xl text-stone-400">
           ✕
@@ -332,13 +337,14 @@ const pasesPendientes = pendientesList.reduce((acc, inv) => acc + (inv.numero_pa
           <table class="w-full text-left text-xs text-stone-700">
             <thead class="bg-stone-50/80 border-b border-stone-200/80 text-[11px] font-semibold text-stone-400 uppercase tracking-wider">
               <tr>
-                <th class="py-3.5 px-6">Invitado / Familia</th>
-                {!isValidEventContext && <th class="py-3.5 px-6">Evento</th>}
-                <th class="py-3.5 px-6">Teléfono</th>
-                <th class="py-3.5 px-6 text-center">Pases</th>
-                <th class="py-3.5 px-6">Código de Acceso</th>
-                <th class="py-3.5 px-6 text-center">Estado</th>
-                <th class="py-3.5 px-6 text-right">Acciones</th>
+                <th class="py-3.5 px-5">Invitado / Familia</th>
+                {!isValidEventContext && <th class="py-3.5 px-4">Evento</th>}
+                <th class="py-3.5 px-4">Teléfono</th>
+                <th class="py-3.5 px-4 text-center" title="Máximo de personas permitidas según la invitación">Pases Asignados</th>
+                <th class="py-3.5 px-4 text-center" title="Personas que declararon que asistirán">Pases Confirmados</th>
+                <th class="py-3.5 px-4">Código de Acceso</th>
+                <th class="py-3.5 px-4 text-center">Estado RSVP</th>
+                <th class="py-3.5 px-5 text-right">Acciones</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-stone-100">
@@ -349,7 +355,7 @@ const pasesPendientes = pendientesList.reduce((acc, inv) => acc + (inv.numero_pa
                 return (
                   <tr class="hover:bg-stone-50/50 transition-colors">
                     {/* Nombre y tipo */}
-                    <td class="py-4 px-6 whitespace-nowrap">
+                    <td class="py-4 px-5 whitespace-nowrap">
                       <div class="flex items-center gap-2.5">
                         <span class={`w-8 h-8 rounded-lg flex items-center justify-center text-sm shrink-0 border ${
                           isFamily
@@ -373,7 +379,7 @@ const pasesPendientes = pendientesList.reduce((acc, inv) => acc + (inv.numero_pa
 
                     {/* Evento (si es vista global) */}
                     {!isValidEventContext && (
-                      <td class="py-4 px-6 whitespace-nowrap">
+                      <td class="py-4 px-4 whitespace-nowrap">
                         <span class="px-2.5 py-1 rounded-md text-[11px] font-semibold bg-stone-100 text-stone-800 border border-stone-200/60">
                           {eventInfo?.nombre || `Evento #${item.evento_id}`}
                         </span>
@@ -381,7 +387,7 @@ const pasesPendientes = pendientesList.reduce((acc, inv) => acc + (inv.numero_pa
                     )}
 
                     {/* Teléfono */}
-                    <td class="py-4 px-6 whitespace-nowrap font-mono text-stone-600">
+                    <td class="py-4 px-4 whitespace-nowrap font-mono text-stone-600">
                       {item.telefono ? (
                         <a
                           href={`https://wa.me/${item.telefono.replace(/[^0-9]/g, '')}`}
@@ -396,15 +402,31 @@ const pasesPendientes = pendientesList.reduce((acc, inv) => acc + (inv.numero_pa
                       )}
                     </td>
 
-                    {/* Pases asignados */}
-                    <td class="py-4 px-6 whitespace-nowrap text-center">
-                      <span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-stone-100 text-stone-800 font-bold font-mono text-xs border border-stone-200">
+                    {/* Pases asignados (límite máximo oficial) */}
+                    <td class="py-4 px-4 whitespace-nowrap text-center">
+                      <span class="inline-flex items-center justify-center min-w-[28px] h-7 px-2 rounded-full bg-stone-100 text-stone-800 font-bold font-mono text-xs border border-stone-200" title="Máximo permitido por esta invitación">
                         {item.numero_pases || 1}
                       </span>
                     </td>
 
+                    {/* Pases confirmados (personas que declararon asistir) */}
+                    <td class="py-4 px-4 whitespace-nowrap text-center">
+                      {item.confirmado === true || item.confirmado === 'true' ? (
+                        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold font-mono bg-emerald-50 text-emerald-800 border border-emerald-200" title={`${item.pases_confirmados != null ? item.pases_confirmados : (item.numero_pases || 1)} personas confirmadas`}>
+                          <span>✓</span>
+                          <span>{item.pases_confirmados != null ? item.pases_confirmados : (item.numero_pases || 1)}</span>
+                        </span>
+                      ) : item.confirmado === false || item.confirmado === 'false' ? (
+                        <span class="inline-flex items-center justify-center px-2 py-0.5 rounded text-[11px] font-mono text-stone-400 bg-stone-50 border border-stone-200" title="0 personas confirmadas">
+                          0
+                        </span>
+                      ) : (
+                        <span class="text-amber-600/60 italic text-[11px]" title="Pendiente de confirmar">—</span>
+                      )}
+                    </td>
+
                     {/* Código de Pase */}
-                    <td class="py-4 px-6 whitespace-nowrap">
+                    <td class="py-4 px-4 whitespace-nowrap">
                       {item.codigo ? (
                         <code class="px-2 py-0.5 rounded bg-stone-100 text-stone-700 font-mono text-[11px] border border-stone-200/80">
                           {item.codigo}
@@ -414,8 +436,8 @@ const pasesPendientes = pendientesList.reduce((acc, inv) => acc + (inv.numero_pa
                       )}
                     </td>
 
-                    {/* Estado de Confirmación */}
-                    <td class="py-4 px-6 whitespace-nowrap text-center">
+                    {/* Estado RSVP */}
+                    <td class="py-4 px-4 whitespace-nowrap text-center">
                       {item.confirmado === true || item.confirmado === 'true' ? (
                         <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
                           <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
@@ -435,7 +457,19 @@ const pasesPendientes = pendientesList.reduce((acc, inv) => acc + (inv.numero_pa
                     </td>
 
                     {/* Acciones */}
-                    <td class="py-4 px-6 whitespace-nowrap text-right space-x-2">
+                    <td class="py-4 px-5 whitespace-nowrap text-right space-x-1.5">
+                      {item.codigo && (
+                        <a
+                          href={`/demo/${eventInfo?.slug || 'boda-cesar-adrian'}?codigo=${item.codigo}#rsvp`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200/80 shadow-2xs transition-colors"
+                          title="Ver pase digital y RSVP"
+                        >
+                          <span>Pase</span>
+                          <span class="text-[10px]">↗</span>
+                        </a>
+                      )}
                       <button
                         type="button"
                         class="btn-edit-invitado px-2.5 py-1.5 rounded-lg text-xs font-semibold text-stone-700 bg-white hover:bg-stone-100 border border-stone-200 shadow-2xs transition-colors cursor-pointer"
@@ -445,6 +479,7 @@ const pasesPendientes = pendientesList.reduce((acc, inv) => acc + (inv.numero_pa
                         data-telefono={item.telefono || ''}
                         data-numero-pases={item.numero_pases || 1}
                         data-confirmado={String(item.confirmado)}
+                        data-pases-confirmados={item.pases_confirmados != null ? String(item.pases_confirmados) : ''}
                         data-codigo={item.codigo || ''}
                       >
                         Editar
@@ -588,6 +623,25 @@ const pasesPendientes = pendientesList.reduce((acc, inv) => acc + (inv.numero_pa
             </div>
           </div>
 
+          {/* Pases Confirmados (visible cuando confirmado === true) */}
+          <div id="container-pases-confirmados" class="hidden bg-emerald-50/50 border border-emerald-200/80 rounded-xl p-3.5 space-y-1.5">
+            <label for="invitado-pases-confirmados" class="block text-xs font-bold uppercase tracking-wider text-emerald-900">
+              Pases confirmados (asistentes declarados)
+            </label>
+            <input
+              type="number"
+              id="invitado-pases-confirmados"
+              name="pases_confirmados"
+              min="1"
+              max="50"
+              class="w-full px-3.5 py-2 rounded-xl border border-emerald-300 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 text-xs text-stone-900 font-mono bg-white"
+              placeholder="Ej. 2"
+            />
+            <p class="text-[10px] text-emerald-700 leading-tight">
+              Cantidad de personas que asistirán. No puede exceder los pases asignados.
+            </p>
+          </div>
+
           <div id="modal-invitado-error" class="hidden text-xs text-rose-600 bg-rose-50 border border-rose-200 p-2.5 rounded-xl"></div>
 
           <div class="flex items-center justify-end gap-2 pt-3 border-t border-stone-100">
@@ -661,6 +715,32 @@ const pasesPendientes = pendientesList.reduce((acc, inv) => acc + (inv.numero_pa
     const btnConfirmDelete = document.getElementById('btn-confirm-delete-invitado');
     let targetDelete = null;
 
+    const containerPasesConf = document.getElementById('container-pases-confirmados');
+    const pasesConfInput = document.getElementById('invitado-pases-confirmados');
+    const pasesInput = document.getElementById('invitado-pases');
+    const confSelect = document.getElementById('invitado-confirmado');
+
+    const updatePasesConfVisibility = () => {
+      if (confSelect?.value === 'true') {
+        containerPasesConf?.classList.remove('hidden');
+        if (pasesConfInput && pasesInput) {
+          pasesConfInput.max = pasesInput.value || '50';
+          if (!pasesConfInput.value || Number(pasesConfInput.value) <= 0) {
+            pasesConfInput.value = pasesInput.value || '1';
+          }
+        }
+      } else {
+        containerPasesConf?.classList.add('hidden');
+        if (pasesConfInput) pasesConfInput.value = '';
+      }
+    };
+    confSelect?.addEventListener('change', updatePasesConfVisibility);
+    pasesInput?.addEventListener('input', () => {
+      if (pasesConfInput && pasesInput) {
+        pasesConfInput.max = pasesInput.value || '50';
+      }
+    });
+
     const openCreateModal = () => {
       form.reset();
       document.getElementById('invitado-id').value = '';
@@ -670,6 +750,8 @@ const pasesPendientes = pendientesList.reduce((acc, inv) => acc + (inv.numero_pa
       }
       document.getElementById('invitado-pases').value = '1';
       document.getElementById('invitado-confirmado').value = 'null';
+      containerPasesConf?.classList.add('hidden');
+      if (pasesConfInput) pasesConfInput.value = '';
       modalTitle.textContent = 'Nuevo Invitado';
       modalError.classList.add('hidden');
       modal?.showModal();
@@ -691,6 +773,7 @@ const pasesPendientes = pendientesList.reduce((acc, inv) => acc + (inv.numero_pa
         const telefono = btn.getAttribute('data-telefono');
         const numeroPases = btn.getAttribute('data-numero-pases');
         const confirmado = btn.getAttribute('data-confirmado');
+        const pasesConf = btn.getAttribute('data-pases-confirmados');
         const codigo = btn.getAttribute('data-codigo');
 
         document.getElementById('invitado-id').value = id;
@@ -700,10 +783,14 @@ const pasesPendientes = pendientesList.reduce((acc, inv) => acc + (inv.numero_pa
         document.getElementById('invitado-telefono').value = telefono || '';
         document.getElementById('invitado-pases').value = numeroPases || '1';
 
-        const confSelect = document.getElementById('invitado-confirmado');
         if (confirmado === 'true') confSelect.value = 'true';
         else if (confirmado === 'false') confSelect.value = 'false';
         else confSelect.value = 'null';
+
+        if (pasesConfInput) {
+          pasesConfInput.value = pasesConf || (confirmado === 'true' ? (numeroPases || '1') : '');
+        }
+        updatePasesConfVisibility();
 
         document.getElementById('invitado-codigo').value = codigo || '';
 
@@ -725,10 +812,34 @@ const pasesPendientes = pendientesList.reduce((acc, inv) => acc + (inv.numero_pa
       const action = id ? 'update' : 'create';
       const eventoIdVal = document.getElementById('invitado-evento-id').value;
 
-      const confVal = document.getElementById('invitado-confirmado').value;
+      const confVal = confSelect.value;
       let confirmado = null;
       if (confVal === 'true') confirmado = true;
       if (confVal === 'false') confirmado = false;
+
+      const numPasesMax = Number(pasesInput.value) || 1;
+      let pases_confirmados = null;
+
+      if (confirmado === true) {
+        const confNumber = pasesConfInput?.value ? Number(pasesConfInput.value) : numPasesMax;
+        if (isNaN(confNumber) || confNumber <= 0) {
+          modalError.textContent = 'Un invitado confirmado debe tener al menos 1 pase confirmado.';
+          modalError.classList.remove('hidden');
+          saveBtn.disabled = false;
+          saveBtn.textContent = 'Guardar invitado';
+          return;
+        }
+        if (confNumber > numPasesMax) {
+          modalError.textContent = `Los pases confirmados (${confNumber}) no pueden superar los pases asignados (${numPasesMax}).`;
+          modalError.classList.remove('hidden');
+          saveBtn.disabled = false;
+          saveBtn.textContent = 'Guardar invitado';
+          return;
+        }
+        pases_confirmados = Math.floor(confNumber);
+      } else if (confirmado === false) {
+        pases_confirmados = 0;
+      }
 
       const payload = {
         action,
@@ -736,8 +847,9 @@ const pasesPendientes = pendientesList.reduce((acc, inv) => acc + (inv.numero_pa
         id: id ? Number(id) : undefined,
         nombre: document.getElementById('invitado-nombre').value,
         telefono: document.getElementById('invitado-telefono').value,
-        numero_pases: Number(document.getElementById('invitado-pases').value) || 1,
+        numero_pases: numPasesMax,
         confirmado,
+        pases_confirmados,
         codigo: document.getElementById('invitado-codigo').value,
       };
 

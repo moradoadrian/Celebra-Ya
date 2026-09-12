@@ -17,7 +17,8 @@ import type {
   ProgramaItem,
   GaleriaItem,
   HistoriaItem,
-  MesaRegalosItem
+  MesaRegalosItem,
+  InvitadoItem
 } from '@/types';
 
 const { slug } = Astro.params;
@@ -38,6 +39,33 @@ if (eventoError || !eventoData) {
 }
 
 const evento: Evento = eventoData;
+
+// 1.1 Validar código de invitación si se especificó en la URL
+const codigoParam = Astro.url.searchParams.get('codigo')?.trim();
+let invitado: InvitadoItem | null = null;
+let codigoInvalido = false;
+
+if (codigoParam) {
+  try {
+    const { data: invData, error: invError } = await supabase
+      .from('invitados')
+      .select('*')
+      .eq('codigo', codigoParam)
+      .maybeSingle();
+
+    // Validar existencia y aislamiento por evento_id
+    if (invError || !invData || invData.evento_id !== evento.id) {
+      codigoInvalido = true;
+      Astro.response.status = 404;
+    } else {
+      invitado = invData as InvitadoItem;
+    }
+  } catch (err) {
+    console.error('[Demo Slug] Error buscando invitado por código:', err);
+    codigoInvalido = true;
+    Astro.response.status = 404;
+  }
+}
 
 // 2. Obtener datos relacionados concurrentemente
 const [
@@ -102,55 +130,86 @@ const eventDateStr = evento.fecha_evento || '2026-12-28';
 const targetDate = `${eventDateStr}T${eventTime}`;
 ---
 
-<Layout title={`${evento.tipo_evento || 'Boda'} ${evento.nombre} | ${displayDate}`}>
-  {/* Google Fonts for Luxury Wedding Typography */}
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Great+Vibes&family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+{codigoInvalido ? (
+  <Layout title={`Invitación no encontrada | Celebra-Ya`}>
+    <main class="min-h-screen bg-[#faf8f5] flex items-center justify-center p-4">
+      <div class="max-w-md w-full bg-white rounded-3xl border border-stone-200 p-8 sm:p-10 text-center shadow-lg space-y-6">
+        <div class="w-16 h-16 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 flex items-center justify-center text-3xl mx-auto shadow-xs">
+          💌
+        </div>
+        <div class="space-y-2">
+          <h1 class="text-2xl sm:text-3xl font-serif-luxury font-bold text-stone-900">
+            Invitación no encontrada
+          </h1>
+          <p class="text-sm text-stone-600 font-serif italic">
+            El enlace de invitación no es válido o ya no está disponible.
+          </p>
+        </div>
+        <p class="text-xs text-stone-500 leading-relaxed">
+          Verifica que el código de acceso proporcionado sea correcto o comunícate con los anfitriones del evento para obtener un enlace actualizado.
+        </p>
+        <div class="pt-2">
+          <a
+            href={`/demo/${evento.slug}`}
+            class="inline-flex items-center justify-center px-6 py-3 rounded-full bg-stone-900 hover:bg-stone-800 text-amber-200 text-xs font-bold transition-all shadow-md"
+          >
+            Ver invitación general
+          </a>
+        </div>
+      </div>
+    </main>
+  </Layout>
+) : (
+  <Layout title={`${evento.tipo_evento || 'Boda'} ${evento.nombre} | ${displayDate}`}>
+    {/* Google Fonts for Luxury Wedding Typography */}
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Great+Vibes&family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
 
-  <style>
-    .font-serif-luxury {
-      font-family: 'Cormorant Garamond', Georgia, serif;
-    }
-    .font-script {
-      font-family: 'Great Vibes', cursive;
-    }
-    .font-sans-clean {
-      font-family: 'Montserrat', sans-serif;
-    }
-  </style>
+    <style>
+      .font-serif-luxury {
+        font-family: 'Cormorant Garamond', Georgia, serif;
+      }
+      .font-script {
+        font-family: 'Great Vibes', cursive;
+      }
+      .font-sans-clean {
+        font-family: 'Montserrat', sans-serif;
+      }
+    </style>
 
-  {/* Background Music Player */}
-  <WeddingMusicPlayer client:load musicaUrl={evento.musica_url} />
+    {/* Background Music Player */}
+    <WeddingMusicPlayer client:load musicaUrl={evento.musica_url} />
 
-  <main class="bg-[#faf8f5] text-stone-800 font-sans-clean selection:bg-rose-100 selection:text-rose-900 min-h-screen">
-    
-    {/* HERO SECTION */}
-    <Hero evento={evento} displayDate={displayDate} weddingDate={targetDate} />
+    <main class="bg-[#faf8f5] text-stone-800 font-sans-clean selection:bg-rose-100 selection:text-rose-900 min-h-screen">
+      
+      {/* HERO SECTION */}
+      <Hero evento={evento} displayDate={displayDate} weddingDate={targetDate} />
 
-    {/* NUESTRA HISTORIA */}
-    <Historia historias={historias} />
+      {/* NUESTRA HISTORIA */}
+      <Historia historias={historias} />
 
-    {/* ITINERARIO DEL EVENTO */}
-    <Programa programa={programa} displayDate={displayDate} />
+      {/* ITINERARIO DEL EVENTO */}
+      <Programa programa={programa} displayDate={displayDate} />
 
-    {/* UBICACIONES GPS */}
-    <Ubicacion ubicaciones={ubicaciones} />
+      {/* UBICACIONES GPS */}
+      <Ubicacion ubicaciones={ubicaciones} />
 
-    {/* DRESS CODE */}
-    <DressCode evento={evento} />
+      {/* DRESS CODE */}
+      <DressCode evento={evento} />
 
-    {/* GALERÍA DE FOTOS */}
-    <Galeria galeria={galeria} />
+      {/* GALERÍA DE FOTOS */}
+      <Galeria galeria={galeria} />
 
-    {/* MESA DE REGALOS */}
-    <MesaRegalos regalos={mesaRegalos} />
+      {/* MESA DE REGALOS */}
+      <MesaRegalos regalos={mesaRegalos} />
 
-    {/* CONFIRMACIÓN RSVP */}
-    <Rsvp evento={evento} />
+      {/* CONFIRMACIÓN RSVP */}
+      <Rsvp evento={evento} invitado={invitado} />
 
-    {/* WEDDING FOOTER */}
-    <Footer evento={evento} displayDate={displayDate} />
+      {/* WEDDING FOOTER */}
+      <Footer evento={evento} displayDate={displayDate} />
 
-  </main>
-</Layout>
+    </main>
+  </Layout>
+)}

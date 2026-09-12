@@ -150,3 +150,60 @@ TO anon
 USING (true)
 WITH CHECK (true);
 
+-- ==============================================================================
+-- FASE 17: MESAS Y ASIGNACIÓN DE INVITADOS (SEATING PLAN)
+-- Aplicar en el SQL Editor de Supabase (https://supabase.com/dashboard/project/thznthspspdcayqlilwq/sql)
+-- ==============================================================================
+
+-- 1. TABLA public.mesas
+CREATE TABLE IF NOT EXISTS public.mesas (
+  id BIGSERIAL PRIMARY KEY,
+  evento_id BIGINT NOT NULL REFERENCES public.eventos(id) ON DELETE CASCADE,
+  numero INTEGER NOT NULL,
+  capacidad INTEGER NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  CONSTRAINT check_mesas_numero_positive CHECK (numero > 0),
+  CONSTRAINT check_mesas_capacidad_positive CHECK (capacidad > 0),
+  CONSTRAINT unique_mesa_numero_por_evento UNIQUE (evento_id, numero)
+);
+
+-- 2. TABLA public.mesa_invitados (Relación de invitados a mesa)
+CREATE TABLE IF NOT EXISTS public.mesa_invitados (
+  id BIGSERIAL PRIMARY KEY,
+  mesa_id BIGINT NOT NULL REFERENCES public.mesas(id) ON DELETE CASCADE,
+  invitado_id BIGINT NOT NULL REFERENCES public.invitados(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  -- Regla: Un invitado solamente puede pertenecer a una mesa al mismo tiempo
+  CONSTRAINT unique_invitado_mesa UNIQUE (invitado_id)
+);
+
+-- 3. PERMISOS Y PRIVILEGIOS
+-- Rol authenticated (administrador): gestión total
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.mesas TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.mesa_invitados TO authenticated;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO authenticated;
+
+-- 4. HABILITAR ROW LEVEL SECURITY (RLS)
+ALTER TABLE public.mesas ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.mesa_invitados ENABLE ROW LEVEL SECURITY;
+
+-- 5. POLÍTICAS RLS (authenticated)
+DROP POLICY IF EXISTS "Permitir gestion total de mesas a usuarios autenticados" ON public.mesas;
+CREATE POLICY "Permitir gestion total de mesas a usuarios autenticados"
+ON public.mesas
+FOR ALL
+TO authenticated
+USING (true)
+WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Permitir gestion total de mesa_invitados a usuarios autenticados" ON public.mesa_invitados;
+CREATE POLICY "Permitir gestion total de mesa_invitados a usuarios autenticados"
+ON public.mesa_invitados
+FOR ALL
+TO authenticated
+USING (true)
+WITH CHECK (true);
+
+

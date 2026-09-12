@@ -1,0 +1,1056 @@
+---
+import AdminLayout from '@/components/admin/AdminLayout.astro';
+import { createSupabaseServerClient } from '@/lib/supabase-server';
+import type { Evento, InvitadoItem, MesaItem, MesaConDetalles } from '@/types';
+
+// 1. Verificación defensiva de autenticación SSR
+const user = Astro.locals.user;
+if (!user) {
+  return Astro.redirect('/admin/login');
+}
+
+const userEmail = user.email || 'Administrador';
+
+// 2. Cliente SSR autenticado
+const supabase = createSupabaseServerClient({
+  headers: Astro.request.headers,
+  cookies: Astro.cookies,
+});
+
+// 3. Parámetro de evento para contexto de trabajo
+const eventoIdParam = Astro.url.searchParams.get('evento_id');
+let requestedEventId = eventoIdParam ? Number(eventoIdParam) : null;
+
+// 4. Consultar lista de eventos disponibles para el selector
+let eventosList: Pick<Evento, 'id' | 'nombre' | 'slug'>[] = [];
+try {
+  const { data: evData } = await supabase
+    .from('eventos')
+    .select('id, nombre, slug')
+    .order('fecha_evento', { ascending: true });
+  eventosList = evData ?? [];
+} catch (e) {
+  console.error('[Admin Mesas] Error cargando lista de eventos:', e);
+}
+
+// Si no se proporcionó evento_id, seleccionar el primer evento disponible
+if ((!requestedEventId || isNaN(requestedEventId)) && eventosList.length > 0) {
+  requestedEventId = eventosList[0].id;
+}
+
+const eventId = requestedEventId && requestedEventId > 0 ? requestedEventId : null;
+const currentEvento = eventosList.find((e) => e.id === eventId) || null;
+
+// 5. Cargar Mesas, Asignaciones e Invitados del evento
+let mesasDetalladas: MesaConDetalles[] = [];
+let invitadosSinMesa: InvitadoItem[] = [];
+let loadError: string | null = null;
+let sqlPendingWarning = false;
+
+if (eventId) {
+  try {
+    // A) Cargar mesas del evento
+    const { data: mesasData, error: mesasError } = await supabase
+      .from('mesas')
+      .select('*')
+      .eq('evento_id', eventId)
+      .order('numero', { ascending: true });
+
+    if (mesasError) {
+      if (mesasError.code === 'PGRST205' || mesasError.code === '42501') {
+        sqlPendingWarning = true;
+      } else {
+        console.error('[Admin Mesas Query Error]', mesasError.message);
+        loadError = 'Error al consultar las mesas del evento.';
+      }
+    }
+
+    const rawMesas: MesaItem[] = (mesasData as MesaItem[]) ?? [];
+
+    // B) Cargar todos los invitados del evento
+    const { data: invitadosData, error: invError } = await supabase
+      .from('invitados')
+      .select('*')
+      .eq('evento_id', eventId)
+      .order('nombre', { ascending: true });
+
+    const rawInvitados: InvitadoItem[] = (invitadosData as InvitadoItem[]) ?? [];
+
+    // C) Cargar asignaciones de mesa_invitados
+    let rawAsignaciones: { id: number; mesa_id: number; invitado_id: number }[] = [];
+    if (!sqlPendingWarning) {
+      const { data: asigData, error: asigError } = await supabase
+        .from('mesa_invitados')
+        .select('*');
+
+      if (asigError && (asigError.code === 'PGRST205' || asigError.code === '42501')) {
+        sqlPendingWarning = true;
+      } else {
+        rawAsignaciones = asigData ?? [];
+      }
+    }
+
+    // D) Construir estructura normalizada de mesas con ocupación real y asistentes
+    const asignadosIds = new Set<number>();
+
+    mesasDetalladas = rawMesas.map((mesa) => {
+      // Filtrar asignaciones correspondientes a esta mesa
+      const asignacionesMesa = rawAsignaciones.filter((a) => a.mesa_id === mesa.id);
+      
+      const invitadosMesa = asignacionesMesa
+        .map((asig) => {
+          const inv = rawInvitados.find((i) => i.id === asig.invitado_id);
+          if (inv) {
+            asignadosIds.add(inv.id);
+            return {
+              asignacionId: asig.id,
+              invitado: inv,
+            };
+          }
+          return null;
+        })
+        .filter(Boolean) as { asignacionId: number; invitado: InvitadoItem }[];
+
+      // REGLA FUNDAMENTAL DE NEGOCIO:
+      // La ocupación de la mesa se calcula con pases_confirmados (NO con numero_pases).
+      // - Si confirmado === true: suma pases_confirmados (o numero_pases si no estuviera definido).
+      // - Si confirmado === false: 0 lugares.
+      // - Si confirmado === null: no suma a la ocupación física confirmada (queda como pendiente).
+      let ocupacionConfirmada = 0;
+      let totalPendientes = 0;
+      let totalDeclinados = 0;
+
+      for (const item of invitadosMesa) {
+        const inv = item.invitado;
+        if (inv.confirmado === true || inv.confirmado === 'true') {
+          ocupacionConfirmada += Number(inv.pases_confirmados) || 1;
+        } else if (inv.confirmado === false || inv.confirmado === 'false') {
+          totalDeclinados += 1;
+        } else {
+          totalPendientes += 1;
+        }
+      }
+
+      const lugaresDisponibles = Math.max(0, mesa.capacidad - ocupacionConfirmada);
+
+      let estado: 'disponible' | 'completa' | 'sobrecupo' = 'disponible';
+      if (ocupacionConfirmada === mesa.capacidad) {
+        estado = 'completa';
+      } else if (ocupacionConfirmada > mesa.capacidad) {
+        estado = 'sobrecupo';
+      }
+
+      return {
+        ...mesa,
+        invitadosAsignados: invitadosMesa,
+        ocupacionConfirmada,
+        lugaresDisponibles,
+        totalPendientes,
+        totalDeclinados,
+        estado,
+      };
+    });
+
+    // E) Determinar invitados sin mesa asignada
+    invitadosSinMesa = rawInvitados.filter((inv) => !asignadosIds.has(inv.id));
+
+  } catch (err) {
+    console.error('[Admin Mesas Exception]', err);
+    loadError = 'Error inesperado al cargar la distribución de mesas.';
+  }
+}
+
+// 6. Cálculo de métricas globales del salón
+const totalMesas = mesasDetalladas.length;
+const capacidadTotal = mesasDetalladas.reduce((sum, m) => sum + m.capacidad, 0);
+const pasesConfirmadosAsignados = mesasDetalladas.reduce((sum, m) => sum + m.ocupacionConfirmada, 0);
+const lugaresDisponiblesGlobal = Math.max(0, capacidadTotal - pasesConfirmadosAsignados);
+const totalInvitadosSinMesa = invitadosSinMesa.length;
+const totalRsvpPendientesAsignados = mesasDetalladas.reduce((sum, m) => sum + m.totalPendientes, 0);
+---
+
+<AdminLayout title={currentEvento ? `Mesas: ${currentEvento.nombre} | Celebra-Ya` : 'Mesas y Asignaciones | Celebra-Ya'} userEmail={userEmail}>
+  <div class="space-y-8 max-w-7xl mx-auto pb-16">
+
+    {/* ENCABEZADO Y SELECTOR DE EVENTO */}
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-stone-200/80 pb-6">
+      <div>
+        <div class="flex items-center gap-2 mb-1.5">
+          <a
+            href="/admin"
+            class="inline-flex items-center gap-1 text-xs font-semibold text-stone-500 hover:text-stone-900 transition-colors"
+          >
+            <span>←</span>
+            <span>Dashboard</span>
+          </a>
+          <span class="text-stone-300">/</span>
+          {currentEvento && (
+            <a
+              href={`/admin/eventos/${currentEvento.id}`}
+              class="text-xs font-semibold text-stone-500 hover:text-stone-900 transition-colors"
+            >
+              {currentEvento.nombre}
+            </a>
+          )}
+        </div>
+
+        <div class="flex flex-wrap items-center gap-3">
+          <h1 class="text-2xl sm:text-3xl font-serif-luxury font-bold text-stone-900">
+            Mesas y Asignación
+          </h1>
+          {currentEvento && (
+            <span class="px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-900 border border-amber-200/80 shadow-xs">
+              {currentEvento.nombre}
+            </span>
+          )}
+        </div>
+
+        <p class="text-xs sm:text-sm text-stone-500 mt-1">
+          Organiza las mesas del salón, verifica la capacidad y asigna tus invitados según pases confirmados.
+        </p>
+      </div>
+
+      {/* SELECTOR DE EVENTO Y BOTÓN NUEVA MESA */}
+      <div class="flex flex-wrap items-center gap-3 shrink-0">
+        <form method="GET" class="flex items-center">
+          <select
+            name="evento_id"
+            onchange="this.form.submit()"
+            class="px-3.5 py-2.5 rounded-xl border border-stone-300 bg-white text-xs font-semibold text-stone-800 shadow-2xs focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20"
+          >
+            {eventosList.map((ev) => (
+              <option value={ev.id} selected={ev.id === eventId}>
+                {ev.nombre}
+              </option>
+            ))}
+          </select>
+        </form>
+
+        <button
+          type="button"
+          id="btn-open-new-mesa"
+          class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-stone-900 hover:bg-stone-800 text-amber-200 text-xs font-bold tracking-wide shadow-xs transition-all transform hover:-translate-y-0.5 cursor-pointer"
+        >
+          <span class="text-base leading-none font-bold">+</span>
+          <span>Nueva mesa</span>
+        </button>
+      </div>
+    </div>
+
+    {/* AVISO DE MIGRACIÓN PENDIENTE (SI LA TABLA AÚN NO EXISTE EN SUPABASE) */}
+    {sqlPendingWarning && (
+      <div class="bg-amber-50 border border-amber-300 text-amber-900 p-5 rounded-2xl shadow-xs space-y-2 animate-fade-in">
+        <div class="flex items-center gap-2.5 font-bold text-sm">
+          <span>⚠️</span>
+          <span>Tablas de Mesas pendientes en Supabase</span>
+        </div>
+        <p class="text-xs text-amber-800 leading-relaxed">
+          Las tablas <code class="font-mono bg-amber-100/80 px-1 py-0.5 rounded">public.mesas</code> y <code class="font-mono bg-amber-100/80 px-1 py-0.5 rounded">public.mesa_invitados</code> aún no se han creado en tu proyecto de Supabase. Aplica las sentencias preparadas en <code class="font-mono bg-amber-100/80 px-1 py-0.5 rounded">supabase-rls-policies.sql</code> en el SQL Editor de Supabase para activar la persistencia completa.
+        </p>
+      </div>
+    )}
+
+    {/* ALERTA DE ERROR GENERAL */}
+    {loadError && (
+      <div class="bg-rose-50 border border-rose-200 text-rose-900 px-5 py-4 rounded-2xl flex items-center gap-3 shadow-xs">
+        <span class="w-7 h-7 rounded-full bg-rose-500 text-white flex items-center justify-center font-bold text-sm shrink-0">✕</span>
+        <p class="text-xs sm:text-sm font-semibold">{loadError}</p>
+      </div>
+    )}
+
+    {/* TARJETAS DE MÉTRICAS DEL SALÓN (6 MÉTRICAS PRINCIPALES) */}
+    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+      
+      {/* 1. Total Mesas */}
+      <div class="bg-white border border-stone-200/80 rounded-2xl p-4 shadow-xs">
+        <p class="text-[10px] font-bold uppercase tracking-wider text-stone-400">Total Mesas</p>
+        <p class="text-2xl font-bold font-serif-luxury text-stone-900 mt-1">{totalMesas}</p>
+        <p class="text-[10px] text-stone-500 mt-0.5">en el salón</p>
+      </div>
+
+      {/* 2. Capacidad Total */}
+      <div class="bg-white border border-stone-200/80 rounded-2xl p-4 shadow-xs">
+        <p class="text-[10px] font-bold uppercase tracking-wider text-stone-400">Capacidad Total</p>
+        <p class="text-2xl font-bold font-serif-luxury text-stone-900 mt-1">{capacidadTotal}</p>
+        <p class="text-[10px] text-stone-500 mt-0.5">asientos físicos</p>
+      </div>
+
+      {/* 3. Pases Confirmados Asignados */}
+      <div class="bg-white border border-stone-200/80 rounded-2xl p-4 shadow-xs">
+        <p class="text-[10px] font-bold uppercase tracking-wider text-emerald-600">Ocupación</p>
+        <p class="text-2xl font-bold font-serif-luxury text-emerald-700 mt-1">{pasesConfirmadosAsignados}</p>
+        <p class="text-[10px] text-stone-500 mt-0.5">confirmados en mesa</p>
+      </div>
+
+      {/* 4. Lugares Disponibles */}
+      <div class="bg-white border border-stone-200/80 rounded-2xl p-4 shadow-xs">
+        <p class="text-[10px] font-bold uppercase tracking-wider text-amber-700">Disponibles</p>
+        <p class="text-2xl font-bold font-serif-luxury text-amber-800 mt-1">{lugaresDisponiblesGlobal}</p>
+        <p class="text-[10px] text-stone-500 mt-0.5">asientos libres</p>
+      </div>
+
+      {/* 5. Invitados sin Mesa */}
+      <div class="bg-white border border-stone-200/80 rounded-2xl p-4 shadow-xs">
+        <p class="text-[10px] font-bold uppercase tracking-wider text-stone-400">Sin Mesa</p>
+        <p class="text-2xl font-bold font-serif-luxury text-stone-700 mt-1">{totalInvitadosSinMesa}</p>
+        <p class="text-[10px] text-stone-500 mt-0.5">por ubicar</p>
+      </div>
+
+      {/* 6. RSVP Pendientes en Mesa */}
+      <div class="bg-white border border-stone-200/80 rounded-2xl p-4 shadow-xs">
+        <p class="text-[10px] font-bold uppercase tracking-wider text-amber-600">RSVP Pend.</p>
+        <p class="text-2xl font-bold font-serif-luxury text-amber-600 mt-1">{totalRsvpPendientesAsignados}</p>
+        <p class="text-[10px] text-stone-500 mt-0.5">asignados sin RSVP</p>
+      </div>
+
+    </div>
+
+    {/* LAYOUT PRINCIPAL: DISTRIBUCIÓN DE MESAS + BANDEJA DE INVITADOS SIN MESA */}
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+      
+      {/* COLUMNA 1 Y 2: GRID DE TARJETAS DE MESAS */}
+      <div class="lg:col-span-2 space-y-6">
+        <div class="flex items-center justify-between">
+          <h2 class="text-lg font-bold text-stone-900 flex items-center gap-2">
+            <span>Distribución de Mesas</span>
+            <span class="text-xs px-2.5 py-0.5 rounded-full bg-stone-100 text-stone-700 border border-stone-200 font-normal">
+              {totalMesas} {totalMesas === 1 ? 'mesa' : 'mesas'}
+            </span>
+          </h2>
+        </div>
+
+        {mesasDetalladas.length === 0 ? (
+          <div class="bg-white border border-stone-200/80 rounded-3xl p-12 text-center space-y-4 shadow-xs">
+            <div class="w-16 h-16 rounded-2xl bg-stone-100 border border-stone-200 text-stone-400 flex items-center justify-center text-3xl mx-auto shadow-xs">
+              🪑
+            </div>
+            <div>
+              <h3 class="text-base font-bold text-stone-900">No hay mesas registradas en este evento</h3>
+              <p class="text-xs text-stone-500 mt-1 max-w-sm mx-auto">
+                Crea la primera mesa del salón para comenzar a ubicar a los invitados de {currentEvento?.nombre || 'tu evento'}.
+              </p>
+            </div>
+            <div>
+              <button
+                type="button"
+                id="btn-empty-add-mesa"
+                class="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-stone-900 hover:bg-stone-800 text-amber-200 text-xs font-bold shadow-xs transition-colors cursor-pointer"
+              >
+                <span>+</span>
+                <span>Crear primera mesa</span>
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            {mesasDetalladas.map((mesa) => {
+              const pctOcupacion = Math.min(100, Math.round((mesa.ocupacionConfirmada / mesa.capacidad) * 100));
+
+              return (
+                <div class="bg-white border border-stone-200/90 rounded-2xl p-5 shadow-xs space-y-4 hover:border-amber-300/80 transition-colors">
+                  
+                  {/* CABECERA DE LA MESA */}
+                  <div class="flex items-start justify-between gap-3 border-b border-stone-100 pb-3.5">
+                    <div>
+                      <div class="flex items-center gap-2">
+                        <span class="w-7 h-7 rounded-lg bg-stone-900 text-amber-300 font-bold font-mono text-xs flex items-center justify-center">
+                          {mesa.numero}
+                        </span>
+                        <h3 class="text-base font-bold text-stone-900">
+                          Mesa {mesa.numero}
+                        </h3>
+                      </div>
+                      <p class="text-[11px] text-stone-500 mt-1">
+                        Capacidad física: <strong class="text-stone-800">{mesa.capacidad}</strong> lugares
+                      </p>
+                    </div>
+
+                    {/* BADGE DE ESTADO DE LA MESA */}
+                    <div class="text-right shrink-0">
+                      {mesa.estado === 'completa' ? (
+                        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-stone-100 text-stone-800 border border-stone-300">
+                          <span>●</span>
+                          <span>Completa</span>
+                        </span>
+                      ) : mesa.estado === 'sobrecupo' ? (
+                        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-rose-50 text-rose-700 border border-rose-200">
+                          <span>⚠</span>
+                          <span>Sobrecupo</span>
+                        </span>
+                      ) : (
+                        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-800 border border-emerald-200">
+                          <span>✓</span>
+                          <span>{mesa.lugaresDisponibles} libres</span>
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* BARRA DE OCUPACIÓN REAL (CALCULADA CON PASES CONFIRMADOS) */}
+                  <div class="space-y-1.5">
+                    <div class="flex items-center justify-between text-xs font-semibold">
+                      <span class="text-stone-600">
+                        Ocupación confirmada:
+                      </span>
+                      <span class="font-mono text-stone-900">
+                        <strong>{mesa.ocupacionConfirmada}</strong> / {mesa.capacidad}
+                      </span>
+                    </div>
+
+                    <div class="w-full h-2.5 bg-stone-100 rounded-full overflow-hidden">
+                      <div
+                        class={`h-full transition-all duration-300 ${
+                          mesa.estado === 'sobrecupo'
+                            ? 'bg-rose-500'
+                            : mesa.estado === 'completa'
+                            ? 'bg-amber-500'
+                            : 'bg-emerald-500'
+                        }`}
+                        style={`width: ${pctOcupacion}%`}
+                      />
+                    </div>
+
+                    {/* AVISO DE RSVP PENDIENTES */}
+                    {mesa.totalPendientes > 0 && (
+                      <p class="text-[11px] text-amber-700/90 font-medium flex items-center gap-1 pt-0.5">
+                        <span>⏳</span>
+                        <span>{mesa.totalPendientes} {mesa.totalPendientes === 1 ? 'invitado tiene' : 'invitados tienen'} RSVP pendiente.</span>
+                      </p>
+                    )}
+                  </div>
+
+                  {/* LISTA DE INVITADOS ASIGNADOS A ESTA MESA */}
+                  <div class="space-y-2 pt-1 border-t border-stone-100">
+                    <p class="text-[10px] font-bold uppercase tracking-wider text-stone-400">
+                      Invitados Asignados ({mesa.invitadosAsignados.length})
+                    </p>
+
+                    {mesa.invitadosAsignados.length === 0 ? (
+                      <p class="text-xs text-stone-400 italic py-2 text-center bg-stone-50/60 rounded-xl">
+                        Ningún invitado asignado aún.
+                      </p>
+                    ) : (
+                      <ul class="space-y-1.5">
+                        {mesa.invitadosAsignados.map(({ asignacionId, invitado }) => {
+                          const isConf = invitado.confirmado === true || invitado.confirmado === 'true';
+                          const isDeclined = invitado.confirmado === false || invitado.confirmado === 'false';
+
+                          return (
+                            <li class="p-2 rounded-xl bg-stone-50/70 border border-stone-200/60 flex items-center justify-between gap-2 text-xs">
+                              <div class="truncate">
+                                <p class="font-semibold text-stone-900 truncate">
+                                  {invitado.nombre}
+                                </p>
+                                <div class="flex items-center gap-1.5 mt-0.5">
+                                  {isConf ? (
+                                    <span class="text-[10px] font-bold text-emerald-800 bg-emerald-100/70 px-1.5 py-0.2 rounded">
+                                      {invitado.pases_confirmados || 1} {invitado.pases_confirmados === 1 ? 'lugar' : 'lugares'}
+                                    </span>
+                                  ) : isDeclined ? (
+                                    <span class="text-[10px] font-medium text-stone-500 bg-stone-200/60 px-1.5 py-0.2 rounded">
+                                      No asistirá (0 lugares)
+                                    </span>
+                                  ) : (
+                                    <span class="text-[10px] font-semibold text-amber-800 bg-amber-100/80 px-1.5 py-0.2 rounded">
+                                      RSVP Pend. ({invitado.numero_pases} pases)
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* ACCIONES DEL INVITADO EN MESA: CAMBIAR O QUITAR */}
+                              <div class="flex items-center gap-1 shrink-0">
+                                <button
+                                  type="button"
+                                  class="btn-move-invitado px-2 py-1 rounded-lg text-[11px] font-semibold text-stone-600 hover:text-stone-900 bg-white hover:bg-stone-100 border border-stone-200 transition-colors cursor-pointer"
+                                  data-invitado-id={invitado.id}
+                                  data-invitado-nombre={invitado.nombre}
+                                  data-mesa-actual-id={mesa.id}
+                                  data-pases={invitado.pases_confirmados || (isConf ? invitado.numero_pases : 0)}
+                                  title="Cambiar a otra mesa"
+                                >
+                                  Mover
+                                </button>
+                                <button
+                                  type="button"
+                                  class="btn-unassign-invitado px-2 py-1 rounded-lg text-[11px] font-semibold text-rose-600 hover:text-rose-800 bg-white hover:bg-rose-50 border border-stone-200 transition-colors cursor-pointer"
+                                  data-invitado-id={invitado.id}
+                                  data-invitado-nombre={invitado.nombre}
+                                  title="Quitar de esta mesa"
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+                  </div>
+
+                  {/* ACCIONES DE LA MESA: ASIGNAR INVITADO, EDITAR, ELIMINAR */}
+                  <div class="flex items-center justify-between pt-3 border-t border-stone-100">
+                    <button
+                      type="button"
+                      class="btn-assign-to-table text-xs font-bold text-amber-800 hover:text-amber-950 flex items-center gap-1 cursor-pointer"
+                      data-mesa-id={mesa.id}
+                      data-mesa-numero={mesa.numero}
+                      data-mesa-capacidad={mesa.capacidad}
+                      data-mesa-disponibles={mesa.lugaresDisponibles}
+                    >
+                      <span>+</span>
+                      <span>Asignar invitado</span>
+                    </button>
+
+                    <div class="flex items-center gap-2">
+                      <button
+                        type="button"
+                        class="btn-edit-mesa text-xs text-stone-500 hover:text-stone-900 underline cursor-pointer"
+                        data-id={mesa.id}
+                        data-numero={mesa.numero}
+                        data-capacidad={mesa.capacidad}
+                      >
+                        Editar
+                      </button>
+                      <button
+                        type="button"
+                        class="btn-delete-mesa text-xs text-rose-600 hover:text-rose-800 underline cursor-pointer"
+                        data-id={mesa.id}
+                        data-numero={mesa.numero}
+                      >
+                        Eliminar
+                      </button>
+                    </div>
+                  </div>
+
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* COLUMNA 3: BANDEJA DE INVITADOS SIN MESA */}
+      <div class="bg-white border border-stone-200/80 rounded-2xl p-5 shadow-xs space-y-4">
+        <div class="flex items-center justify-between border-b border-stone-100 pb-3">
+          <div>
+            <h2 class="text-base font-bold text-stone-900">
+              Invitados sin mesa
+            </h2>
+            <p class="text-xs text-stone-500">
+              {invitadosSinMesa.length} {invitadosSinMesa.length === 1 ? 'invitado pendiente de ubicar' : 'invitados pendientes de ubicar'}
+            </p>
+          </div>
+          <span class="w-7 h-7 rounded-full bg-amber-100 text-amber-900 font-bold font-mono text-xs flex items-center justify-center">
+            {invitadosSinMesa.length}
+          </span>
+        </div>
+
+        {invitadosSinMesa.length === 0 ? (
+          <div class="text-center py-8 space-y-2">
+            <span class="text-2xl">🎉</span>
+            <p class="text-xs font-semibold text-stone-800">¡Todos los invitados están asignados a una mesa!</p>
+            <p class="text-[11px] text-stone-500">No hay invitados pendientes de ubicación para este evento.</p>
+          </div>
+        ) : (
+          <div class="max-h-[600px] overflow-y-auto space-y-2.5 pr-1">
+            {invitadosSinMesa.map((inv) => {
+              const isConf = inv.confirmado === true || inv.confirmado === 'true';
+              const isDeclined = inv.confirmado === false || inv.confirmado === 'false';
+
+              return (
+                <div class="p-3 rounded-xl border border-stone-200 bg-stone-50/50 hover:bg-stone-50 transition-colors flex items-center justify-between gap-3">
+                  <div class="truncate">
+                    <p class="text-xs font-bold text-stone-900 truncate">
+                      {inv.nombre}
+                    </p>
+                    <div class="flex items-center gap-2 mt-1">
+                      {isConf ? (
+                        <span class="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-1.5 py-0.5 rounded">
+                          {inv.pases_confirmados || 1} {inv.pases_confirmados === 1 ? 'confirmado' : 'confirmados'}
+                        </span>
+                      ) : isDeclined ? (
+                        <span class="text-[10px] font-medium text-stone-500 bg-stone-200 px-1.5 py-0.5 rounded">
+                          No asistirá (0)
+                        </span>
+                      ) : (
+                        <span class="text-[10px] font-semibold text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded">
+                          RSVP Pend. ({inv.numero_pases} pases)
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    class="btn-quick-assign-guest shrink-0 px-3 py-1.5 rounded-xl bg-stone-900 hover:bg-stone-800 text-amber-200 text-xs font-bold transition-colors shadow-2xs cursor-pointer"
+                    data-invitado-id={inv.id}
+                    data-invitado-nombre={inv.nombre}
+                    data-pases={inv.pases_confirmados || (isConf ? inv.numero_pases : 0)}
+                  >
+                    Ubicar →
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+    </div>
+
+    {/* ===================================================================== */}
+    {/* MODAL 1: CREAR Y EDITAR MESA */}
+    {/* ===================================================================== */}
+    <dialog id="modal-mesa" class="rounded-2xl backdrop:bg-stone-900/60 p-0 border border-stone-200 shadow-2xl max-w-sm w-full bg-white text-stone-800 m-auto">
+      <div class="p-6 space-y-4">
+        <div class="flex items-center justify-between border-b border-stone-100 pb-3">
+          <h3 id="modal-mesa-title" class="text-base font-semibold text-stone-900">
+            Nueva Mesa
+          </h3>
+          <button type="button" id="btn-close-mesa" class="text-stone-400 hover:text-stone-700 text-lg leading-none cursor-pointer">
+            ✕
+          </button>
+        </div>
+
+        <form id="form-mesa" class="space-y-4">
+          <input type="hidden" id="mesa-id" name="id" value="" />
+          <input type="hidden" id="mesa-evento-id" name="evento_id" value={eventId} />
+
+          {/* Número de Mesa */}
+          <div>
+            <label for="mesa-numero" class="block text-xs font-semibold uppercase tracking-wider text-stone-600 mb-1">
+              Número de Mesa <span class="text-rose-500">*</span>
+            </label>
+            <input
+              type="number"
+              id="mesa-numero"
+              name="numero"
+              min="1"
+              required
+              placeholder="Ej. 1"
+              class="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-xs text-stone-900 font-mono"
+            />
+            <p class="text-[10px] text-stone-500 mt-1">
+              El número debe ser único dentro de este evento.
+            </p>
+          </div>
+
+          {/* Capacidad */}
+          <div>
+            <label for="mesa-capacidad" class="block text-xs font-semibold uppercase tracking-wider text-stone-600 mb-1">
+              Capacidad física (asientos) <span class="text-rose-500">*</span>
+            </label>
+            <input
+              type="number"
+              id="mesa-capacidad"
+              name="capacidad"
+              min="1"
+              max="100"
+              required
+              placeholder="Ej. 10"
+              class="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-xs text-stone-900 font-mono"
+            />
+            <p class="text-[10px] text-stone-500 mt-1">
+              Número máximo de personas que pueden ocupar físicamente la mesa.
+            </p>
+          </div>
+
+          <div id="modal-mesa-error" class="hidden text-xs text-rose-600 bg-rose-50 border border-rose-200 p-2.5 rounded-xl"></div>
+
+          <div class="flex items-center justify-end gap-2 pt-3 border-t border-stone-100">
+            <button
+              type="button"
+              id="btn-cancel-mesa"
+              class="px-4 py-2 rounded-xl border border-stone-300 text-stone-600 hover:bg-stone-50 text-xs font-semibold cursor-pointer"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              id="btn-save-mesa"
+              class="px-5 py-2 rounded-xl bg-stone-900 hover:bg-stone-800 text-amber-200 text-xs font-bold shadow-xs cursor-pointer"
+            >
+              Guardar mesa
+            </button>
+          </div>
+        </form>
+      </div>
+    </dialog>
+
+    {/* ===================================================================== */}
+    {/* MODAL 2: ASIGNAR / CAMBIAR INVITADO DE MESA */}
+    {/* ===================================================================== */}
+    <dialog id="modal-assign" class="rounded-2xl backdrop:bg-stone-900/60 p-0 border border-stone-200 shadow-2xl max-w-md w-full bg-white text-stone-800 m-auto">
+      <div class="p-6 space-y-4">
+        <div class="flex items-center justify-between border-b border-stone-100 pb-3">
+          <h3 id="modal-assign-title" class="text-base font-semibold text-stone-900">
+            Asignar Invitado a Mesa
+          </h3>
+          <button type="button" id="btn-close-assign" class="text-stone-400 hover:text-stone-700 text-lg leading-none cursor-pointer">
+            ✕
+          </button>
+        </div>
+
+        <form id="form-assign" class="space-y-4">
+          <input type="hidden" id="assign-evento-id" value={eventId} />
+
+          {/* Invitado */}
+          <div>
+            <label for="assign-invitado-select" class="block text-xs font-semibold uppercase tracking-wider text-stone-600 mb-1">
+              Invitado / Familia <span class="text-rose-500">*</span>
+            </label>
+            <select
+              id="assign-invitado-select"
+              required
+              class="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-xs text-stone-900 bg-white"
+            >
+              <option value="">Selecciona un invitado...</option>
+              {/* Opción para todos los invitados del evento */}
+              {mesasDetalladas.flatMap((m) => m.invitadosAsignados.map((item) => item.invitado)).concat(invitadosSinMesa).map((inv) => (
+                <option value={inv.id} data-pases={inv.pases_confirmados || (inv.confirmado === true ? inv.numero_pases : 0)}>
+                  {inv.nombre} ({inv.confirmado === true ? `${inv.pases_confirmados || 1} confirmados` : inv.confirmado === false ? 'No asistirá (0)' : `RSVP pend. ${inv.numero_pases} pases`})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Mesa Destino */}
+          <div>
+            <label for="assign-mesa-select" class="block text-xs font-semibold uppercase tracking-wider text-stone-600 mb-1">
+              Mesa Destino <span class="text-rose-500">*</span>
+            </label>
+            <select
+              id="assign-mesa-select"
+              required
+              class="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-xs text-stone-900 bg-white"
+            >
+              <option value="">Selecciona la mesa...</option>
+              {mesasDetalladas.map((m) => (
+                <option value={m.id} data-disponibles={m.lugaresDisponibles} data-capacidad={m.capacidad}>
+                  Mesa {m.numero} — Capacidad: {m.capacidad} ({m.lugaresDisponibles} lugares disponibles)
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div id="modal-assign-error" class="hidden text-xs text-rose-600 bg-rose-50 border border-rose-200 p-2.5 rounded-xl"></div>
+
+          <div class="flex items-center justify-end gap-2 pt-3 border-t border-stone-100">
+            <button
+              type="button"
+              id="btn-cancel-assign"
+              class="px-4 py-2 rounded-xl border border-stone-300 text-stone-600 hover:bg-stone-50 text-xs font-semibold cursor-pointer"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              id="btn-save-assign"
+              class="px-5 py-2 rounded-xl bg-stone-900 hover:bg-stone-800 text-amber-200 text-xs font-bold shadow-xs cursor-pointer"
+            >
+              Confirmar asignación
+            </button>
+          </div>
+        </form>
+      </div>
+    </dialog>
+
+    {/* ===================================================================== */}
+    {/* MODAL 3: CONFIRMAR ELIMINACIÓN DE MESA */}
+    {/* ===================================================================== */}
+    <dialog id="modal-confirm-delete-mesa" class="rounded-2xl backdrop:bg-stone-900/60 p-0 border border-stone-200 shadow-2xl max-w-sm w-full bg-white text-stone-800 m-auto">
+      <div class="p-6 text-center space-y-4">
+        <div class="w-12 h-12 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center text-xl mx-auto border border-rose-100">
+          🗑️
+        </div>
+        <div>
+          <h3 class="text-sm font-bold text-stone-900">¿Eliminar esta mesa?</h3>
+          <p class="text-xs text-stone-500 mt-1" id="delete-mesa-desc">
+            Los invitados asignados a esta mesa quedarán sin mesa asignada (sus pases y datos permanecerán intactos).
+          </p>
+        </div>
+        <div class="flex items-center justify-center gap-3 pt-2">
+          <button
+            type="button"
+            id="btn-cancel-delete-mesa"
+            class="px-4 py-2 rounded-xl border border-stone-300 text-stone-600 hover:bg-stone-50 text-xs font-semibold cursor-pointer"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            id="btn-confirm-delete-mesa"
+            class="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-xs cursor-pointer"
+          >
+            Eliminar mesa
+          </button>
+        </div>
+      </div>
+    </dialog>
+
+  </div>
+</AdminLayout>
+
+{/* SCRIPT CLIENTE PARA GESTIÓN ASÍNCRONA DE MESAS Y ASIGNACIONES */}
+<script is:inline define:vars={{ defaultEventId: eventId }}>
+  document.addEventListener('DOMContentLoaded', () => {
+    // --- MODAL MESA (CREAR/EDITAR) ---
+    const modalMesa = document.getElementById('modal-mesa');
+    const formMesa = document.getElementById('form-mesa');
+    const modalMesaTitle = document.getElementById('modal-mesa-title');
+    const modalMesaError = document.getElementById('modal-mesa-error');
+    const btnOpenNewMesa = document.getElementById('btn-open-new-mesa');
+    const btnEmptyAddMesa = document.getElementById('btn-empty-add-mesa');
+    const btnCloseMesa = document.getElementById('btn-close-mesa');
+    const btnCancelMesa = document.getElementById('btn-cancel-mesa');
+
+    const openCreateMesa = () => {
+      formMesa.reset();
+      document.getElementById('mesa-id').value = '';
+      document.getElementById('mesa-numero').value = '';
+      document.getElementById('mesa-capacidad').value = '10';
+      modalMesaTitle.textContent = 'Nueva Mesa';
+      modalMesaError.classList.add('hidden');
+      modalMesa?.showModal();
+    };
+
+    btnOpenNewMesa?.addEventListener('click', openCreateMesa);
+    btnEmptyAddMesa?.addEventListener('click', openCreateMesa);
+    btnCloseMesa?.addEventListener('click', () => modalMesa?.close());
+    btnCancelMesa?.addEventListener('click', () => modalMesa?.close());
+
+    // Botones Editar Mesa
+    document.querySelectorAll('.btn-edit-mesa').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const id = btn.getAttribute('data-id');
+        const numero = btn.getAttribute('data-numero');
+        const capacidad = btn.getAttribute('data-capacidad');
+
+        document.getElementById('mesa-id').value = id;
+        document.getElementById('mesa-numero').value = numero;
+        document.getElementById('mesa-capacidad').value = capacidad;
+
+        modalMesaTitle.textContent = `Editar Mesa ${numero}`;
+        modalMesaError.classList.add('hidden');
+        modalMesa?.showModal();
+      });
+    });
+
+    // Guardar Mesa (Create / Update)
+    formMesa?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const saveBtn = document.getElementById('btn-save-mesa');
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Guardando...';
+      modalMesaError.classList.add('hidden');
+
+      const id = document.getElementById('mesa-id').value;
+      const action = id ? 'update' : 'create';
+      const numero = document.getElementById('mesa-numero').value;
+      const capacidad = document.getElementById('mesa-capacidad').value;
+
+      try {
+        const res = await fetch('/api/admin/mesas', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action,
+            evento_id: Number(defaultEventId),
+            id: id ? Number(id) : undefined,
+            numero: Number(numero),
+            capacidad: Number(capacidad),
+          }),
+        });
+
+        const result = await res.json();
+        if (!res.ok || !result.success) {
+          modalMesaError.textContent = result.error || 'Error al guardar la mesa.';
+          modalMesaError.classList.remove('hidden');
+          saveBtn.disabled = false;
+          saveBtn.textContent = 'Guardar mesa';
+        } else {
+          window.location.reload();
+        }
+      } catch (err) {
+        modalMesaError.textContent = 'Error de conexión con el servidor.';
+        modalMesaError.classList.remove('hidden');
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Guardar mesa';
+      }
+    });
+
+    // --- MODAL ELIMINAR MESA ---
+    const modalDeleteMesa = document.getElementById('modal-confirm-delete-mesa');
+    const deleteMesaDesc = document.getElementById('delete-mesa-desc');
+    const btnCancelDeleteMesa = document.getElementById('btn-cancel-delete-mesa');
+    const btnConfirmDeleteMesa = document.getElementById('btn-confirm-delete-mesa');
+    let targetMesaDeleteId = null;
+
+    document.querySelectorAll('.btn-delete-mesa').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        targetMesaDeleteId = btn.getAttribute('data-id');
+        const num = btn.getAttribute('data-numero');
+        deleteMesaDesc.textContent = `¿Eliminar la Mesa ${num}? Los invitados asignados quedarán sin mesa asignada pero conservarán todos sus datos y pases intactos.`;
+        modalDeleteMesa?.showModal();
+      });
+    });
+
+    btnCancelDeleteMesa?.addEventListener('click', () => modalDeleteMesa?.close());
+    btnConfirmDeleteMesa?.addEventListener('click', async () => {
+      if (!targetMesaDeleteId) return;
+      btnConfirmDeleteMesa.disabled = true;
+      btnConfirmDeleteMesa.textContent = 'Eliminando...';
+
+      try {
+        const res = await fetch('/api/admin/mesas', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'delete',
+            evento_id: Number(defaultEventId),
+            id: Number(targetMesaDeleteId),
+          }),
+        });
+        const result = await res.json();
+        if (!res.ok || !result.success) {
+          alert(result.error || 'No se pudo eliminar la mesa.');
+          btnConfirmDeleteMesa.disabled = false;
+          btnConfirmDeleteMesa.textContent = 'Eliminar mesa';
+        } else {
+          window.location.reload();
+        }
+      } catch (err) {
+        alert('Error de conexión.');
+        btnConfirmDeleteMesa.disabled = false;
+        btnConfirmDeleteMesa.textContent = 'Eliminar mesa';
+      }
+    });
+
+    // --- MODAL ASIGNAR / MOVER INVITADO ---
+    const modalAssign = document.getElementById('modal-assign');
+    const formAssign = document.getElementById('form-assign');
+    const modalAssignError = document.getElementById('modal-assign-error');
+    const btnCloseAssign = document.getElementById('btn-close-assign');
+    const btnCancelAssign = document.getElementById('btn-cancel-assign');
+    const guestSelect = document.getElementById('assign-invitado-select');
+    const tableSelect = document.getElementById('assign-mesa-select');
+
+    btnCloseAssign?.addEventListener('click', () => modalAssign?.close());
+    btnCancelAssign?.addEventListener('click', () => modalAssign?.close());
+
+    // Abrir desde botón en la tarjeta de mesa
+    document.querySelectorAll('.btn-assign-to-table').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const mesaId = btn.getAttribute('data-mesa-id');
+        tableSelect.value = mesaId;
+        guestSelect.value = '';
+        modalAssignError.classList.add('hidden');
+        modalAssign?.showModal();
+      });
+    });
+
+    // Abrir desde botón en la bandeja de invitados sin mesa
+    document.querySelectorAll('.btn-quick-assign-guest').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const invId = btn.getAttribute('data-invitado-id');
+        guestSelect.value = invId;
+        tableSelect.value = '';
+        modalAssignError.classList.add('hidden');
+        modalAssign?.showModal();
+      });
+    });
+
+    // Abrir desde botón "Mover" en un invitado ya en mesa
+    document.querySelectorAll('.btn-move-invitado').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const invId = btn.getAttribute('data-invitado-id');
+        guestSelect.value = invId;
+        tableSelect.value = '';
+        modalAssignError.classList.add('hidden');
+        modalAssign?.showModal();
+      });
+    });
+
+    // Desasignar invitado (botón ✕)
+    document.querySelectorAll('.btn-unassign-invitado').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const invId = btn.getAttribute('data-invitado-id');
+        const invNombre = btn.getAttribute('data-invitado-nombre');
+
+        if (!confirm(`¿Deseas retirar a "${invNombre}" de esta mesa? El invitado quedará en la lista de invitados sin mesa asignada.`)) {
+          return;
+        }
+
+        try {
+          const res = await fetch('/api/admin/mesa-invitados', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'unassign',
+              evento_id: Number(defaultEventId),
+              invitado_id: Number(invId),
+            }),
+          });
+          const result = await res.json();
+          if (!res.ok || !result.success) {
+            alert(result.error || 'No se pudo retirar al invitado.');
+          } else {
+            window.location.reload();
+          }
+        } catch (err) {
+          alert('Error de conexión.');
+        }
+      });
+    });
+
+    // Guardar Asignación
+    formAssign?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const saveBtn = document.getElementById('btn-save-assign');
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Asignando...';
+      modalAssignError.classList.add('hidden');
+
+      const invId = guestSelect.value;
+      const mId = tableSelect.value;
+
+      if (!invId || !mId) {
+        modalAssignError.textContent = 'Selecciona tanto el invitado como la mesa destino.';
+        modalAssignError.classList.remove('hidden');
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Confirmar asignación';
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/admin/mesa-invitados', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'assign',
+            evento_id: Number(defaultEventId),
+            invitado_id: Number(invId),
+            mesa_id: Number(mId),
+          }),
+        });
+
+        const result = await res.json();
+        if (!res.ok || !result.success) {
+          modalAssignError.textContent = result.error || 'No se pudo completar la asignación.';
+          modalAssignError.classList.remove('hidden');
+          saveBtn.disabled = false;
+          saveBtn.textContent = 'Confirmar asignación';
+        } else {
+          window.location.reload();
+        }
+      } catch (err) {
+        modalAssignError.textContent = 'Error de conexión con el servidor.';
+        modalAssignError.classList.remove('hidden');
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Confirmar asignación';
+      }
+    });
+
+  });
+</script>

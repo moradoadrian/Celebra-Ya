@@ -84,3 +84,32 @@ export interface InvitadoItem {
   created_at?: string;
 }
 
+export interface MesaItem {
+  id: number;
+  evento_id: number;
+  numero: number;
+  capacidad: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface MesaInvitadoItem {
+  id: number;
+  mesa_id: number;
+  invitado_id: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface MesaConDetalles extends MesaItem {
+  invitadosAsignados: {
+    asignacionId: number;
+    invitado: InvitadoItem;
+  }[];
+  ocupacionConfirmada: number;
+  lugaresDisponibles: number;
+  totalPendientes: number;
+  totalDeclinados: number;
+  estado: 'disponible' | 'completa' | 'sobrecupo';
+}
+

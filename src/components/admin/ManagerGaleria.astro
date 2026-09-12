@@ -1,0 +1,403 @@
+---
+import type { GaleriaItem } from '@/types';
+
+interface Props {
+  eventoId: number;
+  items: GaleriaItem[];
+}
+
+const { eventoId, items = [] } = Astro.props;
+
+// Ordenar por 'orden' ascendente
+const sortedItems = [...items].sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0));
+---
+
+<div class="bg-white border border-stone-200/80 rounded-2xl p-6 sm:p-8 shadow-xs space-y-6" id="manager-galeria">
+  {/* ENCABEZADO DE SECCIÓN */}
+  <div class="border-b border-stone-100 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+    <div>
+      <div class="flex items-center gap-2.5">
+        <span class="w-8 h-8 rounded-xl bg-amber-50 border border-amber-200/80 text-amber-700 flex items-center justify-center text-sm font-bold">
+          🖼️
+        </span>
+        <h2 class="text-base font-semibold text-stone-900">Galería Fotográfica</h2>
+        <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-stone-100 text-stone-600 border border-stone-200/80" id="galeria-counter">
+          {sortedItems.length} {sortedItems.length === 1 ? 'fotografía' : 'fotografías'}
+        </span>
+      </div>
+      <p class="text-xs text-stone-500 mt-1">
+        Agrega los mejores momentos en imágenes mediante enlaces directos a fotos en alta resolución.
+      </p>
+    </div>
+
+    <div>
+      <button
+        type="button"
+        id="btn-add-galeria"
+        class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-stone-900 hover:bg-stone-800 text-amber-200 text-xs font-semibold tracking-wide transition-all shadow-xs cursor-pointer"
+      >
+        <span>+</span>
+        <span>Agregar imagen</span>
+      </button>
+    </div>
+  </div>
+
+  {/* LISTADO / GRID DE FOTOS */}
+  <div id="galeria-list">
+    {sortedItems.length === 0 ? (
+      <div id="galeria-empty" class="text-center py-10 px-4 border-2 border-dashed border-stone-200 rounded-xl">
+        <p class="text-2xl mb-2">📷</p>
+        <p class="text-xs font-semibold text-stone-700">Esta invitación todavía no tiene fotos en su galería.</p>
+        <p class="text-[11px] text-stone-400 mt-0.5">Agrega las sesiones de fotos o recuerdos especiales de la pareja.</p>
+      </div>
+    ) : (
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+        {sortedItems.map((item) => (
+          <div
+            class="rounded-xl border border-stone-200/80 bg-stone-50/40 hover:bg-white hover:border-stone-300 transition-all p-3 space-y-2.5 flex flex-col justify-between"
+            id={`galeria-row-${item.id}`}
+          >
+            {/* Miniatura con fallback */}
+            <div class="relative w-full h-36 bg-stone-200 rounded-lg overflow-hidden border border-stone-300/80">
+              <img
+                src={item.imagen_url}
+                alt={item.descripcion || 'Foto de galería'}
+                class="w-full h-full object-cover"
+                loading="lazy"
+                onerror="this.style.display='none'; this.nextElementSibling.classList.remove('hidden');"
+              />
+              <div class="hidden w-full h-full flex flex-col items-center justify-center text-stone-400 text-xs p-2 text-center bg-stone-100">
+                <span>⚠️</span>
+                <span class="text-[10px]">No se pudo cargar la imagen</span>
+              </div>
+              <span class="absolute top-2 left-2 px-1.5 py-0.5 rounded bg-stone-900/80 text-white font-mono text-[10px] font-bold shadow-xs">
+                #{item.orden}
+              </span>
+            </div>
+
+            {/* Datos */}
+            <div class="space-y-1">
+              <p class="text-xs font-semibold text-stone-800 line-clamp-1" title={item.descripcion || 'Sin descripción'}>
+                {item.descripcion || 'Sin pie de foto'}
+              </p>
+              <p class="text-[10px] font-mono text-stone-400 truncate" title={item.imagen_url}>
+                {item.imagen_url}
+              </p>
+            </div>
+
+            {/* Acciones */}
+            <div class="flex items-center justify-end gap-2 pt-2 border-t border-stone-100">
+              <button
+                type="button"
+                class="btn-edit-galeria px-2.5 py-1 rounded-md text-xs font-semibold text-stone-700 bg-white hover:bg-stone-100 border border-stone-200 shadow-2xs transition-colors cursor-pointer"
+                data-id={item.id}
+                data-url={item.imagen_url}
+                data-descripcion={item.descripcion || ''}
+                data-orden={item.orden}
+              >
+                Editar
+              </button>
+              <button
+                type="button"
+                class="btn-delete-galeria px-2.5 py-1 rounded-md text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 shadow-2xs transition-colors cursor-pointer"
+                data-id={item.id}
+                data-descripcion={item.descripcion || 'esta foto'}
+              >
+                Eliminar
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    )}
+  </div>
+
+  {/* MODAL CREAR Y EDITAR FOTO */}
+  <dialog id="modal-galeria" class="rounded-2xl backdrop:bg-stone-900/60 p-0 border border-stone-200 shadow-2xl max-w-md w-full bg-white text-stone-800 m-auto">
+    <div class="p-6 space-y-4">
+      <div class="flex items-center justify-between border-b border-stone-100 pb-3">
+        <h3 id="modal-galeria-title" class="text-base font-semibold text-stone-900">
+          Nueva Imagen en Galería
+        </h3>
+        <button type="button" id="btn-close-galeria" class="text-stone-400 hover:text-stone-700 text-lg leading-none cursor-pointer">
+          ✕
+        </button>
+      </div>
+
+      <form id="form-galeria" class="space-y-4">
+        <input type="hidden" id="galeria-id" name="id" value="" />
+        <input type="hidden" name="evento_id" value={eventoId} />
+
+        <div>
+          <label for="galeria-url" class="block text-xs font-semibold uppercase tracking-wider text-stone-600 mb-1">
+            URL de la fotografía <span class="text-rose-500">*</span>
+          </label>
+          <input
+            type="url"
+            id="galeria-url"
+            name="imagen_url"
+            required
+            placeholder="https://images.pexels.com/photos/..."
+            class="w-full px-3.5 py-2 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-xs text-stone-900 font-mono"
+          />
+        </div>
+
+        {/* Previsualización en vivo en el modal */}
+        <div class="p-3 bg-stone-50 rounded-xl border border-stone-200/80 flex items-center gap-3">
+          <div class="w-16 h-16 rounded-lg bg-stone-200 overflow-hidden border border-stone-300 shrink-0 flex items-center justify-center text-xs text-stone-400">
+            <img
+              id="modal-galeria-preview-img"
+              src=""
+              alt="Previsualización"
+              class="w-full h-full object-cover hidden"
+              onload="this.classList.remove('hidden'); document.getElementById('modal-galeria-preview-placeholder').classList.add('hidden');"
+              onerror="this.classList.add('hidden'); document.getElementById('modal-galeria-preview-placeholder').classList.remove('hidden');"
+            />
+            <span id="modal-galeria-preview-placeholder" class="text-[10px] text-center px-1">Sin vista previa</span>
+          </div>
+          <div class="text-xs text-stone-500">
+            <p class="font-semibold text-stone-700">Previsualización de Imagen</p>
+            <p class="text-[11px] text-stone-400">Se actualizará cuando ingreses una URL válida.</p>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div class="sm:col-span-2">
+            <label for="galeria-descripcion" class="block text-xs font-semibold uppercase tracking-wider text-stone-600 mb-1">
+              Pie de foto o descripción
+            </label>
+            <input
+              type="text"
+              id="galeria-descripcion"
+              name="descripcion"
+              placeholder="Ej. Sesión en San Miguel de Allende"
+              class="w-full px-3.5 py-2 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-xs text-stone-900"
+            />
+          </div>
+
+          <div>
+            <label for="galeria-orden" class="block text-xs font-semibold uppercase tracking-wider text-stone-600 mb-1">
+              Orden
+            </label>
+            <input
+              type="number"
+              id="galeria-orden"
+              name="orden"
+              min="1"
+              value={sortedItems.length + 1}
+              class="w-full px-3.5 py-2 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-xs text-stone-900 font-mono"
+            />
+          </div>
+        </div>
+
+        <div id="modal-galeria-error" class="hidden text-xs text-rose-600 bg-rose-50 border border-rose-200 p-2.5 rounded-xl"></div>
+
+        <div class="flex items-center justify-end gap-2 pt-3 border-t border-stone-100">
+          <button
+            type="button"
+            id="btn-cancel-galeria"
+            class="px-4 py-2 rounded-xl border border-stone-300 text-stone-600 hover:bg-stone-50 text-xs font-semibold cursor-pointer"
+          >
+            Cancelar
+          </button>
+          <button
+            type="submit"
+            id="btn-save-galeria"
+            class="px-5 py-2 rounded-xl bg-stone-900 hover:bg-stone-800 text-amber-200 text-xs font-bold shadow-xs cursor-pointer"
+          >
+            Guardar imagen
+          </button>
+        </div>
+      </form>
+    </div>
+  </dialog>
+
+  {/* MODAL DE CONFIRMACIÓN PARA ELIMINAR */}
+  <dialog id="modal-confirm-delete-galeria" class="rounded-2xl backdrop:bg-stone-900/60 p-0 border border-stone-200 shadow-2xl max-w-sm w-full bg-white text-stone-800 m-auto">
+    <div class="p-6 text-center space-y-4">
+      <div class="w-12 h-12 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center text-xl mx-auto border border-rose-100">
+        🗑️
+      </div>
+      <div>
+        <h3 class="text-sm font-bold text-stone-900">¿Eliminar esta fotografía?</h3>
+        <p class="text-xs text-stone-500 mt-1" id="delete-galeria-name-text">
+          Esta acción no se puede deshacer.
+        </p>
+      </div>
+      <div class="flex items-center justify-center gap-3 pt-2">
+        <button
+          type="button"
+          id="btn-cancel-delete-galeria"
+          class="px-4 py-2 rounded-xl border border-stone-300 text-stone-600 hover:bg-stone-50 text-xs font-semibold cursor-pointer"
+        >
+          Cancelar
+        </button>
+        <button
+          type="button"
+          id="btn-confirm-delete-galeria"
+          class="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-xs cursor-pointer"
+        >
+          Eliminar
+        </button>
+      </div>
+    </div>
+  </dialog>
+</div>
+
+<script is:inline define:vars={{ eventoId, totalItems: sortedItems.length }}>
+  document.addEventListener('DOMContentLoaded', () => {
+    const modal = document.getElementById('modal-galeria');
+    const form = document.getElementById('form-galeria');
+    const modalTitle = document.getElementById('modal-galeria-title');
+    const modalError = document.getElementById('modal-galeria-error');
+    const btnAdd = document.getElementById('btn-add-galeria');
+    const btnClose = document.getElementById('btn-close-galeria');
+    const btnCancel = document.getElementById('btn-cancel-galeria');
+    const urlInput = document.getElementById('galeria-url');
+    const previewImg = document.getElementById('modal-galeria-preview-img');
+    const previewPlaceholder = document.getElementById('modal-galeria-preview-placeholder');
+
+    const modalDelete = document.getElementById('modal-confirm-delete-galeria');
+    const deleteText = document.getElementById('delete-galeria-name-text');
+    const btnCancelDelete = document.getElementById('btn-cancel-delete-galeria');
+    const btnConfirmDelete = document.getElementById('btn-confirm-delete-galeria');
+    let targetDeleteId = null;
+
+    const updatePreview = (url) => {
+      if (url && url.trim()) {
+        previewImg.src = url.trim();
+      } else {
+        previewImg.src = '';
+        previewImg.classList.add('hidden');
+        previewPlaceholder.classList.remove('hidden');
+      }
+    };
+
+    urlInput?.addEventListener('input', () => {
+      updatePreview(urlInput.value);
+    });
+
+    btnAdd?.addEventListener('click', () => {
+      form.reset();
+      document.getElementById('galeria-id').value = '';
+      document.getElementById('galeria-orden').value = totalItems + 1;
+      updatePreview('');
+      modalTitle.textContent = 'Nueva Imagen en Galería';
+      modalError.classList.add('hidden');
+      modal?.showModal();
+    });
+
+    const closeModal = () => modal?.close();
+    btnClose?.addEventListener('click', closeModal);
+    btnCancel?.addEventListener('click', closeModal);
+
+    document.querySelectorAll('.btn-edit-galeria').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const id = btn.getAttribute('data-id');
+        const url = btn.getAttribute('data-url');
+        const descripcion = btn.getAttribute('data-descripcion');
+        const orden = btn.getAttribute('data-orden');
+
+        document.getElementById('galeria-id').value = id;
+        document.getElementById('galeria-url').value = url || '';
+        document.getElementById('galeria-descripcion').value = descripcion || '';
+        document.getElementById('galeria-orden').value = orden || '1';
+
+        updatePreview(url);
+
+        modalTitle.textContent = 'Editar Imagen';
+        modalError.classList.add('hidden');
+        modal?.showModal();
+      });
+    });
+
+    form?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const saveBtn = document.getElementById('btn-save-galeria');
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Guardando...';
+      modalError.classList.add('hidden');
+
+      const id = document.getElementById('galeria-id').value;
+      const action = id ? 'update' : 'create';
+
+      const payload = {
+        action,
+        evento_id: eventoId,
+        id: id ? Number(id) : undefined,
+        imagen_url: document.getElementById('galeria-url').value,
+        descripcion: document.getElementById('galeria-descripcion').value,
+        orden: Number(document.getElementById('galeria-orden').value) || 1,
+      };
+
+      try {
+        const res = await fetch('/api/admin/galeria', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const result = await res.json();
+
+        if (res.ok && result.success) {
+          modal?.close();
+          window.location.reload();
+        } else {
+          modalError.textContent = result.error || 'Error al guardar la imagen.';
+          modalError.classList.remove('hidden');
+          saveBtn.disabled = false;
+          saveBtn.textContent = 'Guardar imagen';
+        }
+      } catch (err) {
+        modalError.textContent = 'Error de conexión con el servidor.';
+        modalError.classList.remove('hidden');
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Guardar imagen';
+      }
+    });
+
+    document.querySelectorAll('.btn-delete-galeria').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        targetDeleteId = btn.getAttribute('data-id');
+        const desc = btn.getAttribute('data-descripcion');
+        deleteText.textContent = `¿Seguro que deseas eliminar ${desc}? Esta acción no se puede deshacer.`;
+        modalDelete?.showModal();
+      });
+    });
+
+    btnCancelDelete?.addEventListener('click', () => {
+      targetDeleteId = null;
+      modalDelete?.close();
+    });
+
+    btnConfirmDelete?.addEventListener('click', async () => {
+      if (!targetDeleteId) return;
+      btnConfirmDelete.disabled = true;
+      btnConfirmDelete.textContent = 'Eliminando...';
+
+      try {
+        const res = await fetch('/api/admin/galeria', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'delete',
+            evento_id: eventoId,
+            id: Number(targetDeleteId),
+          }),
+        });
+        const result = await res.json();
+        if (res.ok && result.success) {
+          modalDelete?.close();
+          window.location.reload();
+        } else {
+          alert(result.error || 'Error al eliminar.');
+          btnConfirmDelete.disabled = false;
+          btnConfirmDelete.textContent = 'Eliminar';
+        }
+      } catch (err) {
+        alert('Error de conexión.');
+        btnConfirmDelete.disabled = false;
+        btnConfirmDelete.textContent = 'Eliminar';
+      }
+    });
+  });
+</script>

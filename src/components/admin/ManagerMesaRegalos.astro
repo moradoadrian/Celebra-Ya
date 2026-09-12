@@ -1,0 +1,425 @@
+---
+import type { MesaRegalosItem } from '@/types';
+
+interface Props {
+  eventoId: number;
+  items: MesaRegalosItem[];
+}
+
+const { eventoId, items = [] } = Astro.props;
+
+// Ordenar por 'orden' ascendente
+const sortedItems = [...items].sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0));
+---
+
+<div class="bg-white border border-stone-200/80 rounded-2xl p-6 sm:p-8 shadow-xs space-y-6" id="manager-mesa-regalos">
+  {/* ENCABEZADO DE SECCIÓN */}
+  <div class="border-b border-stone-100 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+    <div>
+      <div class="flex items-center gap-2.5">
+        <span class="w-8 h-8 rounded-xl bg-amber-50 border border-amber-200/80 text-amber-700 flex items-center justify-center text-sm font-bold">
+          🎁
+        </span>
+        <h2 class="text-base font-semibold text-stone-900">Mesa de Regalos y Sugerencias</h2>
+        <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-stone-100 text-stone-600 border border-stone-200/80" id="mesa-regalos-counter">
+          {sortedItems.length} {sortedItems.length === 1 ? 'opción' : 'opciones'}
+        </span>
+      </div>
+      <p class="text-xs text-stone-500 mt-1">
+        Configura tus mesas de regalos departamentales, enlaces de tiendas online, sobres de efectivo o cuentas bancarias.
+      </p>
+    </div>
+
+    <div>
+      <button
+        type="button"
+        id="btn-add-mesa-regalos"
+        class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-stone-900 hover:bg-stone-800 text-amber-200 text-xs font-semibold tracking-wide transition-all shadow-xs cursor-pointer"
+      >
+        <span>+</span>
+        <span>Agregar opción</span>
+      </button>
+    </div>
+  </div>
+
+  {/* LISTADO DE OPCIONES DE REGALO */}
+  <div id="mesa-regalos-list" class="space-y-3">
+    {sortedItems.length === 0 ? (
+      <div id="mesa-regalos-empty" class="text-center py-10 px-4 border-2 border-dashed border-stone-200 rounded-xl">
+        <p class="text-2xl mb-2">🎀</p>
+        <p class="text-xs font-semibold text-stone-700">Esta invitación todavía no tiene opciones de mesa de regalos.</p>
+        <p class="text-[11px] text-stone-400 mt-0.5">Agrega Liverpool, Amazon, sobre en recepción o datos bancarios.</p>
+      </div>
+    ) : (
+      sortedItems.map((item) => (
+        <div
+          class="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-xl border border-stone-200/70 bg-stone-50/50 hover:bg-white hover:border-stone-300 transition-all gap-3"
+          id={`mesa-regalos-row-${item.id}`}
+        >
+          <div class="flex items-start gap-3">
+            <span class="w-7 h-7 rounded-lg bg-stone-200/70 text-stone-700 text-xs font-bold flex items-center justify-center shrink-0 border border-stone-300/80 mt-0.5" title="Orden">
+              #{item.orden}
+            </span>
+            <div class="space-y-1">
+              <div class="flex items-center gap-2">
+                <span class="text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-amber-100/70 text-amber-900 border border-amber-200/60">
+                  {item.tipo}
+                </span>
+                <h3 class="text-sm font-semibold text-stone-900">{item.nombre}</h3>
+              </div>
+              {item.descripcion && (
+                <p class="text-xs text-stone-600">{item.descripcion}</p>
+              )}
+              {item.datos && (
+                <p class="text-[11px] font-mono text-stone-500 bg-stone-100/80 px-2 py-0.5 rounded inline-block">
+                  {typeof item.datos === 'object' ? JSON.stringify(item.datos) : item.datos}
+                </p>
+              )}
+              {item.url && (
+                <div class="pt-0.5">
+                  <a
+                    href={item.url.startsWith('http') ? item.url : `https://${item.url}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="text-[11px] text-amber-700 hover:text-amber-800 underline font-medium inline-flex items-center gap-1"
+                  >
+                    <span>Ir a la tienda ↗</span>
+                  </a>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2 self-end sm:self-center shrink-0">
+            <button
+              type="button"
+              class="btn-edit-mesa-regalos px-3 py-1.5 rounded-lg text-xs font-semibold text-stone-700 bg-white hover:bg-stone-100 border border-stone-200 shadow-2xs transition-colors cursor-pointer"
+              data-id={item.id}
+              data-tipo={item.tipo}
+              data-nombre={item.nombre}
+              data-descripcion={item.descripcion || ''}
+              data-url={item.url || ''}
+              data-datos={typeof item.datos === 'object' ? JSON.stringify(item.datos) : (item.datos || '')}
+              data-orden={item.orden}
+            >
+              Editar
+            </button>
+            <button
+              type="button"
+              class="btn-delete-mesa-regalos px-3 py-1.5 rounded-lg text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 shadow-2xs transition-colors cursor-pointer"
+              data-id={item.id}
+              data-nombre={item.nombre}
+            >
+              Eliminar
+            </button>
+          </div>
+        </div>
+      ))
+    )}
+  </div>
+
+  {/* MODAL CREAR Y EDITAR MESA DE REGALOS */}
+  <dialog id="modal-mesa-regalos" class="rounded-2xl backdrop:bg-stone-900/60 p-0 border border-stone-200 shadow-2xl max-w-md w-full bg-white text-stone-800 m-auto">
+    <div class="p-6 space-y-4">
+      <div class="flex items-center justify-between border-b border-stone-100 pb-3">
+        <h3 id="modal-mesa-regalos-title" class="text-base font-semibold text-stone-900">
+          Nueva Opción de Regalo
+        </h3>
+        <button type="button" id="btn-close-mesa-regalos" class="text-stone-400 hover:text-stone-700 text-lg leading-none cursor-pointer">
+          ✕
+        </button>
+      </div>
+
+      <form id="form-mesa-regalos" class="space-y-4">
+        <input type="hidden" id="mesa-regalos-id" name="id" value="" />
+        <input type="hidden" name="evento_id" value={eventoId} />
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div class="sm:col-span-2">
+            <label for="mesa-regalos-tipo" class="block text-xs font-semibold uppercase tracking-wider text-stone-600 mb-1">
+              Tipo <span class="text-rose-500">*</span>
+            </label>
+            <select
+              id="mesa-regalos-tipo"
+              name="tipo"
+              required
+              class="w-full px-3.5 py-2 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-xs text-stone-900 bg-white"
+            >
+              <option value="Mesa de Regalos">Mesa de Regalos</option>
+              <option value="Liverpool">Liverpool</option>
+              <option value="Amazon">Amazon</option>
+              <option value="Palacio de Hierro">Palacio de Hierro</option>
+              <option value="Efectivo / Sobre">Efectivo / Sobre</option>
+              <option value="Transferencia Bancaria">Transferencia Bancaria</option>
+              <option value="Otro">Otro</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="mesa-regalos-orden" class="block text-xs font-semibold uppercase tracking-wider text-stone-600 mb-1">
+              Orden
+            </label>
+            <input
+              type="number"
+              id="mesa-regalos-orden"
+              name="orden"
+              min="1"
+              value={sortedItems.length + 1}
+              class="w-full px-3.5 py-2 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-xs text-stone-900 font-mono"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label for="mesa-regalos-nombre" class="block text-xs font-semibold uppercase tracking-wider text-stone-600 mb-1">
+            Nombre / Título de la opción <span class="text-rose-500">*</span>
+          </label>
+          <input
+            type="text"
+            id="mesa-regalos-nombre"
+            name="nombre"
+            required
+            placeholder="Ej. Liverpool, Amazon Wishlist o Lluvia de Sobres"
+            class="w-full px-3.5 py-2 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-xs text-stone-900"
+          />
+        </div>
+
+        <div>
+          <label for="mesa-regalos-url" class="block text-xs font-semibold uppercase tracking-wider text-stone-600 mb-1">
+            Enlace web directo (URL)
+          </label>
+          <input
+            type="url"
+            id="mesa-regalos-url"
+            name="url"
+            placeholder="https://www.liverpool.com.mx/tienda/..."
+            class="w-full px-3.5 py-2 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-xs text-stone-900 font-mono"
+          />
+        </div>
+
+        <div>
+          <label for="mesa-regalos-datos" class="block text-xs font-semibold uppercase tracking-wider text-stone-600 mb-1">
+            Datos bancarios o notas adicionales
+          </label>
+          <textarea
+            id="mesa-regalos-datos"
+            name="datos"
+            rows="2"
+            placeholder="Ej. CLABE: 012345678901234567 | Banco BBVA | Titular: ..."
+            class="w-full px-3.5 py-2 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-xs text-stone-900"
+          ></textarea>
+        </div>
+
+        <div>
+          <label for="mesa-regalos-descripcion" class="block text-xs font-semibold uppercase tracking-wider text-stone-600 mb-1">
+            Descripción o mensaje para los invitados
+          </label>
+          <textarea
+            id="mesa-regalos-descripcion"
+            name="descripcion"
+            rows="2"
+            placeholder="Ej. Su presencia es nuestro mejor regalo, pero si desean tener un detalle..."
+            class="w-full px-3.5 py-2 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-xs text-stone-900"
+          ></textarea>
+        </div>
+
+        <div id="modal-mesa-regalos-error" class="hidden text-xs text-rose-600 bg-rose-50 border border-rose-200 p-2.5 rounded-xl"></div>
+
+        <div class="flex items-center justify-end gap-2 pt-3 border-t border-stone-100">
+          <button
+            type="button"
+            id="btn-cancel-mesa-regalos"
+            class="px-4 py-2 rounded-xl border border-stone-300 text-stone-600 hover:bg-stone-50 text-xs font-semibold cursor-pointer"
+          >
+            Cancelar
+          </button>
+          <button
+            type="submit"
+            id="btn-save-mesa-regalos"
+            class="px-5 py-2 rounded-xl bg-stone-900 hover:bg-stone-800 text-amber-200 text-xs font-bold shadow-xs cursor-pointer"
+          >
+            Guardar opción
+          </button>
+        </div>
+      </form>
+    </div>
+  </dialog>
+
+  {/* MODAL DE CONFIRMACIÓN PARA ELIMINAR */}
+  <dialog id="modal-confirm-delete-mesa-regalos" class="rounded-2xl backdrop:bg-stone-900/60 p-0 border border-stone-200 shadow-2xl max-w-sm w-full bg-white text-stone-800 m-auto">
+    <div class="p-6 text-center space-y-4">
+      <div class="w-12 h-12 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center text-xl mx-auto border border-rose-100">
+        🗑️
+      </div>
+      <div>
+        <h3 class="text-sm font-bold text-stone-900">¿Eliminar esta opción de regalo?</h3>
+        <p class="text-xs text-stone-500 mt-1" id="delete-mesa-regalos-name-text">
+          Esta acción no se puede deshacer.
+        </p>
+      </div>
+      <div class="flex items-center justify-center gap-3 pt-2">
+        <button
+          type="button"
+          id="btn-cancel-delete-mesa-regalos"
+          class="px-4 py-2 rounded-xl border border-stone-300 text-stone-600 hover:bg-stone-50 text-xs font-semibold cursor-pointer"
+        >
+          Cancelar
+        </button>
+        <button
+          type="button"
+          id="btn-confirm-delete-mesa-regalos"
+          class="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-xs cursor-pointer"
+        >
+          Eliminar
+        </button>
+      </div>
+    </div>
+  </dialog>
+</div>
+
+<script is:inline define:vars={{ eventoId, totalItems: sortedItems.length }}>
+  document.addEventListener('DOMContentLoaded', () => {
+    const modal = document.getElementById('modal-mesa-regalos');
+    const form = document.getElementById('form-mesa-regalos');
+    const modalTitle = document.getElementById('modal-mesa-regalos-title');
+    const modalError = document.getElementById('modal-mesa-regalos-error');
+    const btnAdd = document.getElementById('btn-add-mesa-regalos');
+    const btnClose = document.getElementById('btn-close-mesa-regalos');
+    const btnCancel = document.getElementById('btn-cancel-mesa-regalos');
+
+    const modalDelete = document.getElementById('modal-confirm-delete-mesa-regalos');
+    const deleteText = document.getElementById('delete-mesa-regalos-name-text');
+    const btnCancelDelete = document.getElementById('btn-cancel-delete-mesa-regalos');
+    const btnConfirmDelete = document.getElementById('btn-confirm-delete-mesa-regalos');
+    let targetDeleteId = null;
+
+    btnAdd?.addEventListener('click', () => {
+      form.reset();
+      document.getElementById('mesa-regalos-id').value = '';
+      document.getElementById('mesa-regalos-orden').value = totalItems + 1;
+      modalTitle.textContent = 'Nueva Opción de Regalo';
+      modalError.classList.add('hidden');
+      modal?.showModal();
+    });
+
+    const closeModal = () => modal?.close();
+    btnClose?.addEventListener('click', closeModal);
+    btnCancel?.addEventListener('click', closeModal);
+
+    document.querySelectorAll('.btn-edit-mesa-regalos').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const id = btn.getAttribute('data-id');
+        const tipo = btn.getAttribute('data-tipo');
+        const nombre = btn.getAttribute('data-nombre');
+        const descripcion = btn.getAttribute('data-descripcion');
+        const url = btn.getAttribute('data-url');
+        const datos = btn.getAttribute('data-datos');
+        const orden = btn.getAttribute('data-orden');
+
+        document.getElementById('mesa-regalos-id').value = id;
+        document.getElementById('mesa-regalos-tipo').value = tipo || 'Mesa de Regalos';
+        document.getElementById('mesa-regalos-nombre').value = nombre || '';
+        document.getElementById('mesa-regalos-descripcion').value = descripcion || '';
+        document.getElementById('mesa-regalos-url').value = url || '';
+        document.getElementById('mesa-regalos-datos').value = datos || '';
+        document.getElementById('mesa-regalos-orden').value = orden || '1';
+
+        modalTitle.textContent = 'Editar Opción de Regalo';
+        modalError.classList.add('hidden');
+        modal?.showModal();
+      });
+    });
+
+    form?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const saveBtn = document.getElementById('btn-save-mesa-regalos');
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Guardando...';
+      modalError.classList.add('hidden');
+
+      const id = document.getElementById('mesa-regalos-id').value;
+      const action = id ? 'update' : 'create';
+
+      const payload = {
+        action,
+        evento_id: eventoId,
+        id: id ? Number(id) : undefined,
+        tipo: document.getElementById('mesa-regalos-tipo').value,
+        nombre: document.getElementById('mesa-regalos-nombre').value,
+        descripcion: document.getElementById('mesa-regalos-descripcion').value,
+        url: document.getElementById('mesa-regalos-url').value,
+        datos: document.getElementById('mesa-regalos-datos').value,
+        orden: Number(document.getElementById('mesa-regalos-orden').value) || 1,
+      };
+
+      try {
+        const res = await fetch('/api/admin/mesa-regalos', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const result = await res.json();
+
+        if (res.ok && result.success) {
+          modal?.close();
+          window.location.reload();
+        } else {
+          modalError.textContent = result.error || 'Error al guardar la mesa de regalos.';
+          modalError.classList.remove('hidden');
+          saveBtn.disabled = false;
+          saveBtn.textContent = 'Guardar opción';
+        }
+      } catch (err) {
+        modalError.textContent = 'Error de conexión con el servidor.';
+        modalError.classList.remove('hidden');
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Guardar opción';
+      }
+    });
+
+    document.querySelectorAll('.btn-delete-mesa-regalos').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        targetDeleteId = btn.getAttribute('data-id');
+        const nombre = btn.getAttribute('data-nombre');
+        deleteText.textContent = `¿Seguro que deseas eliminar "${nombre}"? Esta acción no se puede deshacer.`;
+        modalDelete?.showModal();
+      });
+    });
+
+    btnCancelDelete?.addEventListener('click', () => {
+      targetDeleteId = null;
+      modalDelete?.close();
+    });
+
+    btnConfirmDelete?.addEventListener('click', async () => {
+      if (!targetDeleteId) return;
+      btnConfirmDelete.disabled = true;
+      btnConfirmDelete.textContent = 'Eliminando...';
+
+      try {
+        const res = await fetch('/api/admin/mesa-regalos', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'delete',
+            evento_id: eventoId,
+            id: Number(targetDeleteId),
+          }),
+        });
+        const result = await res.json();
+        if (res.ok && result.success) {
+          modalDelete?.close();
+          window.location.reload();
+        } else {
+          alert(result.error || 'Error al eliminar.');
+          btnConfirmDelete.disabled = false;
+          btnConfirmDelete.textContent = 'Eliminar';
+        }
+      } catch (err) {
+        alert('Error de conexión.');
+        btnConfirmDelete.disabled = false;
+        btnConfirmDelete.textContent = 'Eliminar';
+      }
+    });
+  });
+</script>

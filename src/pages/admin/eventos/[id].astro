@@ -1,7 +1,12 @@
 ---
 import AdminLayout from '@/components/admin/AdminLayout.astro';
+import ManagerUbicaciones from '@/components/admin/ManagerUbicaciones.astro';
+import ManagerPrograma from '@/components/admin/ManagerPrograma.astro';
+import ManagerHistorias from '@/components/admin/ManagerHistorias.astro';
+import ManagerGaleria from '@/components/admin/ManagerGaleria.astro';
+import ManagerMesaRegalos from '@/components/admin/ManagerMesaRegalos.astro';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
-import type { Evento } from '@/types';
+import type { Evento, UbicacionItem, ProgramaItem, HistoriaItem, GaleriaItem, MesaRegalosItem } from '@/types';
 
 // 1. Verificación defensiva de autenticación (el middleware ya protege /admin/*)
 const user = Astro.locals.user;
@@ -19,11 +24,17 @@ let evento: Evento | null = null;
 let notFound = false;
 let loadError: string | null = null;
 
+let ubicaciones: UbicacionItem[] = [];
+let programa: ProgramaItem[] = [];
+let historias: HistoriaItem[] = [];
+let galeria: GaleriaItem[] = [];
+let mesaRegalos: MesaRegalosItem[] = [];
+
 if (!id || isNaN(eventId) || eventId <= 0) {
   notFound = true;
   Astro.response.status = 404;
 } else {
-  // 3. Consulta SSR a public.eventos
+  // 3. Consulta SSR a public.eventos y tablas relacionadas
   const supabase = createSupabaseServerClient({
     headers: Astro.request.headers,
     cookies: Astro.cookies,
@@ -41,6 +52,27 @@ if (!id || isNaN(eventId) || eventId <= 0) {
       Astro.response.status = 404;
     } else {
       evento = data as Evento;
+
+      // Cargar tablas relacionadas del evento en paralelo
+      const [
+        { data: resUbicaciones },
+        { data: resPrograma },
+        { data: resHistorias },
+        { data: resGaleria },
+        { data: resMesaRegalos },
+      ] = await Promise.all([
+        supabase.from('ubicaciones').select('*').eq('evento_id', eventId).order('id'),
+        supabase.from('programa_evento').select('*').eq('evento_id', eventId).order('orden'),
+        supabase.from('historias').select('*').eq('evento_id', eventId).order('orden'),
+        supabase.from('galeria').select('*').eq('evento_id', eventId).order('orden'),
+        supabase.from('mesa_regalos').select('*').eq('evento_id', eventId).order('orden'),
+      ]);
+
+      ubicaciones = (resUbicaciones as UbicacionItem[]) ?? [];
+      programa = (resPrograma as ProgramaItem[]) ?? [];
+      historias = (resHistorias as HistoriaItem[]) ?? [];
+      galeria = (resGaleria as GaleriaItem[]) ?? [];
+      mesaRegalos = (resMesaRegalos as MesaRegalosItem[]) ?? [];
     }
   } catch (err) {
     console.error('Error cargando evento para edición:', err);
@@ -635,6 +667,38 @@ const isPublicado =
         </div>
 
       </form>
+
+      {/* SECCIÓN: CONTENIDO DE LA INVITACIÓN (TABLAS RELACIONADAS) */}
+      <div class="pt-8 border-t-2 border-stone-200/90 space-y-8">
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider bg-amber-100 text-amber-900 border border-amber-200">
+              Módulos Dinámicos
+            </span>
+          </div>
+          <h2 class="text-2xl sm:text-3xl font-serif-luxury font-bold text-stone-900 mt-2">
+            Contenido de la invitación
+          </h2>
+          <p class="text-xs sm:text-sm text-stone-500 mt-1">
+            Personaliza los lugares, el itinerario, la cronología, la galería de fotos y las mesas de regalos que verán tus invitados.
+          </p>
+        </div>
+
+        {/* 1. UBICACIONES */}
+        <ManagerUbicaciones eventoId={evento.id} items={ubicaciones} />
+
+        {/* 2. PROGRAMA */}
+        <ManagerPrograma eventoId={evento.id} items={programa} />
+
+        {/* 3. HISTORIAS */}
+        <ManagerHistorias eventoId={evento.id} items={historias} />
+
+        {/* 4. GALERÍA */}
+        <ManagerGaleria eventoId={evento.id} items={galeria} />
+
+        {/* 5. MESA DE REGALOS */}
+        <ManagerMesaRegalos eventoId={evento.id} items={mesaRegalos} />
+      </div>
 
     </div>
 

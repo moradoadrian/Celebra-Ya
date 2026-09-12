@@ -1,0 +1,411 @@
+---
+import type { UbicacionItem } from '@/types';
+
+interface Props {
+  eventoId: number;
+  items: UbicacionItem[];
+}
+
+const { eventoId, items = [] } = Astro.props;
+---
+
+<div class="bg-white border border-stone-200/80 rounded-2xl p-6 sm:p-8 shadow-xs space-y-6" id="manager-ubicaciones">
+  {/* ENCABEZADO DE SECCIÓN */}
+  <div class="border-b border-stone-100 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+    <div>
+      <div class="flex items-center gap-2.5">
+        <span class="w-8 h-8 rounded-xl bg-amber-50 border border-amber-200/80 text-amber-700 flex items-center justify-center text-sm font-bold">
+          📍
+        </span>
+        <h2 class="text-base font-semibold text-stone-900">Ubicaciones del Evento</h2>
+        <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-stone-100 text-stone-600 border border-stone-200/80" id="ubicaciones-counter">
+          {items.length} {items.length === 1 ? 'lugar' : 'lugares'}
+        </span>
+      </div>
+      <p class="text-xs text-stone-500 mt-1">
+        Administra los recintos y lugares donde se llevarán a cabo los momentos del evento.
+      </p>
+    </div>
+
+    <div>
+      <button
+        type="button"
+        id="btn-add-ubicacion"
+        class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-stone-900 hover:bg-stone-800 text-amber-200 text-xs font-semibold tracking-wide transition-all shadow-xs cursor-pointer"
+      >
+        <span>+</span>
+        <span>Agregar ubicación</span>
+      </button>
+    </div>
+  </div>
+
+  {/* LISTADO DE UBICACIONES */}
+  <div id="ubicaciones-list" class="space-y-3">
+    {items.length === 0 ? (
+      <div id="ubicaciones-empty" class="text-center py-10 px-4 border-2 border-dashed border-stone-200 rounded-xl">
+        <p class="text-2xl mb-2">🗺️</p>
+        <p class="text-xs font-semibold text-stone-700">Esta invitación todavía no tiene ubicaciones registradas.</p>
+        <p class="text-[11px] text-stone-400 mt-0.5">Agrega la iglesia, templo, jardín o salón del evento.</p>
+      </div>
+    ) : (
+      items.map((item) => (
+        <div
+          class="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-xl border border-stone-200/70 bg-stone-50/50 hover:bg-white hover:border-stone-300 transition-all gap-3"
+          id={`ubicacion-row-${item.id}`}
+        >
+          <div class="space-y-1">
+            <div class="flex items-center gap-2">
+              <span class="text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-amber-100/70 text-amber-900 border border-amber-200/60">
+                {item.tipo || 'Lugar'}
+              </span>
+              <h3 class="text-sm font-semibold text-stone-900">{item.nombre}</h3>
+            </div>
+            <p class="text-xs text-stone-600 flex items-start gap-1">
+              <span class="text-stone-400">📍</span>
+              <span>{item.direccion}</span>
+            </p>
+            <div class="flex items-center gap-3 pt-1 text-[11px]">
+              {item.google_maps && (
+                <a
+                  href={item.google_maps.startsWith('http') ? item.google_maps : `https://${item.google_maps}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="text-amber-700 hover:text-amber-800 underline flex items-center gap-1"
+                >
+                  <span>Google Maps ↗</span>
+                </a>
+              )}
+              {item.waze && (
+                <a
+                  href={item.waze.startsWith('http') ? item.waze : `https://${item.waze}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="text-cyan-700 hover:text-cyan-800 underline flex items-center gap-1"
+                >
+                  <span>Waze ↗</span>
+                </a>
+              )}
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2 self-end sm:self-center shrink-0">
+            <button
+              type="button"
+              class="btn-edit-ubicacion px-3 py-1.5 rounded-lg text-xs font-semibold text-stone-700 bg-white hover:bg-stone-100 border border-stone-200 shadow-2xs transition-colors cursor-pointer"
+              data-id={item.id}
+              data-nombre={item.nombre}
+              data-tipo={item.tipo}
+              data-direccion={item.direccion}
+              data-google-maps={item.google_maps || ''}
+              data-waze={item.waze || ''}
+            >
+              Editar
+            </button>
+            <button
+              type="button"
+              class="btn-delete-ubicacion px-3 py-1.5 rounded-lg text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 shadow-2xs transition-colors cursor-pointer"
+              data-id={item.id}
+              data-nombre={item.nombre}
+            >
+              Eliminar
+            </button>
+          </div>
+        </div>
+      ))
+    )}
+  </div>
+
+  {/* MODAL / FORMULARIO CREAR Y EDITAR */}
+  <dialog id="modal-ubicacion" class="rounded-2xl backdrop:bg-stone-900/60 p-0 border border-stone-200 shadow-2xl max-w-lg w-full bg-white text-stone-800 m-auto">
+    <div class="p-6 space-y-4">
+      <div class="flex items-center justify-between border-b border-stone-100 pb-3">
+        <h3 id="modal-ubicacion-title" class="text-base font-semibold text-stone-900">
+          Nueva Ubicación
+        </h3>
+        <button type="button" id="btn-close-ubicacion" class="text-stone-400 hover:text-stone-700 text-lg leading-none cursor-pointer">
+          ✕
+        </button>
+      </div>
+
+      <form id="form-ubicacion" class="space-y-4">
+        <input type="hidden" id="ubicacion-id" name="id" value="" />
+        <input type="hidden" name="evento_id" value={eventoId} />
+
+        <div>
+          <label for="ubicacion-nombre" class="block text-xs font-semibold uppercase tracking-wider text-stone-600 mb-1">
+            Nombre del recinto <span class="text-rose-500">*</span>
+          </label>
+          <input
+            type="text"
+            id="ubicacion-nombre"
+            name="nombre"
+            required
+            placeholder="Ej. Parroquia del Carmen o Hacienda San José"
+            class="w-full px-3.5 py-2 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-xs text-stone-900"
+          />
+        </div>
+
+        <div>
+          <label for="ubicacion-tipo" class="block text-xs font-semibold uppercase tracking-wider text-stone-600 mb-1">
+            Tipo de ubicación <span class="text-rose-500">*</span>
+          </label>
+          <select
+            id="ubicacion-tipo"
+            name="tipo"
+            required
+            class="w-full px-3.5 py-2 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-xs text-stone-900 bg-white"
+          >
+            <option value="Ceremonia Religiosa">Ceremonia Religiosa</option>
+            <option value="Ceremonia Civil">Ceremonia Civil</option>
+            <option value="Recepción">Recepción</option>
+            <option value="Salón de Fiestas">Salón de Fiestas</option>
+            <option value="Jardín">Jardín</option>
+            <option value="Templo">Templo</option>
+            <option value="Hospedaje">Hospedaje</option>
+            <option value="Otro">Otro</option>
+          </select>
+        </div>
+
+        <div>
+          <label for="ubicacion-direccion" class="block text-xs font-semibold uppercase tracking-wider text-stone-600 mb-1">
+            Dirección completa <span class="text-rose-500">*</span>
+          </label>
+          <textarea
+            id="ubicacion-direccion"
+            name="direccion"
+            required
+            rows="2"
+            placeholder="Ej. Calle Morelos #123, Col. Centro, Celaya, Gto."
+            class="w-full px-3.5 py-2 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-xs text-stone-900"
+          ></textarea>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label for="ubicacion-gmaps" class="block text-xs font-semibold uppercase tracking-wider text-stone-600 mb-1">
+              Enlace Google Maps
+            </label>
+            <input
+              type="text"
+              id="ubicacion-gmaps"
+              name="google_maps"
+              placeholder="https://maps.google.com/..."
+              class="w-full px-3.5 py-2 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-xs text-stone-900 font-mono"
+            />
+          </div>
+
+          <div>
+            <label for="ubicacion-waze" class="block text-xs font-semibold uppercase tracking-wider text-stone-600 mb-1">
+              Enlace Waze
+            </label>
+            <input
+              type="text"
+              id="ubicacion-waze"
+              name="waze"
+              placeholder="https://waze.com/ul/..."
+              class="w-full px-3.5 py-2 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-xs text-stone-900 font-mono"
+            />
+          </div>
+        </div>
+
+        <div id="modal-ubicacion-error" class="hidden text-xs text-rose-600 bg-rose-50 border border-rose-200 p-2.5 rounded-xl"></div>
+
+        <div class="flex items-center justify-end gap-2 pt-3 border-t border-stone-100">
+          <button
+            type="button"
+            id="btn-cancel-ubicacion"
+            class="px-4 py-2 rounded-xl border border-stone-300 text-stone-600 hover:bg-stone-50 text-xs font-semibold cursor-pointer"
+          >
+            Cancelar
+          </button>
+          <button
+            type="submit"
+            id="btn-save-ubicacion"
+            class="px-5 py-2 rounded-xl bg-stone-900 hover:bg-stone-800 text-amber-200 text-xs font-bold shadow-xs cursor-pointer"
+          >
+            Guardar ubicación
+          </button>
+        </div>
+      </form>
+    </div>
+  </dialog>
+
+  {/* MODAL DE CONFIRMACIÓN PARA ELIMINAR */}
+  <dialog id="modal-confirm-delete-ubicacion" class="rounded-2xl backdrop:bg-stone-900/60 p-0 border border-stone-200 shadow-2xl max-w-sm w-full bg-white text-stone-800 m-auto">
+    <div class="p-6 text-center space-y-4">
+      <div class="w-12 h-12 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center text-xl mx-auto border border-rose-100">
+        🗑️
+      </div>
+      <div>
+        <h3 class="text-sm font-bold text-stone-900">¿Eliminar esta ubicación?</h3>
+        <p class="text-xs text-stone-500 mt-1" id="delete-ubicacion-name-text">
+          Esta acción no se puede deshacer.
+        </p>
+      </div>
+      <div class="flex items-center justify-center gap-3 pt-2">
+        <button
+          type="button"
+          id="btn-cancel-delete-ubicacion"
+          class="px-4 py-2 rounded-xl border border-stone-300 text-stone-600 hover:bg-stone-50 text-xs font-semibold cursor-pointer"
+        >
+          Cancelar
+        </button>
+        <button
+          type="button"
+          id="btn-confirm-delete-ubicacion"
+          class="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-xs cursor-pointer"
+        >
+          Eliminar
+        </button>
+      </div>
+    </div>
+  </dialog>
+</div>
+
+<script is:inline define:vars={{ eventoId }}>
+  document.addEventListener('DOMContentLoaded', () => {
+    const modal = document.getElementById('modal-ubicacion');
+    const form = document.getElementById('form-ubicacion');
+    const modalTitle = document.getElementById('modal-ubicacion-title');
+    const modalError = document.getElementById('modal-ubicacion-error');
+    const btnAdd = document.getElementById('btn-add-ubicacion');
+    const btnClose = document.getElementById('btn-close-ubicacion');
+    const btnCancel = document.getElementById('btn-cancel-ubicacion');
+
+    const modalDelete = document.getElementById('modal-confirm-delete-ubicacion');
+    const deleteText = document.getElementById('delete-ubicacion-name-text');
+    const btnCancelDelete = document.getElementById('btn-cancel-delete-ubicacion');
+    const btnConfirmDelete = document.getElementById('btn-confirm-delete-ubicacion');
+    let targetDeleteId = null;
+
+    // Abrir modal para Crear
+    btnAdd?.addEventListener('click', () => {
+      form.reset();
+      document.getElementById('ubicacion-id').value = '';
+      modalTitle.textContent = 'Nueva Ubicación';
+      modalError.classList.add('hidden');
+      modal?.showModal();
+    });
+
+    // Cerrar modal
+    const closeModal = () => modal?.close();
+    btnClose?.addEventListener('click', closeModal);
+    btnCancel?.addEventListener('click', closeModal);
+
+    // Configurar botones de Editar
+    document.querySelectorAll('.btn-edit-ubicacion').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const id = btn.getAttribute('data-id');
+        const nombre = btn.getAttribute('data-nombre');
+        const tipo = btn.getAttribute('data-tipo');
+        const direccion = btn.getAttribute('data-direccion');
+        const gmaps = btn.getAttribute('data-google-maps');
+        const waze = btn.getAttribute('data-waze');
+
+        document.getElementById('ubicacion-id').value = id;
+        document.getElementById('ubicacion-nombre').value = nombre || '';
+        document.getElementById('ubicacion-tipo').value = tipo || 'Ceremonia Religiosa';
+        document.getElementById('ubicacion-direccion').value = direccion || '';
+        document.getElementById('ubicacion-gmaps').value = gmaps || '';
+        document.getElementById('ubicacion-waze').value = waze || '';
+
+        modalTitle.textContent = 'Editar Ubicación';
+        modalError.classList.add('hidden');
+        modal?.showModal();
+      });
+    });
+
+    // Enviar formulario (Crear o Actualizar)
+    form?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const saveBtn = document.getElementById('btn-save-ubicacion');
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Guardando...';
+      modalError.classList.add('hidden');
+
+      const id = document.getElementById('ubicacion-id').value;
+      const action = id ? 'update' : 'create';
+
+      const payload = {
+        action,
+        evento_id: eventoId,
+        id: id ? Number(id) : undefined,
+        nombre: document.getElementById('ubicacion-nombre').value,
+        tipo: document.getElementById('ubicacion-tipo').value,
+        direccion: document.getElementById('ubicacion-direccion').value,
+        google_maps: document.getElementById('ubicacion-gmaps').value,
+        waze: document.getElementById('ubicacion-waze').value,
+      };
+
+      try {
+        const res = await fetch('/api/admin/ubicaciones', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const result = await res.json();
+
+        if (res.ok && result.success) {
+          modal?.close();
+          window.location.reload();
+        } else {
+          modalError.textContent = result.error || 'Error al guardar la ubicación.';
+          modalError.classList.remove('hidden');
+          saveBtn.disabled = false;
+          saveBtn.textContent = 'Guardar ubicación';
+        }
+      } catch (err) {
+        modalError.textContent = 'Error de conexión con el servidor.';
+        modalError.classList.remove('hidden');
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Guardar ubicación';
+      }
+    });
+
+    // Configurar botones de Eliminar
+    document.querySelectorAll('.btn-delete-ubicacion').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        targetDeleteId = btn.getAttribute('data-id');
+        const nombre = btn.getAttribute('data-nombre');
+        deleteText.textContent = `¿Seguro que deseas eliminar "${nombre}"? Esta acción no se puede deshacer.`;
+        modalDelete?.showModal();
+      });
+    });
+
+    btnCancelDelete?.addEventListener('click', () => {
+      targetDeleteId = null;
+      modalDelete?.close();
+    });
+
+    btnConfirmDelete?.addEventListener('click', async () => {
+      if (!targetDeleteId) return;
+      btnConfirmDelete.disabled = true;
+      btnConfirmDelete.textContent = 'Eliminando...';
+
+      try {
+        const res = await fetch('/api/admin/ubicaciones', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'delete',
+            evento_id: eventoId,
+            id: Number(targetDeleteId),
+          }),
+        });
+        const result = await res.json();
+        if (res.ok && result.success) {
+          modalDelete?.close();
+          window.location.reload();
+        } else {
+          alert(result.error || 'Error al eliminar.');
+          btnConfirmDelete.disabled = false;
+          btnConfirmDelete.textContent = 'Eliminar';
+        }
+      } catch (err) {
+        alert('Error de conexión.');
+        btnConfirmDelete.disabled = false;
+        btnConfirmDelete.textContent = 'Eliminar';
+      }
+    });
+  });
+</script>

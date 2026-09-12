@@ -156,6 +156,37 @@ export const DigitalPassRsvp: React.FC<DigitalPassRsvpProps> = ({
             </div>
           </div>
 
+          {/* CÓDIGO QR Y PASE DIGITAL DE ACCESO */}
+          {invitado.codigo && (
+            <div className="bg-stone-50 border border-stone-200/90 rounded-2xl p-5 sm:p-6 text-center space-y-3.5 shadow-2xs">
+              <div className="space-y-1">
+                <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-amber-800 bg-amber-100/70 px-3 py-1 rounded-full border border-amber-200/80 inline-block">
+                  Pase Digital
+                </span>
+                <p className="text-xs text-stone-500 font-medium">Código de acceso</p>
+                <div className="inline-block bg-white px-4 py-1.5 rounded-xl border border-stone-200 shadow-2xs font-mono text-sm font-bold text-stone-900 tracking-wider">
+                  {invitado.codigo}
+                </div>
+              </div>
+
+              {/* Contenedor del código QR */}
+              <div className="inline-block bg-white p-3.5 rounded-2xl border border-stone-200 shadow-xs">
+                <img
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(invitado.codigo)}&color=292524`}
+                  alt={`Código QR de acceso para ${invitado.nombre}`}
+                  width="160"
+                  height="160"
+                  className="w-36 h-36 sm:w-40 sm:h-40 mx-auto rounded-lg"
+                  loading="lazy"
+                />
+              </div>
+
+              <p className="text-[11px] text-stone-500 max-w-xs mx-auto leading-relaxed">
+                Presenta este código QR o tu clave de acceso en la recepción del evento para registrar tu ingreso.
+              </p>
+            </div>
+          )}
+
           {/* FEEDBACK: MENSAJE DE ÉXITO */}
           {successMessage && (
             <div className="bg-emerald-50 border border-emerald-200 text-emerald-900 p-4 rounded-2xl flex items-center gap-3">

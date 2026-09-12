@@ -206,4 +206,136 @@ TO authenticated
 USING (true)
 WITH CHECK (true);
 
+-- ==============================================================================
+-- FASE 18: CONTROL DE ACCESO, QR Y CHECK-IN DE INVITADOS
+-- Aplicar en el SQL Editor de Supabase (https://supabase.com/dashboard/project/thznthspspdcayqlilwq/sql)
+-- ==============================================================================
+
+-- 1. TABLA public.checkins (Historial persistente de accesos por invitación)
+CREATE TABLE IF NOT EXISTS public.checkins (
+  id BIGSERIAL PRIMARY KEY,
+  evento_id BIGINT NOT NULL REFERENCES public.eventos(id) ON DELETE CASCADE,
+  invitado_id BIGINT NOT NULL REFERENCES public.invitados(id) ON DELETE CASCADE,
+  cantidad INTEGER NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc', NOW()) NOT NULL,
+  CONSTRAINT check_checkins_cantidad_positive CHECK (cantidad > 0)
+);
+
+-- 2. ÍNDICES DE RENDIMIENTO Y CONSULTA RÁPIDA
+CREATE INDEX IF NOT EXISTS idx_checkins_evento_id ON public.checkins(evento_id);
+CREATE INDEX IF NOT EXISTS idx_checkins_invitado_id ON public.checkins(invitado_id);
+CREATE INDEX IF NOT EXISTS idx_checkins_created_at ON public.checkins(created_at DESC);
+
+-- 3. PERMISOS Y PRIVILEGIOS
+-- Rol authenticated (administrador): gestión total de check-ins
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.checkins TO authenticated;
+GRANT USAGE, SELECT ON SEQUENCE public.checkins_id_seq TO authenticated;
+
+-- 4. HABILITAR ROW LEVEL SECURITY (RLS)
+ALTER TABLE public.checkins ENABLE ROW LEVEL SECURITY;
+
+-- 5. POLÍTICAS RLS PARA CHECK-INS (authenticated)
+DROP POLICY IF EXISTS "Permitir gestion total de checkins a usuarios autenticados" ON public.checkins;
+CREATE POLICY "Permitir gestion total de checkins a usuarios autenticados"
+ON public.checkins
+FOR ALL
+TO authenticated
+USING (true)
+WITH CHECK (true);
+
+-- 6. FUNCIÓN ATÓMICA Y TRANSACCIONAL: registrar_checkin (Protección ante concurrencia)
+CREATE OR REPLACE FUNCTION public.registrar_checkin(
+    p_codigo TEXT,
+    p_cantidad INTEGER,
+    p_evento_id BIGINT DEFAULT NULL
+)
+RETURNS JSON
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_invitado RECORD;
+    v_pases_utilizados INTEGER;
+    v_pases_disponibles INTEGER;
+    v_checkin_id BIGINT;
+BEGIN
+    -- Validar cantidad
+    IF p_cantidad IS NULL OR p_cantidad <= 0 THEN
+        RETURN json_build_object('success', false, 'status', 400, 'error', 'La cantidad debe ser un entero mayor a 0.');
+    END IF;
+
+    -- Bloquear y obtener al invitado para evitar condiciones de carrera (FOR UPDATE)
+    SELECT * INTO v_invitado
+    FROM public.invitados
+    WHERE UPPER(TRIM(codigo)) = UPPER(TRIM(p_codigo))
+    FOR UPDATE;
+
+    IF NOT FOUND THEN
+        RETURN json_build_object('success', false, 'status', 404, 'error', 'Invitación no encontrada. El código no corresponde a un invitado válido.');
+    END IF;
+
+    -- Validar aislamiento por evento
+    IF p_evento_id IS NOT NULL AND v_invitado.evento_id <> p_evento_id THEN
+        RETURN json_build_object('success', false, 'status', 403, 'error', 'El invitado no pertenece al evento especificado.');
+    END IF;
+
+    -- Validar RSVP
+    IF v_invitado.confirmado IS NULL THEN
+        RETURN json_build_object('success', false, 'status', 409, 'error', 'RSVP pendiente: Este invitado todavía no ha confirmado su asistencia.');
+    END IF;
+
+    IF v_invitado.confirmado = false THEN
+        RETURN json_build_object('success', false, 'status', 409, 'error', 'Invitación rechazada: El invitado indicó que no asistirá.');
+    END IF;
+
+    -- Validar pases confirmados
+    IF v_invitado.pases_confirmados IS NULL OR v_invitado.pases_confirmados <= 0 THEN
+        RETURN json_build_object('success', false, 'status', 409, 'error', 'El invitado no cuenta con pases confirmados.');
+    END IF;
+
+    -- Calcular pases ya utilizados
+    SELECT COALESCE(SUM(cantidad), 0) INTO v_pases_utilizados
+    FROM public.checkins
+    WHERE invitado_id = v_invitado.id;
+
+    v_pases_disponibles := v_invitado.pases_confirmados - v_pases_utilizados;
+
+    IF v_pases_disponibles <= 0 THEN
+        RETURN json_build_object('success', false, 'status', 400, 'error', 'Entrada completa: Todos los pases confirmados ya fueron utilizados.');
+    END IF;
+
+    IF p_cantidad > v_pases_disponibles THEN
+        RETURN json_build_object(
+            'success', false,
+            'status', 400,
+            'error', format('No es posible registrar %s personas. Solo quedan %s pases disponibles.', p_cantidad, v_pases_disponibles)
+        );
+    END IF;
+
+    -- Insertar registro en checkins
+    INSERT INTO public.checkins (evento_id, invitado_id, cantidad)
+    VALUES (v_invitado.evento_id, v_invitado.id, p_cantidad)
+    RETURNING id INTO v_checkin_id;
+
+    -- Retornar resultado exitoso con métricas actualizadas
+    RETURN json_build_object(
+        'success', true,
+        'status', 200,
+        'message', 'Entrada registrada correctamente.',
+        'data', json_build_object(
+            'checkin_id', v_checkin_id,
+            'invitado_id', v_invitado.id,
+            'nombre', v_invitado.nombre,
+            'evento_id', v_invitado.evento_id,
+            'cantidad', p_cantidad,
+            'pases_confirmados', v_invitado.pases_confirmados,
+            'pases_utilizados', v_pases_utilizados + p_cantidad,
+            'pases_disponibles', v_pases_disponibles - p_cantidad
+        )
+    );
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.registrar_checkin(TEXT, INTEGER, BIGINT) TO authenticated;
+
 

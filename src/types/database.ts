@@ -113,3 +113,27 @@ export interface MesaConDetalles extends MesaItem {
   estado: 'disponible' | 'completa' | 'sobrecupo';
 }
 
+export interface CheckinItem {
+  id: number;
+  evento_id: number;
+  invitado_id: number;
+  cantidad: number;
+  created_at: string;
+}
+
+export interface CheckinDetalleInvitado {
+  id: number;
+  evento_id: number;
+  evento_nombre?: string;
+  nombre: string;
+  telefono?: string | null;
+  codigo: string;
+  confirmado: boolean | string | null;
+  numero_pases: number;
+  pases_confirmados: number;
+  pases_utilizados: number;
+  pases_disponibles: number;
+  mesa?: string | null;
+  historial?: CheckinItem[];
+}
+

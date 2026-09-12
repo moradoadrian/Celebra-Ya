@@ -161,17 +161,24 @@ const isPublicado =
         </div>
 
         {/* ACCIONES SUPERIORES */}
-        <div class="flex items-center gap-3 shrink-0">
+        <div class="flex items-center gap-2.5 shrink-0 flex-wrap">
+          <a
+            href={`/admin/checkin?evento_id=${evento.id}`}
+            class="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition-colors"
+          >
+            <span>🎟️</span>
+            <span>Check-in</span>
+          </a>
           <a
             href={`/admin/mesas?evento_id=${evento.id}`}
-            class="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-white hover:bg-stone-50 text-stone-700 text-xs font-semibold border border-stone-300/80 shadow-xs transition-colors"
+            class="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-white hover:bg-stone-50 text-stone-700 text-xs font-semibold border border-stone-300/80 shadow-xs transition-colors"
           >
             <span>🪑</span>
             <span>Mesas</span>
           </a>
           <a
             href={`/admin/invitados?evento_id=${evento.id}`}
-            class="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-stone-950 text-xs font-bold shadow-xs transition-colors"
+            class="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-stone-950 text-xs font-bold shadow-xs transition-colors"
           >
             <span>👥</span>
             <span>Invitados ({totalInvitadosCount})</span>

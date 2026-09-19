@@ -25,6 +25,7 @@ export interface Evento {
   frase_despedida?: string | null;
   etapa_produccion?: EtapaProduccion;
   produccion?: ProduccionEventoDetalle;
+  metricas_operativas?: EventoMetricasOperativas;
 }
 
 export interface UbicacionItem {
@@ -259,5 +260,19 @@ export interface ProduccionMetricas {
   enRevision: number;
   publicados: number;
   finalizados: number;
+}
+
+export interface EventoMetricasOperativas {
+  totalInvitados: number;
+  totalPases: number;
+  invitadosConfirmados: number;
+  invitadosPendientes: number;
+  invitadosRechazados: number;
+  pasesConfirmados: number;
+  pasesIngresados: number;
+  totalMesas: number;
+  capacidadMesas: number;
+  asistenciaPorcentaje: number;
+  esFinalizado: boolean;
 }
 

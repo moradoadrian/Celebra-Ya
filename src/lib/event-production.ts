@@ -5,6 +5,7 @@ import type {
   EtapaProduccion,
   ProduccionMetricas,
   ValidacionPublicacion,
+  EventoMetricasOperativas,
 } from '@/types';
 
 export interface EntityCounts {
@@ -132,6 +133,10 @@ export function evaluarProgresoEvento(
     evento.estado === true ||
     evento.estado === 'true' ||
     evento.estado === 'publicado';
+  const isFinalizado =
+    evento.estado === 'finalizado' ||
+    evento.estado === 'FINALIZADO' ||
+    (esFechaPasada && isPublicado);
 
   // 1. Información Principal y Cliente
   const hasInfoPrincipal = Boolean(
@@ -235,13 +240,15 @@ export function evaluarProgresoEvento(
     {
       id: 'publicacion',
       label: 'Revisión final y publicación en línea',
-      completado: hasPublicado,
+      completado: hasPublicado || isFinalizado,
       esBloqueante: false,
-      detalle: hasPublicado
+      detalle: isFinalizado
+        ? 'Evento concluido (registros históricos resguardados)'
+        : hasPublicado
         ? 'Invitación digital publicada y operativa'
         : 'Borrador en producción (no visible al público)',
       accionUrl: `/admin/eventos/${evento.id}`,
-      accionTexto: hasPublicado ? 'Ver demo ↗' : 'Publicar evento',
+      accionTexto: hasPublicado || isFinalizado ? 'Ver demo ↗' : 'Publicar evento',
     },
   ];
 
@@ -287,7 +294,7 @@ export function evaluarProgresoEvento(
   let etapa: EtapaProduccion = 'INFORMACION_PENDIENTE';
   let etapaLabel = 'Información Pendiente';
 
-  if (esFechaPasada && isPublicado) {
+  if (isFinalizado) {
     etapa = 'FINALIZADO';
     etapaLabel = 'Finalizado';
   } else if (isPublicado) {
@@ -357,5 +364,59 @@ export function calcularMetricasProduccion(
     enRevision,
     publicados,
     finalizados,
+  };
+}
+
+/**
+ * Calcula indicadores operativos integrales en tiempo real para un evento de Celebra-Ya.
+ * Consolida el estado de invitados, confirmaciones RSVP, pases ingresados en check-in,
+ * mesas asignadas y finalización del evento.
+ */
+export function calcularMetricasOperativasEvento(
+  evento: Evento,
+  data: {
+    invitados?: Array<{ id: number; numero_pases?: number; confirmado?: boolean | null; pases_confirmados?: number | null }>;
+    mesas?: Array<{ id: number; capacidad?: number | null }>;
+    checkins?: Array<{ id: number; cantidad?: number | null }>;
+  }
+): EventoMetricasOperativas {
+  const invitados = data.invitados || [];
+  const mesas = data.mesas || [];
+  const checkins = data.checkins || [];
+
+  const totalInvitados = invitados.length;
+  const totalPases = invitados.reduce((sum, i) => sum + (Number(i.numero_pases) || 1), 0);
+  const invitadosConfirmados = invitados.filter((i) => i.confirmado === true).length;
+  const invitadosPendientes = invitados.filter((i) => i.confirmado === null || i.confirmado === undefined).length;
+  const invitadosRechazados = invitados.filter((i) => i.confirmado === false).length;
+  const pasesConfirmados = invitados.reduce((sum, i) => sum + (Number(i.pases_confirmados) || 0), 0);
+
+  const pasesIngresados = checkins.reduce((sum, c) => sum + (Number(c.cantidad) || 0), 0);
+  const totalMesas = mesas.length;
+  const capacidadMesas = mesas.reduce((sum, m) => sum + (Number(m.capacidad) || 0), 0);
+
+  const basePases = pasesConfirmados > 0 ? pasesConfirmados : totalPases;
+  const asistenciaPorcentaje = basePases > 0 ? Math.min(100, Math.round((pasesIngresados / basePases) * 100)) : 0;
+
+  const hoyStr = new Date().toISOString().split('T')[0];
+  const esFechaPasada = Boolean(evento.fecha_evento && evento.fecha_evento < hoyStr);
+  const isPublicado = evento.estado === true || evento.estado === 'true' || evento.estado === 'publicado';
+  const esFinalizado =
+    evento.estado === 'finalizado' ||
+    evento.estado === 'FINALIZADO' ||
+    (esFechaPasada && isPublicado);
+
+  return {
+    totalInvitados,
+    totalPases,
+    invitadosConfirmados,
+    invitadosPendientes,
+    invitadosRechazados,
+    pasesConfirmados,
+    pasesIngresados,
+    totalMesas,
+    capacidadMesas,
+    asistenciaPorcentaje,
+    esFinalizado,
   };
 }

@@ -52,8 +52,12 @@ if (eventoError || !eventoData) {
 }
 
 const evento: Evento = eventoData;
+const hoyStr = new Date().toISOString().split('T')[0];
+const esFechaPasada = Boolean(evento.fecha_evento && evento.fecha_evento < hoyStr);
 const isPublicado =
   evento.estado === true || evento.estado === 'true' || evento.estado === 'publicado';
+const isFinalizado =
+  evento.estado === 'finalizado' || evento.estado === 'FINALIZADO' || (esFechaPasada && isPublicado);
 
 // 4. Obtener datos relacionados y conteos para validación
 const [
@@ -152,16 +156,18 @@ const targetDate = `${eventDateStr}T${eventTime}`;
           <span
             class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border"
             class:list={[
-              isPublicado
+              isFinalizado
+                ? 'bg-stone-800 text-stone-300 border-stone-600'
+                : isPublicado
                 ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
                 : 'bg-amber-500/20 text-amber-300 border-amber-500/40',
             ]}
           >
             <span
               class="w-1.5 h-1.5 rounded-full"
-              class:list={[isPublicado ? 'bg-emerald-400' : 'bg-amber-400']}
+              class:list={[isFinalizado ? 'bg-stone-400' : isPublicado ? 'bg-emerald-400' : 'bg-amber-400']}
             ></span>
-            <span>{isPublicado ? 'PUBLICADO' : 'BORRADOR'}</span>
+            <span>{isFinalizado ? 'FINALIZADO' : isPublicado ? 'PUBLICADO' : 'BORRADOR'}</span>
           </span>
         </div>
       </div>
@@ -226,14 +232,20 @@ const targetDate = `${eventDateStr}T${eventTime}`;
     </div>
   </header>
 
-  <!-- BANNER INFORMATIVO SI ESTÁ EN MODO BORRADOR -->
-  {!isPublicado && (
+  <!-- BANNER INFORMATIVO SI ESTÁ EN MODO BORRADOR O FINALIZADO -->
+  {isFinalizado ? (
+    <div class="bg-stone-900 border-b border-stone-800 text-stone-300 px-4 py-2 text-center text-xs">
+      <p>
+        🏛️ <strong>Evento Finalizado:</strong> Este evento concluyó su ciclo operativo. Los registros históricos (invitados, confirmaciones y check-ins) están protegidos íntegramente.
+      </p>
+    </div>
+  ) : !isPublicado ? (
     <div class="bg-amber-500/10 border-b border-amber-500/20 text-amber-200 px-4 py-2 text-center text-xs">
       <p>
         🔒 <strong>Modo Vista Previa Privada:</strong> Este evento no es visible en internet. La ruta pública <code class="bg-black/30 px-1 py-0.5 rounded text-amber-100">/demo/{evento.slug}</code> responderá 404 hasta que se complete y publique.
       </p>
     </div>
-  )}
+  ) : null}
 
   <!-- Reproductor de Música de Fondo -->
   <WeddingMusicPlayer client:load musicaUrl={evento.musica_url} />

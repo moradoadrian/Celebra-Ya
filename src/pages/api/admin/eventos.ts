@@ -4,6 +4,7 @@ import {
   evaluarProgresoEvento,
   calcularMetricasProduccion,
   validarRequisitosPublicacion,
+  calcularMetricasOperativasEvento,
 } from '@/lib/event-production';
 import type { Evento, ClienteItem } from '@/types';
 
@@ -44,12 +45,14 @@ export const GET: APIRoute = async (context) => {
       { data: ubicacionesData },
       { data: invitadosData },
       { data: mesasData },
+      { data: checkinsData },
     ] = await Promise.all([
       supabase.from('eventos').select('*').order('fecha_evento', { ascending: true }),
       supabase.from('clientes').select('id, nombre, email, whatsapp, telefono, activo'),
       supabase.from('ubicaciones').select('id, evento_id'),
-      supabase.from('invitados').select('id, evento_id, numero_pases, confirmado'),
-      supabase.from('mesas').select('id, evento_id'),
+      supabase.from('invitados').select('id, evento_id, numero_pases, confirmado, pases_confirmados'),
+      supabase.from('mesas').select('id, evento_id, capacidad'),
+      supabase.from('checkins').select('id, evento_id, cantidad'),
     ]);
 
     if (evError) {
@@ -65,40 +68,59 @@ export const GET: APIRoute = async (context) => {
     const clientMap = new Map<number, ClienteItem>();
     clientes.forEach((c) => clientMap.set(c.id, c));
 
-    // Mapear conteos de entidades hijas por evento_id
+    // Mapear conteos y colecciones de entidades hijas por evento_id
     const ubicacionesMap = new Map<number, number>();
     (ubicacionesData || []).forEach((u: any) => {
       ubicacionesMap.set(u.evento_id, (ubicacionesMap.get(u.evento_id) || 0) + 1);
     });
 
-    const invitadosMap = new Map<number, number>();
+    const invitadosByEvent = new Map<number, any[]>();
     (invitadosData || []).forEach((i: any) => {
-      invitadosMap.set(i.evento_id, (invitadosMap.get(i.evento_id) || 0) + 1);
+      if (!invitadosByEvent.has(i.evento_id)) invitadosByEvent.set(i.evento_id, []);
+      invitadosByEvent.get(i.evento_id)!.push(i);
     });
 
-    const mesasMap = new Map<number, number>();
+    const mesasByEvent = new Map<number, any[]>();
     (mesasData || []).forEach((m: any) => {
-      mesasMap.set(m.evento_id, (mesasMap.get(m.evento_id) || 0) + 1);
+      if (!mesasByEvent.has(m.evento_id)) mesasByEvent.set(m.evento_id, []);
+      mesasByEvent.get(m.evento_id)!.push(m);
     });
 
-    // Enriquecer eventos con cliente y evaluación de producción
+    const checkinsByEvent = new Map<number, any[]>();
+    (checkinsData || []).forEach((c: any) => {
+      if (!checkinsByEvent.has(c.evento_id)) checkinsByEvent.set(c.evento_id, []);
+      checkinsByEvent.get(c.evento_id)!.push(c);
+    });
+
+    // Enriquecer eventos con cliente, evaluación de producción y métricas operativas
     const produccionDetalles = [];
     const eventosEnriquecidos = eventosRaw.map((ev) => {
       const cliente = ev.cliente_id ? clientMap.get(ev.cliente_id) || null : null;
+      const evInvitados = invitadosByEvent.get(ev.id) || [];
+      const evMesas = mesasByEvent.get(ev.id) || [];
+      const evCheckins = checkinsByEvent.get(ev.id) || [];
+
       const counts = {
         ubicacionesCount: ubicacionesMap.get(ev.id) || 0,
-        invitadosCount: invitadosMap.get(ev.id) || 0,
-        mesasCount: mesasMap.get(ev.id) || 0,
+        invitadosCount: evInvitados.length,
+        mesasCount: evMesas.length,
       };
 
       const produccion = evaluarProgresoEvento(ev, counts);
       produccionDetalles.push(produccion);
+
+      const metricasOperativas = calcularMetricasOperativasEvento(ev, {
+        invitados: evInvitados,
+        mesas: evMesas,
+        checkins: evCheckins,
+      });
 
       return {
         ...ev,
         cliente,
         etapa_produccion: produccion.etapa,
         produccion,
+        metricas_operativas: metricasOperativas,
       };
     });
 
@@ -370,6 +392,36 @@ export const PATCH: APIRoute = async (context) => {
       eventoActual.estado === true ||
       eventoActual.estado === 'true' ||
       eventoActual.estado === 'publicado';
+
+    // Manejo de Cierre / Finalización explícita del Evento (Paso 10 del ciclo)
+    if (body.finalizar === true || body.estado === 'finalizado') {
+      const { data: eventoActualizado, error: updateErr } = await supabase
+        .from('eventos')
+        .update({
+          estado: 'finalizado',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', id)
+        .select('id, estado, nombre, slug')
+        .single();
+
+      if (updateErr) {
+        console.error('[Eventos API Patch Error]:', updateErr);
+        return new Response(
+          JSON.stringify({ success: false, error: 'Error al finalizar el evento.' }),
+          { status: 500, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: `El evento "${eventoActualizado.nombre}" ha sido marcado como FINALIZADO. Sus registros históricos se conservan íntegros.`,
+          data: eventoActualizado,
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
 
     const nuevoEstado = body.estado !== undefined ? Boolean(body.estado) : !currentPublicado;
     const nuevoEstadoStr = nuevoEstado ? 'true' : 'false';

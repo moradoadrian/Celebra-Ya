@@ -6,8 +6,17 @@ import ManagerHistorias from '@/components/admin/ManagerHistorias.astro';
 import ManagerGaleria from '@/components/admin/ManagerGaleria.astro';
 import ManagerMesaRegalos from '@/components/admin/ManagerMesaRegalos.astro';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
-import { evaluarProgresoEvento } from '@/lib/event-production';
-import type { Evento, UbicacionItem, ProgramaItem, HistoriaItem, GaleriaItem, MesaRegalosItem, ClienteItem } from '@/types';
+import { evaluarProgresoEvento, calcularMetricasOperativasEvento } from '@/lib/event-production';
+import type {
+  Evento,
+  UbicacionItem,
+  ProgramaItem,
+  HistoriaItem,
+  GaleriaItem,
+  MesaRegalosItem,
+  ClienteItem,
+  EventoMetricasOperativas,
+} from '@/types';
 
 // 1. Verificación defensiva de autenticación (el middleware ya protege /admin/*)
 const user = Astro.locals.user;
@@ -35,6 +44,7 @@ let totalInvitadosCount = 0;
 let totalPasesCount = 0;
 let totalMesasCount = 0;
 let clientes: ClienteItem[] = [];
+let metricasOperativas: EventoMetricasOperativas | null = null;
 
 if (!id || isNaN(eventId) || eventId <= 0) {
   notFound = true;
@@ -59,7 +69,7 @@ if (!id || isNaN(eventId) || eventId <= 0) {
     } else {
       evento = data as Evento;
 
-      // Cargar tablas relacionadas del evento, clientes y conteos en paralelo
+      // Cargar tablas relacionadas del evento, clientes, conteos, check-ins y mesas en paralelo
       const [
         { data: resUbicaciones },
         { data: resPrograma },
@@ -68,6 +78,7 @@ if (!id || isNaN(eventId) || eventId <= 0) {
         { data: resMesaRegalos },
         { data: resInvitados },
         { data: resMesas },
+        { data: resCheckins },
         { data: resClientes },
       ] = await Promise.all([
         supabase.from('ubicaciones').select('*').eq('evento_id', eventId).order('id'),
@@ -75,8 +86,9 @@ if (!id || isNaN(eventId) || eventId <= 0) {
         supabase.from('historias').select('*').eq('evento_id', eventId).order('orden'),
         supabase.from('galeria').select('*').eq('evento_id', eventId).order('orden'),
         supabase.from('mesa_regalos').select('*').eq('evento_id', eventId).order('orden'),
-        supabase.from('invitados').select('id, numero_pases').eq('evento_id', eventId),
-        supabase.from('mesas').select('id').eq('evento_id', eventId),
+        supabase.from('invitados').select('id, numero_pases, confirmado, pases_confirmados').eq('evento_id', eventId),
+        supabase.from('mesas').select('id, numero, capacidad').eq('evento_id', eventId),
+        supabase.from('checkins').select('id, cantidad').eq('evento_id', eventId),
         supabase.from('clientes').select('id, nombre, email, whatsapp, telefono, activo').order('nombre'),
       ]);
 
@@ -92,6 +104,14 @@ if (!id || isNaN(eventId) || eventId <= 0) {
         totalInvitadosCount = resInvitados.length;
         totalPasesCount = resInvitados.reduce((sum, item: any) => sum + (Number(item.numero_pases) || 1), 0);
       }
+
+      metricasOperativas = evento
+        ? calcularMetricasOperativasEvento(evento, {
+            invitados: (resInvitados as any[]) || [],
+            mesas: (resMesas as any[]) || [],
+            checkins: (resCheckins as any[]) || [],
+          })
+        : null;
     }
   } catch (err) {
     console.error('Error cargando evento para edición:', err);
@@ -256,6 +276,148 @@ const clienteAsignado = evento?.cliente_id
           </div>
         )}
       </div>
+
+      {/* AVISO DE CIERRE / ARCHIVO HISTÓRICO SI EL EVENTO ESTÁ FINALIZADO (PASO 10 DEL CICLO) */}
+      {metricasOperativas?.esFinalizado && (
+        <div class="bg-stone-900 border border-stone-800 text-stone-100 p-5 rounded-3xl shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div class="flex items-center gap-3.5">
+            <span class="w-10 h-10 rounded-2xl bg-stone-800 text-amber-300 flex items-center justify-center text-xl shrink-0">
+              🏛️
+            </span>
+            <div>
+              <div class="flex items-center gap-2">
+                <h3 class="text-sm font-bold text-white font-serif-luxury text-base">Evento Finalizado (Ciclo Completo)</h3>
+                <span class="text-[10px] uppercase font-bold bg-amber-400/20 text-amber-300 px-2 py-0.5 rounded border border-amber-400/30">
+                  Histórico Preservado
+                </span>
+              </div>
+              <p class="text-xs text-stone-400 mt-0.5 leading-relaxed">
+                Este evento ya concluyó su fecha operativa. Los registros históricos de invitados, confirmaciones RSVP, distribución de mesas y check-ins de recepción se conservan íntegros para auditoría y consulta.
+              </p>
+            </div>
+          </div>
+          <div class="shrink-0 flex items-center gap-2">
+            <a
+              href={`/admin/checkin?evento_id=${evento.id}`}
+              class="px-3.5 py-2 rounded-xl bg-stone-800 hover:bg-stone-700 text-amber-300 text-xs font-semibold border border-stone-700 transition-colors"
+            >
+              Auditoría de check-ins ↗
+            </a>
+          </div>
+        </div>
+      )}
+
+      {/* CENTRO DE CONTROL: INDICADORES OPERATIVOS EN TIEMPO REAL */}
+      {metricasOperativas && (
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          
+          {/* 1. Invitados & RSVP */}
+          <div class="bg-white border border-stone-200/80 rounded-2xl p-5 shadow-xs flex flex-col justify-between">
+            <div>
+              <div class="flex items-center justify-between">
+                <span class="text-[11px] font-semibold uppercase tracking-wider text-stone-500">Invitados & RSVP</span>
+                <span class="text-base">👥</span>
+              </div>
+              <div class="mt-2">
+                <span class="text-2xl font-bold font-serif-luxury text-stone-900">{metricasOperativas.totalInvitados}</span>
+                <span class="text-xs text-stone-500 ml-1 font-medium">({metricasOperativas.totalPases} pases)</span>
+              </div>
+              <div class="mt-2 space-y-0.5 text-[11px] text-stone-600">
+                <p class="text-emerald-700 font-medium">✓ {metricasOperativas.invitadosConfirmados} confirmados ({metricasOperativas.pasesConfirmados} pases)</p>
+                <p class="text-stone-500">⏳ {metricasOperativas.invitadosPendientes} pendientes • ✕ {metricasOperativas.invitadosRechazados} declinados</p>
+              </div>
+            </div>
+            <div class="pt-3 mt-3 border-t border-stone-100">
+              <a href={`/admin/invitados?evento_id=${evento.id}`} class="text-xs font-bold text-amber-800 hover:text-amber-900 underline flex items-center justify-between">
+                <span>Gestionar invitados</span>
+                <span>→</span>
+              </a>
+            </div>
+          </div>
+
+          {/* 2. Mesas & Capacidad */}
+          <div class="bg-white border border-stone-200/80 rounded-2xl p-5 shadow-xs flex flex-col justify-between">
+            <div>
+              <div class="flex items-center justify-between">
+                <span class="text-[11px] font-semibold uppercase tracking-wider text-stone-500">Mesas & Asientos</span>
+                <span class="text-base">🪑</span>
+              </div>
+              <div class="mt-2">
+                <span class="text-2xl font-bold font-serif-luxury text-stone-900">{metricasOperativas.totalMesas}</span>
+                <span class="text-xs text-stone-500 ml-1 font-medium">mesas configuradas</span>
+              </div>
+              <div class="mt-2 text-[11px] text-stone-600">
+                <p class="text-stone-700 font-medium">{metricasOperativas.capacidadMesas} asientos disponibles</p>
+                <p class="text-stone-500 mt-0.5">{metricasOperativas.totalMesas > 0 ? 'Distribución activa' : 'Sin distribución asignada'}</p>
+              </div>
+            </div>
+            <div class="pt-3 mt-3 border-t border-stone-100">
+              <a href={`/admin/mesas?evento_id=${evento.id}`} class="text-xs font-bold text-amber-800 hover:text-amber-900 underline flex items-center justify-between">
+                <span>Configurar mesas</span>
+                <span>→</span>
+              </a>
+            </div>
+          </div>
+
+          {/* 3. Recepción & Check-in */}
+          <div class="bg-white border border-stone-200/80 rounded-2xl p-5 shadow-xs flex flex-col justify-between">
+            <div>
+              <div class="flex items-center justify-between">
+                <span class="text-[11px] font-semibold uppercase tracking-wider text-stone-500">Recepción / Check-in</span>
+                <span class="text-base">🎟️</span>
+              </div>
+              <div class="mt-2">
+                <span class="text-2xl font-bold font-serif-luxury text-indigo-900">{metricasOperativas.pasesIngresados}</span>
+                <span class="text-xs text-stone-500 ml-1 font-medium">personas ingresadas</span>
+              </div>
+              <div class="mt-2 text-[11px] text-stone-600">
+                <div class="flex items-center justify-between mb-1">
+                  <span class="font-medium text-stone-700">{metricasOperativas.asistenciaPorcentaje}% de asistencia</span>
+                  <span class="text-stone-400 font-mono text-[10px]">{metricasOperativas.pasesIngresados}/{metricasOperativas.pasesConfirmados || metricasOperativas.totalPases}</span>
+                </div>
+                <div class="w-full bg-stone-100 rounded-full h-1.5 overflow-hidden">
+                  <div class="h-full bg-indigo-500 rounded-full" style={`width: ${metricasOperativas.asistenciaPorcentaje}%`}></div>
+                </div>
+              </div>
+            </div>
+            <div class="pt-3 mt-3 border-t border-stone-100">
+              <a href={`/admin/checkin?evento_id=${evento.id}`} class="text-xs font-bold text-indigo-700 hover:text-indigo-900 underline flex items-center justify-between">
+                <span>Abrir recepción en vivo</span>
+                <span>→</span>
+              </a>
+            </div>
+          </div>
+
+          {/* 4. Estado de Producción & Publicación */}
+          <div class="bg-white border border-stone-200/80 rounded-2xl p-5 shadow-xs flex flex-col justify-between">
+            <div>
+              <div class="flex items-center justify-between">
+                <span class="text-[11px] font-semibold uppercase tracking-wider text-stone-500">Ciclo de Vida</span>
+                <span class="text-base">🚀</span>
+              </div>
+              <div class="mt-2 flex items-center gap-2">
+                <span class="text-xl font-bold font-serif-luxury text-stone-900">{produccion?.etapaLabel}</span>
+              </div>
+              <div class="mt-2 text-[11px] space-y-1">
+                <div class="flex items-center gap-1.5">
+                  <span class="w-2 h-2 rounded-full" class:list={[isPublicado ? 'bg-emerald-500' : 'bg-amber-500']}></span>
+                  <span class="font-bold" class:list={[isPublicado ? 'text-emerald-700' : 'text-amber-700']}>
+                    {isPublicado ? 'PUBLICADO EN LÍNEA' : 'MODO BORRADOR'}
+                  </span>
+                </div>
+                <p class="text-stone-500">{produccion?.progresoPorcentaje}% de preparación completada</p>
+              </div>
+            </div>
+            <div class="pt-3 mt-3 border-t border-stone-100">
+              <a href={`/admin/eventos/${evento.id}/preview`} class="text-xs font-bold text-stone-800 hover:text-amber-800 underline flex items-center justify-between">
+                <span>Vista previa admin</span>
+                <span>→</span>
+              </a>
+            </div>
+          </div>
+
+        </div>
+      )}
 
       {/* WIDGET: CENTRO DE PRODUCCIÓN Y CHECKLIST DEL EVENTO */}
       {produccion && (

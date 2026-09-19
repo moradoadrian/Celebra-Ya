@@ -1,10 +1,12 @@
 import type { APIRoute } from 'astro';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
+import { validarRequisitosPublicacion } from '@/lib/event-production';
+import type { Evento } from '@/types';
 
 function respond(
   context: Parameters<APIRoute>[0],
   status: number,
-  data: { success: boolean; message?: string; error?: string },
+  data: { success: boolean; message?: string; error?: string; bloqueantes?: string[] },
   eventId?: number
 ) {
   const accept = context.request.headers.get('accept') || '';
@@ -186,7 +188,55 @@ export const POST: APIRoute = async (context) => {
     updated_at: new Date().toISOString(),
   };
 
-  // 6. Ejecutar UPDATE en Supabase usando el cliente SSR autenticado
+  // Asignar cliente_id si se proporcionó un valor válido
+  if (rawData.cliente_id !== undefined && rawData.cliente_id !== '' && rawData.cliente_id !== null) {
+    const parsedClienteId = Number(rawData.cliente_id);
+    if (!isNaN(parsedClienteId) && parsedClienteId > 0) {
+      updatePayload.cliente_id = parsedClienteId;
+    }
+  }
+
+  // 6. Si se intenta publicar el evento, validar requisitos bloqueantes
+  if (updatePayload.estado === 'true') {
+    const [
+      { data: currentEvent },
+      { count: uCount },
+      { count: iCount },
+      { count: mCount },
+    ] = await Promise.all([
+      supabase.from('eventos').select('*').eq('id', eventId).maybeSingle(),
+      supabase.from('ubicaciones').select('id', { count: 'exact', head: true }).eq('evento_id', eventId),
+      supabase.from('invitados').select('id', { count: 'exact', head: true }).eq('evento_id', eventId),
+      supabase.from('mesas').select('id', { count: 'exact', head: true }).eq('evento_id', eventId),
+    ]);
+
+    const candidate: Evento = {
+      ...(currentEvent || {}),
+      ...updatePayload,
+      id: eventId,
+    };
+
+    const validacion = validarRequisitosPublicacion(candidate, {
+      ubicacionesCount: uCount ?? 0,
+      invitadosCount: iCount ?? 0,
+      mesasCount: mCount ?? 0,
+    });
+
+    if (!validacion.aptoParaPublicar) {
+      return respond(
+        context,
+        400,
+        {
+          success: false,
+          error: `No es posible publicar el evento. Faltan requisitos críticos: ${validacion.bloqueantes.join(', ')}`,
+          bloqueantes: validacion.bloqueantes,
+        },
+        eventId
+      );
+    }
+  }
+
+  // 7. Ejecutar UPDATE en Supabase usando el cliente SSR autenticado
   try {
     const { data: updatedEvento, error: updateError } = await supabase
       .from('eventos')

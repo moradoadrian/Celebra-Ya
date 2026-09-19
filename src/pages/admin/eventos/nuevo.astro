@@ -1,0 +1,301 @@
+---
+import AdminLayout from '@/components/admin/AdminLayout.astro';
+import { createSupabaseServerClient } from '@/lib/supabase-server';
+import type { ClienteItem } from '@/types';
+
+// 1. Verificación de autenticación administrativa SSR
+const user = Astro.locals.user;
+if (!user) {
+  return Astro.redirect('/admin/login');
+}
+
+const userEmail = user?.email || 'Administrador';
+
+// 2. Cliente SSR autenticado
+const supabase = createSupabaseServerClient({
+  headers: Astro.request.headers,
+  cookies: Astro.cookies,
+});
+
+// 3. Consultar clientes registrados para asignar el evento
+let clientes: ClienteItem[] = [];
+try {
+  const { data: cData } = await supabase
+    .from('clientes')
+    .select('id, nombre, email, whatsapp, telefono, activo')
+    .order('nombre', { ascending: true });
+
+  clientes = (cData as any[]) ?? [];
+} catch (e) {
+  console.error('[Admin Evento Nuevo] Error cargando clientes:', e);
+}
+---
+
+<AdminLayout title="Crear Nuevo Evento | Centro de Producción" userEmail={userEmail}>
+  <div class="max-w-3xl mx-auto space-y-6 pb-16">
+    
+    {/* ENCABEZADO */}
+    <div class="flex items-center justify-between border-b border-stone-200/80 pb-5">
+      <div>
+        <div class="flex items-center gap-2 mb-1">
+          <a href="/admin/eventos" class="text-xs font-semibold text-stone-500 hover:text-stone-800 transition-colors">
+            ← Centro de Producción
+          </a>
+          <span class="text-xs text-stone-300">/</span>
+          <span class="text-xs font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+            Nuevo Evento
+          </span>
+        </div>
+        <h1 class="text-2xl sm:text-3xl font-serif-luxury font-bold text-stone-900">
+          Alta de Evento en Producción
+        </h1>
+        <p class="text-xs text-stone-500 mt-1">
+          Crea el evento asignado a un cliente para iniciar su ciclo de configuración, carga de invitados y publicación.
+        </p>
+      </div>
+
+      <a
+        href="/admin/eventos"
+        class="px-4 py-2 rounded-xl text-xs font-semibold text-stone-600 hover:bg-stone-200 bg-stone-100 transition-colors"
+      >
+        Cancelar
+      </a>
+    </div>
+
+    {/* TARJETA DE FORMULARIO */}
+    <div class="bg-white border border-stone-200/80 rounded-3xl p-6 sm:p-8 shadow-xs">
+      <form id="form-nuevo-evento" class="space-y-6">
+        
+        {/* SELECCIÓN DE CLIENTE (OBLIGATORIO PARA MULTI-TENANT) */}
+        <div class="bg-amber-50/50 border border-amber-200/70 rounded-2xl p-5 space-y-3">
+          <div class="flex items-center justify-between">
+            <label for="cliente_id" class="block text-xs font-bold text-amber-950 uppercase tracking-wider">
+              Cliente Asignado *
+            </label>
+            <a
+              href="/admin/clientes"
+              target="_blank"
+              class="text-[11px] text-amber-800 hover:text-amber-950 underline font-medium"
+            >
+              + Registrar nuevo cliente
+            </a>
+          </div>
+          <select
+            name="cliente_id"
+            id="cliente_id"
+            required
+            class="w-full bg-white border border-stone-300 rounded-xl px-3.5 py-2.5 text-xs text-stone-800 font-medium focus:outline-hidden focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
+          >
+            <option value="">-- Selecciona el cliente responsable del evento --</option>
+            {clientes.map((c) => (
+              <option value={c.id}>
+                {c.nombre} ({c.email}) {c.activo ? '' : '[INACTIVO]'}
+              </option>
+            ))}
+          </select>
+          <p class="text-[11px] text-stone-500 leading-relaxed">
+            Todo evento en Celebra-Ya debe estar vinculado a un cliente para garantizar el aislamiento multi-tenant y la trazabilidad de invitados y recepción.
+          </p>
+        </div>
+
+        {/* NOMBRE Y SLUG */}
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label for="nombre" class="block text-xs font-semibold text-stone-700 mb-1.5">
+              Nombre del Evento / Festejados *
+            </label>
+            <input
+              type="text"
+              name="nombre"
+              id="nombre"
+              required
+              placeholder="Ej. Boda Sofía & Alejandro"
+              class="w-full bg-stone-50 border border-stone-200 rounded-xl px-3.5 py-2 text-xs text-stone-800 focus:outline-hidden focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
+            />
+            <span class="text-[10px] text-stone-400 mt-1 block">Nombre visible en la invitación y tablero.</span>
+          </div>
+
+          <div>
+            <label for="slug" class="block text-xs font-semibold text-stone-700 mb-1.5">
+              Slug Único de la Invitación *
+            </label>
+            <div class="flex items-center">
+              <span class="bg-stone-100 border border-r-0 border-stone-200 rounded-l-xl px-3 py-2 text-[11px] text-stone-500 font-mono">
+                /demo/
+              </span>
+              <input
+                type="text"
+                name="slug"
+                id="slug"
+                required
+                placeholder="boda-sofia-alejandro"
+                class="w-full bg-stone-50 border border-stone-200 rounded-r-xl px-3 py-2 text-xs text-stone-800 font-mono focus:outline-hidden focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
+              />
+            </div>
+            <span class="text-[10px] text-stone-400 mt-1 block">Identificador web (minúsculas y guiones).</span>
+          </div>
+        </div>
+
+        {/* TIPO DE EVENTO Y FECHA/HORA */}
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div>
+            <label for="tipo_evento" class="block text-xs font-semibold text-stone-700 mb-1.5">
+              Tipo de Evento *
+            </label>
+            <select
+              name="tipo_evento"
+              id="tipo_evento"
+              class="w-full bg-stone-50 border border-stone-200 rounded-xl px-3 py-2 text-xs text-stone-800 font-medium focus:outline-hidden focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
+            >
+              <option value="Boda">Boda</option>
+              <option value="XV Años">XV Años</option>
+              <option value="Bautizo">Bautizo</option>
+              <option value="Cumpleaños">Cumpleaños</option>
+              <option value="Graduación">Graduación</option>
+              <option value="Baby Shower">Baby Shower</option>
+              <option value="Empresarial">Empresarial</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="fecha_evento" class="block text-xs font-semibold text-stone-700 mb-1.5">
+              Fecha del Evento *
+            </label>
+            <input
+              type="date"
+              name="fecha_evento"
+              id="fecha_evento"
+              required
+              class="w-full bg-stone-50 border border-stone-200 rounded-xl px-3 py-2 text-xs text-stone-800 font-medium focus:outline-hidden focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
+            />
+          </div>
+
+          <div>
+            <label for="hora_evento" class="block text-xs font-semibold text-stone-700 mb-1.5">
+              Hora de Inicio
+            </label>
+            <input
+              type="time"
+              name="hora_evento"
+              id="hora_evento"
+              class="w-full bg-stone-50 border border-stone-200 rounded-xl px-3 py-2 text-xs text-stone-800 font-medium focus:outline-hidden focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
+            />
+          </div>
+        </div>
+
+        {/* NOTA SOBRE ESTADO INICIAL */}
+        <div class="p-4 rounded-2xl bg-stone-50 border border-stone-200 text-stone-600 text-xs flex items-start gap-3">
+          <span class="text-base">ℹ️</span>
+          <div>
+            <p class="font-semibold text-stone-800">Estado inicial en producción: En Preparación (Borrador)</p>
+            <p class="mt-0.5 text-stone-500 text-[11px] leading-relaxed">
+              El evento se creará en modo borrador. Al guardarlo, accederás inmediatamente a su Centro de Configuración para cargar itinerario, ubicaciones, portada e invitados antes de publicarlo.
+            </p>
+          </div>
+        </div>
+
+        {/* ALERTA DE ERROR */}
+        <div id="form-error" class="hidden p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-2">
+          <span>⚠️</span>
+          <span id="form-error-msg"></span>
+        </div>
+
+        {/* BOTONES */}
+        <div class="pt-4 border-t border-stone-100 flex items-center justify-end gap-3">
+          <a
+            href="/admin/eventos"
+            class="px-5 py-2.5 rounded-xl text-xs font-semibold text-stone-600 hover:bg-stone-100 transition-colors"
+          >
+            Cancelar
+          </a>
+          <button
+            type="submit"
+            id="btn-submit"
+            class="px-6 py-2.5 rounded-xl bg-stone-900 hover:bg-stone-800 text-amber-200 text-xs font-semibold shadow-xs transition-all transform hover:-translate-y-0.5"
+          >
+            Crear e Iniciar Configuración →
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script is:inline>
+    document.addEventListener('DOMContentLoaded', () => {
+      const nombreInput = document.getElementById('nombre');
+      const slugInput = document.getElementById('slug');
+      let manualSlug = false;
+
+      if (slugInput) {
+        slugInput.addEventListener('input', () => {
+          manualSlug = slugInput.value.trim().length > 0;
+        });
+      }
+
+      // Generador automático de slug
+      if (nombreInput && slugInput) {
+        nombreInput.addEventListener('input', () => {
+          if (!manualSlug) {
+            const raw = nombreInput.value
+              .toLowerCase()
+              .normalize('NFD')
+              .replace(/[\u0300-\u036f]/g, '')
+              .replace(/[^a-z0-9\s-]/g, '')
+              .trim()
+              .replace(/\s+/g, '-');
+            slugInput.value = raw;
+          }
+        });
+      }
+
+      // Envío de formulario
+      const form = document.getElementById('form-nuevo-evento');
+      const errorDiv = document.getElementById('form-error');
+      const errorMsg = document.getElementById('form-error-msg');
+      const submitBtn = document.getElementById('btn-submit');
+
+      if (form) {
+        form.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          errorDiv.classList.add('hidden');
+
+          submitBtn.disabled = true;
+          submitBtn.textContent = 'Creando evento...';
+
+          const formData = new FormData(form);
+          const payload = {
+            nombre: formData.get('nombre'),
+            slug: formData.get('slug'),
+            tipo_evento: formData.get('tipo_evento'),
+            fecha_evento: formData.get('fecha_evento'),
+            hora_evento: formData.get('hora_evento') || null,
+            cliente_id: formData.get('cliente_id'),
+          };
+
+          try {
+            const res = await fetch('/api/admin/eventos', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload),
+            });
+
+            const json = await res.json();
+            if (json.success && json.data) {
+              window.location.href = json.redirectUrl || `/admin/eventos/${json.data.id}?saved=true`;
+            } else {
+              errorDiv.classList.remove('hidden');
+              errorMsg.textContent = json.error || 'Error al crear el evento.';
+              submitBtn.disabled = false;
+              submitBtn.textContent = 'Crear e Iniciar Configuración →';
+            }
+          } catch (err) {
+            errorDiv.classList.remove('hidden');
+            errorMsg.textContent = 'Ocurrió un error inesperado al conectar con el servidor.';
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Crear e Iniciar Configuración →';
+          }
+        });
+      }
+    });
+  </script>
+</AdminLayout>

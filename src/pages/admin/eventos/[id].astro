@@ -6,7 +6,8 @@ import ManagerHistorias from '@/components/admin/ManagerHistorias.astro';
 import ManagerGaleria from '@/components/admin/ManagerGaleria.astro';
 import ManagerMesaRegalos from '@/components/admin/ManagerMesaRegalos.astro';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
-import type { Evento, UbicacionItem, ProgramaItem, HistoriaItem, GaleriaItem, MesaRegalosItem } from '@/types';
+import { evaluarProgresoEvento } from '@/lib/event-production';
+import type { Evento, UbicacionItem, ProgramaItem, HistoriaItem, GaleriaItem, MesaRegalosItem, ClienteItem } from '@/types';
 
 // 1. Verificación defensiva de autenticación (el middleware ya protege /admin/*)
 const user = Astro.locals.user;
@@ -32,6 +33,8 @@ let mesaRegalos: MesaRegalosItem[] = [];
 
 let totalInvitadosCount = 0;
 let totalPasesCount = 0;
+let totalMesasCount = 0;
+let clientes: ClienteItem[] = [];
 
 if (!id || isNaN(eventId) || eventId <= 0) {
   notFound = true;
@@ -56,7 +59,7 @@ if (!id || isNaN(eventId) || eventId <= 0) {
     } else {
       evento = data as Evento;
 
-      // Cargar tablas relacionadas del evento y conteo de invitados en paralelo
+      // Cargar tablas relacionadas del evento, clientes y conteos en paralelo
       const [
         { data: resUbicaciones },
         { data: resPrograma },
@@ -64,6 +67,8 @@ if (!id || isNaN(eventId) || eventId <= 0) {
         { data: resGaleria },
         { data: resMesaRegalos },
         { data: resInvitados },
+        { data: resMesas },
+        { data: resClientes },
       ] = await Promise.all([
         supabase.from('ubicaciones').select('*').eq('evento_id', eventId).order('id'),
         supabase.from('programa_evento').select('*').eq('evento_id', eventId).order('orden'),
@@ -71,6 +76,8 @@ if (!id || isNaN(eventId) || eventId <= 0) {
         supabase.from('galeria').select('*').eq('evento_id', eventId).order('orden'),
         supabase.from('mesa_regalos').select('*').eq('evento_id', eventId).order('orden'),
         supabase.from('invitados').select('id, numero_pases').eq('evento_id', eventId),
+        supabase.from('mesas').select('id').eq('evento_id', eventId),
+        supabase.from('clientes').select('id, nombre, email, whatsapp, telefono, activo').order('nombre'),
       ]);
 
       ubicaciones = (resUbicaciones as UbicacionItem[]) ?? [];
@@ -78,6 +85,8 @@ if (!id || isNaN(eventId) || eventId <= 0) {
       historias = (resHistorias as HistoriaItem[]) ?? [];
       galeria = (resGaleria as GaleriaItem[]) ?? [];
       mesaRegalos = (resMesaRegalos as MesaRegalosItem[]) ?? [];
+      totalMesasCount = (resMesas || []).length;
+      clientes = (resClientes as any[]) ?? [];
 
       if (resInvitados && Array.isArray(resInvitados)) {
         totalInvitadosCount = resInvitados.length;
@@ -100,6 +109,19 @@ const isPublicado =
   evento?.estado === true ||
   evento?.estado === 'true' ||
   evento?.estado === 'publicado';
+
+// 5. Evaluación de producción para el Centro de Preparación
+const produccion = evento
+  ? evaluarProgresoEvento(evento, {
+      ubicacionesCount: ubicaciones.length,
+      invitadosCount: totalInvitadosCount,
+      mesasCount: totalMesasCount,
+    })
+  : null;
+
+const clienteAsignado = evento?.cliente_id
+  ? clientes.find((c) => c.id === evento.cliente_id) || null
+  : null;
 ---
 
 {notFound || !evento ? (
@@ -184,17 +206,27 @@ const isPublicado =
             <span>Invitados ({totalInvitadosCount})</span>
           </a>
           <a
-            id="preview-link-top"
-            href={`/demo/${evento.slug}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            class="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-white hover:bg-stone-50 text-stone-700 text-xs font-semibold border border-stone-300/80 shadow-xs transition-colors"
+            id="preview-admin-top"
+            href={`/admin/eventos/${evento.id}/preview`}
+            class="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-stone-900 hover:bg-stone-800 text-amber-300 text-xs font-semibold shadow-xs transition-colors"
           >
-            <span>Ver invitación</span>
-            <svg width="13" height="13" class="w-3.5 h-3.5 text-stone-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-            </svg>
+            <span>👁️</span>
+            <span>Vista Previa</span>
           </a>
+          {isPublicado && (
+            <a
+              id="preview-link-top"
+              href={`/demo/${evento.slug}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              class="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-white hover:bg-stone-50 text-stone-700 text-xs font-semibold border border-stone-300/80 shadow-xs transition-colors"
+            >
+              <span>Ver pública</span>
+              <svg width="13" height="13" class="w-3.5 h-3.5 text-stone-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+              </svg>
+            </a>
+          )}
         </div>
       </div>
 
@@ -225,6 +257,140 @@ const isPublicado =
         )}
       </div>
 
+      {/* WIDGET: CENTRO DE PRODUCCIÓN Y CHECKLIST DEL EVENTO */}
+      {produccion && (
+        <div class="bg-white border border-stone-200/80 rounded-3xl p-6 sm:p-7 shadow-xs space-y-5">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-stone-100 pb-4">
+            <div>
+              <div class="flex items-center gap-2 mb-1">
+                <span class="text-[10px] uppercase font-bold tracking-wider text-amber-800 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200/70">
+                  Ciclo de Producción
+                </span>
+                <span class="text-stone-300">•</span>
+                <span
+                  class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold border"
+                  class:list={[
+                    produccion.etapa === 'PUBLICADO' && 'bg-emerald-50 text-emerald-700 border-emerald-200',
+                    produccion.etapa === 'EN_REVISION' && 'bg-indigo-50 text-indigo-700 border-indigo-200',
+                    produccion.etapa === 'EN_PREPARACION' && 'bg-amber-50 text-amber-800 border-amber-200',
+                    produccion.etapa === 'INFORMACION_PENDIENTE' && 'bg-rose-50 text-rose-700 border-rose-200',
+                    produccion.etapa === 'FINALIZADO' && 'bg-stone-100 text-stone-600 border-stone-200',
+                  ]}
+                >
+                  <span
+                    class="w-1.5 h-1.5 rounded-full"
+                    class:list={[
+                      produccion.etapa === 'PUBLICADO' && 'bg-emerald-500',
+                      produccion.etapa === 'EN_REVISION' && 'bg-indigo-500',
+                      produccion.etapa === 'EN_PREPARACION' && 'bg-amber-500',
+                      produccion.etapa === 'INFORMACION_PENDIENTE' && 'bg-rose-500',
+                      produccion.etapa === 'FINALIZADO' && 'bg-stone-400',
+                    ]}
+                  ></span>
+                  <span>{produccion.etapaLabel}</span>
+                </span>
+              </div>
+              <h2 class="text-base font-serif-luxury font-bold text-stone-900">
+                Estado de Preparación de la Invitación
+              </h2>
+              <p class="text-xs text-stone-500 mt-0.5">
+                Cliente responsable: {clienteAsignado ? <a href="/admin/clientes" class="font-semibold text-stone-800 hover:text-amber-700 underline">{clienteAsignado.nombre}</a> : <span class="text-rose-600 font-medium">⚠️ Sin cliente asignado</span>}
+              </p>
+            </div>
+
+            <div class="flex items-center gap-3">
+              <div class="text-right sm:text-right">
+                <span class="text-xs font-bold text-stone-800 block">
+                  {produccion.itemsCompletados} de {produccion.totalItems} completados
+                </span>
+                <span class="text-[11px] text-amber-800 font-semibold">
+                  {produccion.progresoPorcentaje}% listo para operar
+                </span>
+              </div>
+
+              {/* Botón rápido publicar / despublicar */}
+              <button
+                type="button"
+                id="btn-fast-toggle-publish"
+                class="px-3.5 py-2 rounded-xl text-xs font-bold shadow-xs transition-all border"
+                class:list={[
+                  isPublicado
+                    ? 'bg-stone-100 hover:bg-stone-200 text-stone-700 border-stone-300'
+                    : 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600',
+                ]}
+                data-id={evento.id}
+                data-publicado={isPublicado ? 'true' : 'false'}
+              >
+                {isPublicado ? 'Pausar publicación' : 'Publicar ahora ✓'}
+              </button>
+            </div>
+          </div>
+
+          {/* BARRA DE PROGRESO */}
+          <div class="w-full bg-stone-100 rounded-full h-2.5 overflow-hidden">
+            <div
+              class="h-full rounded-full transition-all duration-500"
+              class:list={[
+                produccion.progresoPorcentaje >= 100
+                  ? 'bg-emerald-500'
+                  : produccion.progresoPorcentaje >= 60
+                  ? 'bg-amber-500'
+                  : 'bg-rose-500',
+              ]}
+              style={`width: ${produccion.progresoPorcentaje}%`}
+            ></div>
+          </div>
+
+          {/* GRID DE CHECKLIST DE PRODUCCIÓN */}
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-1">
+            {produccion.checklist.map((item) => (
+              <div
+                class="p-3 rounded-2xl border transition-all text-xs flex items-start gap-2.5"
+                class:list={[
+                  item.completado
+                    ? 'bg-emerald-50/40 border-emerald-200/80 text-emerald-950'
+                    : 'bg-stone-50 border-stone-200 text-stone-700',
+                ]}
+              >
+                <span
+                  class="w-5 h-5 rounded-full flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5"
+                  class:list={[
+                    item.completado ? 'bg-emerald-500 text-white' : 'bg-stone-200 text-stone-500',
+                  ]}
+                >
+                  {item.completado ? '✓' : '!'}
+                </span>
+                <div class="min-w-0 flex-1">
+                  <div class="flex items-center justify-between gap-1">
+                    <div class="flex items-center gap-1.5 min-w-0">
+                      <span class="font-bold text-[11px] truncate">{item.label}</span>
+                      {item.esBloqueante ? (
+                        <span class="text-[9px] font-bold text-rose-700 bg-rose-50 border border-rose-200/80 px-1.5 py-0.5 rounded shrink-0">
+                          Bloqueante
+                        </span>
+                      ) : (
+                        <span class="text-[9px] font-medium text-stone-500 bg-stone-100 px-1.5 py-0.5 rounded shrink-0">
+                          Opcional
+                        </span>
+                      )}
+                    </div>
+                    {item.accionUrl && !item.completado && (
+                      <a
+                        href={item.accionUrl}
+                        class="text-[10px] text-amber-700 hover:text-amber-900 font-bold shrink-0 underline ml-1"
+                      >
+                        {item.accionTexto || 'Completar'}
+                      </a>
+                    )}
+                  </div>
+                  <p class="text-[10px] text-stone-500 mt-0.5 leading-tight">{item.detalle}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* FORMULARIO PRINCIPAL */}
       <form
         id="event-form"
@@ -250,6 +416,31 @@ const isPublicado =
           </div>
 
           <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            {/* Cliente Asignado (Multi-Tenant) */}
+            <div class="md:col-span-2 bg-amber-50/40 border border-amber-200/70 rounded-2xl p-4">
+              <div class="flex items-center justify-between mb-1.5">
+                <label for="cliente_id" class="block text-xs font-bold uppercase tracking-wider text-amber-950">
+                  Cliente Responsable del Evento *
+                </label>
+                <a href="/admin/clientes" target="_blank" class="text-[11px] text-amber-800 hover:underline font-semibold">
+                  + Gestionar clientes ↗
+                </a>
+              </div>
+              <select
+                id="cliente_id"
+                name="cliente_id"
+                required
+                class="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-stone-900 text-xs font-medium bg-white"
+              >
+                <option value="">-- Selecciona el cliente asignado a este evento --</option>
+                {clientes.map((c) => (
+                  <option value={c.id} selected={c.id === evento.cliente_id}>
+                    {c.nombre} ({c.email}) {c.activo ? '' : '[INACTIVO]'}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             {/* Nombre */}
             <div class="md:col-span-2">
               <label for="nombre" class="block text-xs font-semibold uppercase tracking-wider text-stone-600 mb-1.5">
@@ -904,6 +1095,49 @@ const isPublicado =
               window.scrollTo({ top: 0, behavior: 'smooth' });
               btnText.textContent = originalText;
               submitBtn.disabled = false;
+            }
+          });
+        }
+
+        // Manejo de publicación rápida desde el Centro de Producción
+        const fastToggleBtn = document.getElementById('btn-fast-toggle-publish');
+        if (fastToggleBtn) {
+          fastToggleBtn.addEventListener('click', async () => {
+            const id = fastToggleBtn.dataset.id;
+            const isPub = fastToggleBtn.dataset.publicado === 'true';
+            const actionText = isPub ? 'pausar la publicación de' : 'publicar en línea';
+
+            if (!confirm(`¿Estás seguro de que deseas ${actionText} este evento?`)) {
+              return;
+            }
+
+            fastToggleBtn.disabled = true;
+            fastToggleBtn.textContent = 'Actualizando...';
+
+            try {
+              const res = await fetch('/api/admin/eventos', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id, estado: !isPub }),
+              });
+
+              const json = await res.json();
+              if (json.success) {
+                window.location.reload();
+              } else {
+                if (json.bloqueantes && json.bloqueantes.length > 0) {
+                  const listStr = json.bloqueantes.map((b: string) => `• ${b}`).join('\n');
+                  alert(`No es posible publicar el evento. Faltan requisitos críticos obligatorios:\n\n${listStr}`);
+                } else {
+                  alert(json.error || 'Error al cambiar estado.');
+                }
+                fastToggleBtn.disabled = false;
+                fastToggleBtn.textContent = isPub ? 'Pausar publicación' : 'Publicar ahora ✓';
+              }
+            } catch {
+              alert('Error de conexión con el servidor.');
+              fastToggleBtn.disabled = false;
+              fastToggleBtn.textContent = isPub ? 'Pausar publicación' : 'Publicar ahora ✓';
             }
           });
         }

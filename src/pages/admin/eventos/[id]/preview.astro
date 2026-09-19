@@ -1,0 +1,316 @@
+---
+import Layout from '@/layouts/Layout.astro';
+import { WeddingMusicPlayer } from '@/components/invitation/WeddingMusicPlayer';
+import Hero from '@/components/invitation/Hero.astro';
+import Historia from '@/components/invitation/Historia.astro';
+import Programa from '@/components/invitation/Programa.astro';
+import Ubicacion from '@/components/invitation/Ubicacion.astro';
+import DressCode from '@/components/invitation/DressCode.astro';
+import Galeria from '@/components/invitation/Galeria.astro';
+import MesaRegalos from '@/components/invitation/MesaRegalos.astro';
+import Rsvp from '@/components/invitation/Rsvp.astro';
+import Footer from '@/components/invitation/Footer.astro';
+import { createSupabaseServerClient } from '@/lib/supabase-server';
+import { validarRequisitosPublicacion } from '@/lib/event-production';
+import type {
+  Evento,
+  UbicacionItem,
+  ProgramaItem,
+  GaleriaItem,
+  HistoriaItem,
+  MesaRegalosItem,
+} from '@/types';
+
+// 1. Verificación defensiva de autenticación SSR
+const user = Astro.locals.user;
+if (!user) {
+  return Astro.redirect('/admin/login');
+}
+
+// 2. Parámetro de evento
+const { id } = Astro.params;
+const eventId = Number(id);
+
+if (!id || isNaN(eventId) || eventId <= 0) {
+  return new Response(null, { status: 404, statusText: 'Not Found' });
+}
+
+// 3. Consulta SSR a Supabase con sesión autenticada
+const supabase = createSupabaseServerClient({
+  headers: Astro.request.headers,
+  cookies: Astro.cookies,
+});
+
+const { data: eventoData, error: eventoError } = await supabase
+  .from('eventos')
+  .select('*')
+  .eq('id', eventId)
+  .maybeSingle();
+
+if (eventoError || !eventoData) {
+  return new Response(null, { status: 404, statusText: 'Not Found' });
+}
+
+const evento: Evento = eventoData;
+const isPublicado =
+  evento.estado === true || evento.estado === 'true' || evento.estado === 'publicado';
+
+// 4. Obtener datos relacionados y conteos para validación
+const [
+  { data: ubicacionesData },
+  { data: programaData },
+  { data: galeriaData },
+  { data: historiasData },
+  { data: mesaRegalosData },
+  { count: invitadosCount },
+  { count: mesasCount },
+] = await Promise.all([
+  supabase.from('ubicaciones').select('*').eq('evento_id', evento.id).order('id'),
+  supabase.from('programa_evento').select('*').eq('evento_id', evento.id).order('orden'),
+  supabase.from('galeria').select('*').eq('evento_id', evento.id).order('orden'),
+  supabase.from('historias').select('*').eq('evento_id', evento.id).order('orden'),
+  supabase.from('mesa_regalos').select('*').eq('evento_id', evento.id).order('orden'),
+  supabase.from('invitados').select('id', { count: 'exact', head: true }).eq('evento_id', evento.id),
+  supabase.from('mesas').select('id', { count: 'exact', head: true }).eq('evento_id', evento.id),
+]);
+
+const ubicaciones: UbicacionItem[] = ubicacionesData ?? [];
+const programa: ProgramaItem[] = programaData ?? [];
+const galeria: GaleriaItem[] = galeriaData ?? [];
+const historias: HistoriaItem[] = historiasData ?? [];
+const mesaRegalos: MesaRegalosItem[] = mesaRegalosData ?? [];
+
+// 5. Validar requisitos de publicación
+const validacion = validarRequisitosPublicacion(evento, {
+  ubicacionesCount: ubicaciones.length,
+  invitadosCount: invitadosCount ?? 0,
+  mesasCount: mesasCount ?? 0,
+});
+
+// Helper de fechas
+const formatEventDate = (dateString: string) => {
+  if (!dateString) return 'Sábado, 28 Noviembre 2026';
+  const date = new Date(dateString + 'T12:00:00Z');
+  const options: Intl.DateTimeFormatOptions = {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC',
+  };
+  const formatted = new Intl.DateTimeFormat('es-MX', options).format(date);
+  return formatted.charAt(0).toUpperCase() + formatted.slice(1);
+};
+const displayDate = evento.fecha_evento
+  ? formatEventDate(evento.fecha_evento)
+  : 'Sábado, 28 Noviembre 2026';
+
+const eventTime = evento.hora_evento?.trim() || '17:00:00';
+const eventDateStr = evento.fecha_evento || '2026-12-28';
+const targetDate = `${eventDateStr}T${eventTime}`;
+---
+
+<Layout title={`[Vista Previa] ${evento.tipo_evento || 'Evento'} ${evento.nombre} | Celebra-Ya`}>
+  <!-- Google Fonts for Luxury Invitation Typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Great+Vibes&family=Montserrat:wght@300;400;500;600;700&display=swap"
+    rel="stylesheet"
+  />
+
+  <style>
+    .font-serif-luxury {
+      font-family: 'Cormorant Garamond', Georgia, serif;
+    }
+    .font-script {
+      font-family: 'Great Vibes', cursive;
+    }
+    .font-sans-clean {
+      font-family: 'Montserrat', sans-serif;
+    }
+  </style>
+
+  <!-- BARRA DE CONTROL ADMINISTRATIVO STICKY -->
+  <header class="sticky top-0 z-50 bg-stone-950/95 backdrop-blur-md border-b border-stone-800 text-stone-100 shadow-xl px-4 sm:px-6 py-2.5">
+    <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
+      
+      <!-- Izquierda: Estado y Título -->
+      <div class="flex items-center gap-3">
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-bold uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/30">
+          <span>👁️</span>
+          <span>Vista Previa Admin</span>
+        </span>
+
+        <span class="text-stone-600 hidden sm:inline">|</span>
+
+        <div class="flex items-center gap-2">
+          <h1 class="text-xs sm:text-sm font-bold text-white truncate max-w-[200px] sm:max-w-xs md:max-w-sm">
+            {evento.nombre}
+          </h1>
+
+          <span
+            class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border"
+            class:list={[
+              isPublicado
+                ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                : 'bg-amber-500/20 text-amber-300 border-amber-500/40',
+            ]}
+          >
+            <span
+              class="w-1.5 h-1.5 rounded-full"
+              class:list={[isPublicado ? 'bg-emerald-400' : 'bg-amber-400']}
+            ></span>
+            <span>{isPublicado ? 'PUBLICADO' : 'BORRADOR'}</span>
+          </span>
+        </div>
+      </div>
+
+      <!-- Centro: Progreso de Producción -->
+      <div class="hidden md:flex items-center gap-2 text-xs">
+        <span class="text-stone-400">Progreso:</span>
+        <span class="font-bold text-white">{validacion.progresoPorcentaje}%</span>
+        {validacion.aptoParaPublicar ? (
+          <span class="text-[11px] text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-800 font-semibold">
+            ✓ Listo para publicar
+          </span>
+        ) : (
+          <span
+            class="text-[11px] text-rose-300 bg-rose-950/60 px-2 py-0.5 rounded border border-rose-800 font-semibold cursor-help"
+            title={validacion.bloqueantes.join(' • ')}
+          >
+            ⚠️ {validacion.bloqueantes.length} requisito(s) pendiente(s)
+          </span>
+        )}
+      </div>
+
+      <!-- Derecha: Acciones Administrativas -->
+      <div class="flex items-center gap-2">
+        <a
+          href={`/admin/eventos/${evento.id}`}
+          class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-stone-800 hover:bg-stone-700 text-stone-200 text-xs font-semibold border border-stone-700 transition-colors"
+        >
+          <span>←</span>
+          <span>Editor</span>
+        </a>
+
+        {isPublicado && (
+          <a
+            href={`/demo/${evento.slug}`}
+            target="_blank"
+            class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-stone-800 hover:bg-stone-700 text-emerald-300 text-xs font-semibold border border-stone-700 transition-colors"
+            title="Abrir URL pública en nueva pestaña"
+          >
+            <span>Ver público</span>
+            <span class="text-[10px]">↗</span>
+          </a>
+        )}
+
+        <button
+          type="button"
+          id="preview-btn-toggle-publish"
+          class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all shadow-xs border"
+          class:list={[
+            isPublicado
+              ? 'bg-rose-900/40 hover:bg-rose-900/70 text-rose-200 border-rose-700/60'
+              : 'bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-500',
+          ]}
+          data-id={evento.id}
+          data-publicado={isPublicado ? 'true' : 'false'}
+          data-apto={validacion.aptoParaPublicar ? 'true' : 'false'}
+        >
+          {isPublicado ? 'Pausar publicación' : 'Publicar evento ✓'}
+        </button>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- BANNER INFORMATIVO SI ESTÁ EN MODO BORRADOR -->
+  {!isPublicado && (
+    <div class="bg-amber-500/10 border-b border-amber-500/20 text-amber-200 px-4 py-2 text-center text-xs">
+      <p>
+        🔒 <strong>Modo Vista Previa Privada:</strong> Este evento no es visible en internet. La ruta pública <code class="bg-black/30 px-1 py-0.5 rounded text-amber-100">/demo/{evento.slug}</code> responderá 404 hasta que se complete y publique.
+      </p>
+    </div>
+  )}
+
+  <!-- Reproductor de Música de Fondo -->
+  <WeddingMusicPlayer client:load musicaUrl={evento.musica_url} />
+
+  <!-- CONTENIDO DE LA INVITACIÓN -->
+  <main class="bg-[#faf8f5] text-stone-800 font-sans-clean selection:bg-rose-100 selection:text-rose-900 min-h-screen">
+    {/* HERO SECTION */}
+    <Hero evento={evento} displayDate={displayDate} weddingDate={targetDate} />
+
+    {/* NUESTRA HISTORIA */}
+    <Historia historias={historias} />
+
+    {/* ITINERARIO DEL EVENTO */}
+    <Programa programa={programa} displayDate={displayDate} />
+
+    {/* UBICACIONES GPS */}
+    <Ubicacion ubicaciones={ubicaciones} />
+
+    {/* DRESS CODE */}
+    <DressCode evento={evento} />
+
+    {/* GALERÍA DE FOTOS */}
+    <Galeria galeria={galeria} />
+
+    {/* MESA DE REGALOS */}
+    <MesaRegalos regalos={mesaRegalos} />
+
+    {/* CONFIRMACIÓN RSVP (Modo Vista Previa) */}
+    <Rsvp evento={evento} invitado={null} />
+
+    {/* WEDDING FOOTER */}
+    <Footer evento={evento} displayDate={displayDate} />
+  </main>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const toggleBtn = document.getElementById('preview-btn-toggle-publish') as HTMLButtonElement | null;
+      if (!toggleBtn) return;
+
+      toggleBtn.addEventListener('click', async () => {
+        const id = toggleBtn.dataset.id;
+        const isPub = toggleBtn.dataset.publicado === 'true';
+        const actionText = isPub ? 'pausar la publicación de' : 'publicar en línea';
+
+        if (!confirm(`¿Estás seguro de que deseas ${actionText} este evento?`)) {
+          return;
+        }
+
+        toggleBtn.disabled = true;
+        toggleBtn.textContent = 'Actualizando...';
+
+        try {
+          const res = await fetch('/api/admin/eventos', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id, estado: !isPub }),
+          });
+
+          const data = await res.json();
+          if (data.success) {
+            window.location.reload();
+          } else {
+            if (data.bloqueantes && data.bloqueantes.length > 0) {
+              const listStr = data.bloqueantes.map((b: string) => `• ${b}`).join('\n');
+              alert(`No es posible publicar el evento. Faltan requisitos críticos:\n\n${listStr}`);
+            } else {
+              alert(data.error || 'Error al cambiar estado de publicación.');
+            }
+            toggleBtn.disabled = false;
+            toggleBtn.textContent = isPub ? 'Pausar publicación' : 'Publicar evento ✓';
+          }
+        } catch {
+          alert('Error de conexión con el servidor al actualizar estado.');
+          toggleBtn.disabled = false;
+          toggleBtn.textContent = isPub ? 'Pausar publicación' : 'Publicar evento ✓';
+        }
+      });
+    });
+  </script>
+</Layout>

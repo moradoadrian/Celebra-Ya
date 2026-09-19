@@ -5,7 +5,8 @@ export interface Evento {
   tipo_evento: string;
   fecha_evento: string;
   estado: boolean | string;
-  cliente_id?: number;
+  cliente_id?: number | null;
+  cliente?: ClienteItem | null;
   created_at?: string;
   updated_at?: string;
   hora_evento?: string | null;
@@ -22,6 +23,8 @@ export interface Evento {
   whatsapp_confirmacion?: string | null;
   fecha_limite_confirmacion?: string | null;
   frase_despedida?: string | null;
+  etapa_produccion?: EtapaProduccion;
+  produccion?: ProduccionEventoDetalle;
 }
 
 export interface UbicacionItem {
@@ -180,5 +183,81 @@ export interface InvitadoBusquedaItem {
   estado_checkin: 'rsvp_pendiente' | 'rechazado' | 'sin_entradas' | 'entrada_parcial' | 'entrada_completa';
   ultimo_ingreso?: string | null;
   mesa?: string | null;
+}
+
+export interface ClienteEventoItem {
+  id: number;
+  nombre: string;
+  slug: string;
+  tipo_evento: string;
+  fecha_evento?: string;
+  estado?: boolean | string;
+}
+
+export interface ClienteItem {
+  id: number;
+  nombre: string;
+  email: string;
+  whatsapp?: string | null;
+  telefono?: string | null;
+  activo: boolean;
+  created_at?: string;
+  updated_at?: string;
+  total_eventos?: number;
+  eventos?: ClienteEventoItem[];
+}
+
+export interface ClienteMetricas {
+  total: number;
+  activos: number;
+  inactivos: number;
+  eventos_asociados: number;
+}
+
+export type EtapaProduccion =
+  | 'INFORMACION_PENDIENTE'
+  | 'EN_PREPARACION'
+  | 'EN_REVISION'
+  | 'PUBLICADO'
+  | 'FINALIZADO';
+
+export interface ChecklistItem {
+  id: string;
+  label: string;
+  completado: boolean;
+  detalle: string;
+  accionUrl?: string;
+  accionTexto?: string;
+  esBloqueante?: boolean;
+}
+
+export interface ValidacionPublicacion {
+  aptoParaPublicar: boolean;
+  bloqueantes: string[];
+  recomendaciones: string[];
+  checklist: ChecklistItem[];
+  progresoPorcentaje: number;
+}
+
+export interface ProduccionEventoDetalle {
+  etapa: EtapaProduccion;
+  etapaLabel: string;
+  progresoPorcentaje: number;
+  itemsCompletados: number;
+  totalItems: number;
+  checklist: ChecklistItem[];
+  pendientes: string[];
+  aptoParaPublicar?: boolean;
+  bloqueantes?: string[];
+  recomendaciones?: string[];
+}
+
+export interface ProduccionMetricas {
+  total: number;
+  informacionPendiente: number;
+  enPreparacion: number;
+  enRevision: number;
+  publicados: number;
+  finalizados: number;
 }
 

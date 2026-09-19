@@ -338,4 +338,74 @@ $$;
 
 GRANT EXECUTE ON FUNCTION public.registrar_checkin(TEXT, INTEGER, BIGINT) TO authenticated;
 
+-- ==============================================================================
+-- FASE 20: GESTIÓN DE CLIENTES Y BASE MULTI-TENANT
+-- Aplicar en el SQL Editor de Supabase (https://supabase.com/dashboard/project/thznthspspdcayqlilwq/sql)
+-- ==============================================================================
+
+-- 1. TABLA public.clientes (Garantizar columnas y restricciones)
+CREATE TABLE IF NOT EXISTS public.clientes (
+  id BIGSERIAL PRIMARY KEY,
+  nombre TEXT NOT NULL,
+  email TEXT NOT NULL,
+  whatsapp TEXT,
+  telefono TEXT,
+  activo BOOLEAN DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc', NOW()) NOT NULL,
+  updated_at TIMESTAMPTZ DEFAULT TIMEZONE('utc', NOW()) NOT NULL
+);
+
+-- Asegurar columnas aditivas de forma segura y no destructiva
+ALTER TABLE public.clientes ADD COLUMN IF NOT EXISTS activo BOOLEAN DEFAULT true;
+ALTER TABLE public.clientes ADD COLUMN IF NOT EXISTS telefono TEXT DEFAULT NULL;
+ALTER TABLE public.clientes ADD COLUMN IF NOT EXISTS whatsapp TEXT DEFAULT NULL;
+ALTER TABLE public.clientes ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT TIMEZONE('utc', NOW());
+
+-- 2. Asegurar que public.eventos.cliente_id referencie a public.clientes
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'eventos' AND column_name = 'cliente_id'
+  ) THEN
+    ALTER TABLE public.eventos ADD COLUMN cliente_id BIGINT REFERENCES public.clientes(id) ON DELETE SET NULL;
+  END IF;
+END $$;
+
+-- 3. Índices de consulta rápida y aislamiento multi-tenant
+CREATE INDEX IF NOT EXISTS idx_clientes_email ON public.clientes(email);
+CREATE INDEX IF NOT EXISTS idx_clientes_activo ON public.clientes(activo);
+CREATE INDEX IF NOT EXISTS idx_eventos_cliente_id ON public.eventos(cliente_id);
+
+-- 4. Inserción idempotente de clientes para los eventos reales existentes
+INSERT INTO public.clientes (id, nombre, email, whatsapp, telefono, activo)
+VALUES
+  (1, 'Sofía & Alejandro', 'sofia.alejandro@bodas.com', '+52 55 1234 5678', '5512345678', true),
+  (2, 'César & Cristal', 'cesar.cristal@bodas.com', '+52 461 421 0058', '4614210058', true)
+ON CONFLICT (id) DO UPDATE
+SET nombre = EXCLUDED.nombre,
+    email = EXCLUDED.email,
+    whatsapp = EXCLUDED.whatsapp,
+    activo = COALESCE(public.clientes.activo, true);
+
+-- Sincronizar la secuencia id de public.clientes
+SELECT setval(pg_get_serial_sequence('public.clientes', 'id'), coalesce(max(id), 1)) FROM public.clientes;
+
+-- 5. Privilegios y permisos: SOLO usuarios autenticados (administradores)
+GRANT SELECT, INSERT, UPDATE ON public.clientes TO authenticated;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO authenticated;
+REVOKE ALL ON public.clientes FROM anon;
+
+-- 6. Habilitar Row Level Security (RLS) en public.clientes
+ALTER TABLE public.clientes ENABLE ROW LEVEL SECURITY;
+
+-- 7. Política RLS: Acceso total para administradores autenticados
+DROP POLICY IF EXISTS "Permitir gestion total de clientes a usuarios autenticados" ON public.clientes;
+CREATE POLICY "Permitir gestion total de clientes a usuarios autenticados"
+ON public.clientes
+FOR ALL
+TO authenticated
+USING (true)
+WITH CHECK (true);
+
 

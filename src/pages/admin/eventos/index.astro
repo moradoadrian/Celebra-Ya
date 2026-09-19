@@ -1,34 +1,629 @@
 ---
 import AdminLayout from '@/components/admin/AdminLayout.astro';
+import { createSupabaseServerClient } from '@/lib/supabase-server';
+import { evaluarProgresoEvento, calcularMetricasProduccion } from '@/lib/event-production';
+import type { Evento, ClienteItem, ProduccionEventoDetalle } from '@/types';
 
+// 1. Verificación defensiva de autenticación SSR
 const user = Astro.locals.user;
+if (!user) {
+  return Astro.redirect('/admin/login');
+}
+
 const userEmail = user?.email || 'Administrador';
+
+// 2. Cliente SSR autenticado
+const supabase = createSupabaseServerClient({
+  headers: Astro.request.headers,
+  cookies: Astro.cookies,
+});
+
+// 3. Consultar datos en paralelo (eventos, clientes, ubicaciones, invitados, mesas)
+let rawEventos: Evento[] = [];
+let clientes: ClienteItem[] = [];
+let queryError: string | null = null;
+
+let ubicacionesMap = new Map<number, number>();
+let invitadosMap = new Map<number, number>();
+let mesasMap = new Map<number, number>();
+
+try {
+  const [
+    { data: evData, error: evErr },
+    { data: clData },
+    { data: ubData },
+    { data: inData },
+    { data: meData },
+  ] = await Promise.all([
+    supabase.from('eventos').select('*').order('fecha_evento', { ascending: true }),
+    supabase.from('clientes').select('id, nombre, email, whatsapp, telefono, activo').order('nombre'),
+    supabase.from('ubicaciones').select('id, evento_id'),
+    supabase.from('invitados').select('id, evento_id'),
+    supabase.from('mesas').select('id, evento_id'),
+  ]);
+
+  if (evErr) {
+    console.error('[Centro de Producción Query Error]:', evErr);
+    queryError = 'Error al cargar los eventos de la base de datos.';
+  } else {
+    rawEventos = (evData as Evento[]) ?? [];
+  }
+
+  clientes = (clData as any[]) ?? [];
+
+  (ubData || []).forEach((u: any) => {
+    ubicacionesMap.set(u.evento_id, (ubicacionesMap.get(u.evento_id) || 0) + 1);
+  });
+
+  (inData || []).forEach((i: any) => {
+    invitadosMap.set(i.evento_id, (invitadosMap.get(i.evento_id) || 0) + 1);
+  });
+
+  (meData || []).forEach((m: any) => {
+    mesasMap.set(m.evento_id, (mesasMap.get(m.evento_id) || 0) + 1);
+  });
+} catch (e: any) {
+  console.error('[Centro de Producción Exception]:', e);
+  queryError = 'Error de conexión con la base de datos.';
+}
+
+const clientMap = new Map<number, ClienteItem>();
+clientes.forEach((c) => clientMap.set(c.id, c));
+
+// 4. Enriquecer eventos con producción y cliente
+const produccionDetalles: ProduccionEventoDetalle[] = [];
+const eventosConProduccion = rawEventos.map((ev) => {
+  const cliente = ev.cliente_id ? clientMap.get(ev.cliente_id) || null : null;
+  const counts = {
+    ubicacionesCount: ubicacionesMap.get(ev.id) || 0,
+    invitadosCount: invitadosMap.get(ev.id) || 0,
+    mesasCount: mesasMap.get(ev.id) || 0,
+  };
+
+  const produccion = evaluarProgresoEvento(ev, counts);
+  produccionDetalles.push(produccion);
+
+  return {
+    ...ev,
+    cliente,
+    counts,
+    produccion,
+  };
+});
+
+// 5. Métricas del ciclo de producción
+const metricas = calcularMetricasProduccion(produccionDetalles);
+
+const formatTableDate = (dateStr?: string) => {
+  if (!dateStr) return 'Sin fecha';
+  try {
+    const parts = dateStr.split('-').map(Number);
+    if (parts.length !== 3) return dateStr;
+    const [year, month, day] = parts;
+    const date = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+    return new Intl.DateTimeFormat('es-MX', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      timeZone: 'UTC',
+    }).format(date);
+  } catch {
+    return dateStr;
+  }
+};
 ---
 
-<AdminLayout title="Gestión de Eventos | Celebra-Ya" userEmail={userEmail}>
-  <div class="space-y-6">
-    <div>
-      <h1 class="text-2xl sm:text-3xl font-serif-luxury font-bold text-stone-900">
-        Gestión de Eventos
-      </h1>
-      <p class="text-xs text-stone-500 mt-1">
-        Listado y administración de invitaciones.
-      </p>
-    </div>
-
-    <div class="bg-white border border-stone-200/80 rounded-2xl p-8 text-center max-w-xl space-y-4 shadow-xs">
-      <div class="w-12 h-12 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-700 mx-auto text-xl">
-        📅
+<AdminLayout title="Centro de Producción de Eventos | Celebra-Ya" userEmail={userEmail}>
+  <div class="space-y-8 max-w-7xl mx-auto pb-16">
+    
+    {/* ENCABEZADO */}
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-stone-200/80 pb-6">
+      <div>
+        <div class="flex items-center gap-2 mb-1">
+          <span class="text-xs font-semibold uppercase tracking-wider text-amber-700 bg-amber-50 px-2.5 py-0.5 rounded-full border border-amber-200">
+            Centro de Producción
+          </span>
+          <span class="text-xs text-stone-400">•</span>
+          <span class="text-xs font-medium text-stone-500">Operación Celebra-Ya</span>
+        </div>
+        <h1 class="text-2xl sm:text-3xl font-serif-luxury font-bold text-stone-900 tracking-tight">
+          Producción y Configuración de Eventos
+        </h1>
+        <p class="text-xs text-stone-500 mt-1 max-w-2xl leading-relaxed">
+          Supervisa el ciclo de preparación de cada evento: asignación de clientes, carga de itinerario, invitados, mesas y publicación digital.
+        </p>
       </div>
-      <h2 class="text-base font-semibold text-stone-900">Módulo de Eventos</h2>
-      <p class="text-xs text-stone-600 max-w-md mx-auto leading-relaxed">
-        Este módulo se activará en el Paso 2 (Dashboard completo y tabla de eventos). La navegación y la autenticación se encuentran plenamente operativas.
-      </p>
-      <div class="pt-2">
-        <a href="/admin" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-800 text-xs font-semibold transition-colors">
-          ← Volver al Dashboard
+
+      <div class="flex items-center gap-3">
+        <a
+          href="/admin/eventos/nuevo"
+          class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-stone-900 hover:bg-stone-800 text-amber-200 text-xs font-semibold shadow-xs transition-all transform hover:-translate-y-0.5"
+        >
+          <span class="text-base leading-none font-bold">+</span>
+          <span>Nuevo Evento</span>
         </a>
       </div>
     </div>
+
+    {/* PIPELINE DE PRODUCCIÓN (5 MÉTRICAS DE CICLO DE VIDA) */}
+    <div class="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
+      
+      {/* 1. Total Eventos */}
+      <div class="bg-white border border-stone-200/80 rounded-2xl p-4 shadow-xs flex flex-col justify-between">
+        <div class="flex items-center justify-between">
+          <span class="text-[10px] font-bold text-stone-400 uppercase tracking-wider">Total Eventos</span>
+          <span class="w-6 h-6 rounded-md bg-stone-100 flex items-center justify-center text-xs">📋</span>
+        </div>
+        <div class="mt-3">
+          <span class="text-2xl font-bold font-serif-luxury text-stone-900">{metricas.total}</span>
+          <span class="text-[10px] text-stone-400 block mt-0.5">en plataforma</span>
+        </div>
+      </div>
+
+      {/* 2. Información Pendiente */}
+      <div class="bg-white border border-rose-200/80 rounded-2xl p-4 shadow-xs flex flex-col justify-between">
+        <div class="flex items-center justify-between">
+          <span class="text-[10px] font-bold text-rose-700 uppercase tracking-wider">Info Pendiente</span>
+          <span class="w-6 h-6 rounded-md bg-rose-50 text-rose-600 flex items-center justify-center text-xs font-bold">!</span>
+        </div>
+        <div class="mt-3">
+          <span class="text-2xl font-bold font-serif-luxury text-rose-700">{metricas.informacionPendiente}</span>
+          <span class="text-[10px] text-rose-600 block mt-0.5 font-medium">datos por completar</span>
+        </div>
+      </div>
+
+      {/* 3. En Preparación */}
+      <div class="bg-white border border-amber-200/80 rounded-2xl p-4 shadow-xs flex flex-col justify-between">
+        <div class="flex items-center justify-between">
+          <span class="text-[10px] font-bold text-amber-700 uppercase tracking-wider">En Preparación</span>
+          <span class="w-6 h-6 rounded-md bg-amber-50 text-amber-600 flex items-center justify-center text-xs">⚙️</span>
+        </div>
+        <div class="mt-3">
+          <span class="text-2xl font-bold font-serif-luxury text-amber-700">{metricas.enPreparacion}</span>
+          <span class="text-[10px] text-amber-600 block mt-0.5 font-medium">cargando contenido</span>
+        </div>
+      </div>
+
+      {/* 4. En Revisión */}
+      <div class="bg-white border border-indigo-200/80 rounded-2xl p-4 shadow-xs flex flex-col justify-between">
+        <div class="flex items-center justify-between">
+          <span class="text-[10px] font-bold text-indigo-700 uppercase tracking-wider">En Revisión</span>
+          <span class="w-6 h-6 rounded-md bg-indigo-50 text-indigo-600 flex items-center justify-center text-xs">🔍</span>
+        </div>
+        <div class="mt-3">
+          <span class="text-2xl font-bold font-serif-luxury text-indigo-700">{metricas.enRevision}</span>
+          <span class="text-[10px] text-indigo-600 block mt-0.5 font-medium">listos para publicar</span>
+        </div>
+      </div>
+
+      {/* 5. Publicados */}
+      <div class="bg-white border border-emerald-200/80 rounded-2xl p-4 shadow-xs flex flex-col justify-between col-span-2 lg:col-span-1">
+        <div class="flex items-center justify-between">
+          <span class="text-[10px] font-bold text-emerald-700 uppercase tracking-wider">Publicados</span>
+          <span class="w-6 h-6 rounded-md bg-emerald-50 text-emerald-600 flex items-center justify-center text-xs font-bold">✓</span>
+        </div>
+        <div class="mt-3">
+          <span class="text-2xl font-bold font-serif-luxury text-emerald-700">{metricas.publicados}</span>
+          <span class="text-[10px] text-emerald-600 block mt-0.5 font-medium">operativos con RSVP</span>
+        </div>
+      </div>
+    </div>
+
+    {/* BARRA DE FILTROS Y BÚSQUEDA */}
+    <div class="bg-white border border-stone-200/80 rounded-2xl p-4 shadow-xs flex flex-col md:flex-row gap-3 items-center justify-between">
+      
+      {/* Buscador */}
+      <div class="relative w-full md:w-80">
+        <input
+          type="text"
+          id="event-search"
+          placeholder="Buscar por nombre, slug o cliente..."
+          class="w-full bg-stone-50 border border-stone-200 rounded-xl px-3.5 py-2 pl-9 text-xs text-stone-800 placeholder-stone-400 focus:outline-hidden focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all"
+        />
+        <svg class="w-4 h-4 text-stone-400 absolute left-3 top-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        </svg>
+      </div>
+
+      {/* Filtro por Etapa */}
+      <div class="flex items-center gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
+        <span class="text-xs text-stone-400 shrink-0">Etapa:</span>
+        <div class="inline-flex rounded-xl border border-stone-200 bg-stone-50 p-1 text-xs shrink-0">
+          <button
+            type="button"
+            class="filter-stage-btn active px-3 py-1 rounded-lg font-medium text-stone-800 bg-white shadow-xs transition-all"
+            data-stage="todos"
+          >
+            Todos ({eventosConProduccion.length})
+          </button>
+          <button
+            type="button"
+            class="filter-stage-btn px-3 py-1 rounded-lg font-medium text-stone-500 hover:text-stone-800 transition-all"
+            data-stage="EN_PREPARACION"
+          >
+            Preparación ({metricas.enPreparacion})
+          </button>
+          <button
+            type="button"
+            class="filter-stage-btn px-3 py-1 rounded-lg font-medium text-stone-500 hover:text-stone-800 transition-all"
+            data-stage="EN_REVISION"
+          >
+            Revisión ({metricas.enRevision})
+          </button>
+          <button
+            type="button"
+            class="filter-stage-btn px-3 py-1 rounded-lg font-medium text-stone-500 hover:text-stone-800 transition-all"
+            data-stage="PUBLICADO"
+          >
+            Publicados ({metricas.publicados})
+          </button>
+        </div>
+
+        {/* Filtro por Cliente */}
+        {clientes.length > 0 && (
+          <select
+            id="filter-client"
+            class="bg-stone-50 border border-stone-200 rounded-xl px-2.5 py-1.5 text-xs text-stone-700 font-medium focus:outline-hidden focus:ring-2 focus:ring-amber-500/20"
+          >
+            <option value="">Todos los clientes</option>
+            {clientes.map((c) => (
+              <option value={c.id}>{c.nombre}</option>
+            ))}
+          </select>
+        )}
+      </div>
+    </div>
+
+    {/* GRID / LISTADO DEL CENTRO DE PRODUCCIÓN */}
+    <div class="space-y-4" id="eventos-container">
+      {eventosConProduccion.map((item) => {
+        const prod = item.produccion;
+        const monogram = item.iniciales_monograma || item.nombre.substring(0, 2).toUpperCase();
+        const clientName = item.cliente?.nombre || 'Sin cliente asignado';
+        const isLive = item.estado === true || item.estado === 'true' || item.estado === 'publicado';
+
+        return (
+          <div
+            class="evento-card bg-white border border-stone-200/80 rounded-3xl p-5 sm:p-6 shadow-xs hover:border-amber-400/40 transition-all duration-200"
+            data-id={item.id}
+            data-nombre={item.nombre.toLowerCase()}
+            data-slug={item.slug.toLowerCase()}
+            data-cliente={clientName.toLowerCase()}
+            data-cliente-id={item.cliente_id || ''}
+            data-etapa={prod.etapa}
+            data-publicado={isLive ? 'true' : 'false'}
+          >
+            <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+              
+              {/* COLUMNA 1: INFO PRINCIPAL, MONOGRAMA Y CLIENTE */}
+              <div class="flex items-start gap-4 min-w-0">
+                <div class="w-12 h-12 rounded-2xl bg-amber-100/70 border border-amber-200 text-amber-900 font-serif-luxury text-base font-bold flex items-center justify-center shrink-0">
+                  {monogram}
+                </div>
+                <div class="min-w-0">
+                  <div class="flex items-center gap-2 flex-wrap">
+                    <span class="text-[10px] uppercase font-bold tracking-wider text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200/60">
+                      {item.tipo_evento || 'Evento'}
+                    </span>
+                    
+                    {/* Badge de Etapa de Producción */}
+                    <span
+                      class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border"
+                      class:list={[
+                        prod.etapa === 'PUBLICADO' && 'bg-emerald-50 text-emerald-700 border-emerald-200',
+                        prod.etapa === 'EN_REVISION' && 'bg-indigo-50 text-indigo-700 border-indigo-200',
+                        prod.etapa === 'EN_PREPARACION' && 'bg-amber-50 text-amber-800 border-amber-200',
+                        prod.etapa === 'INFORMACION_PENDIENTE' && 'bg-rose-50 text-rose-700 border-rose-200',
+                        prod.etapa === 'FINALIZADO' && 'bg-stone-100 text-stone-600 border-stone-200',
+                      ]}
+                    >
+                      <span
+                        class="w-1.5 h-1.5 rounded-full"
+                        class:list={[
+                          prod.etapa === 'PUBLICADO' && 'bg-emerald-500',
+                          prod.etapa === 'EN_REVISION' && 'bg-indigo-500',
+                          prod.etapa === 'EN_PREPARACION' && 'bg-amber-500',
+                          prod.etapa === 'INFORMACION_PENDIENTE' && 'bg-rose-500',
+                          prod.etapa === 'FINALIZADO' && 'bg-stone-400',
+                        ]}
+                      ></span>
+                      <span>{prod.etapaLabel}</span>
+                    </span>
+
+                    <span class="text-[10px] text-stone-400 font-mono">ID: #{item.id}</span>
+                  </div>
+
+                  <h2 class="text-base sm:text-lg font-serif-luxury font-bold text-stone-900 mt-1 truncate">
+                    {item.nombre}
+                  </h2>
+
+                  <div class="flex items-center gap-3 text-xs text-stone-500 mt-1 flex-wrap">
+                    <span class="flex items-center gap-1">
+                      <span>👤 Cliente:</span>
+                      {item.cliente ? (
+                        <a
+                          href="/admin/clientes"
+                          class="font-semibold text-stone-800 hover:text-amber-700 transition-colors"
+                        >
+                          {item.cliente.nombre}
+                        </a>
+                      ) : (
+                        <span class="text-rose-600 font-medium">⚠️ Sin cliente asignado</span>
+                      )}
+                    </span>
+                    <span class="text-stone-300">•</span>
+                    <span class="flex items-center gap-1">
+                      <span>📅</span>
+                      <span>{formatTableDate(item.fecha_evento)} {item.hora_evento ? `• ${item.hora_evento}` : ''}</span>
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* COLUMNA 2: PROGRESO Y CHECKLIST */}
+              <div class="lg:w-72 bg-stone-50 rounded-2xl p-3 border border-stone-200/70 space-y-2 shrink-0">
+                <div class="flex items-center justify-between text-xs">
+                  <span class="font-semibold text-stone-700 text-[11px]">Progreso de Producción</span>
+                  <span class="font-bold text-amber-800 text-[11px]">{prod.itemsCompletados} de {prod.totalItems} ({prod.progresoPorcentaje}%)</span>
+                </div>
+
+                {/* Barra de Progreso */}
+                <div class="w-full bg-stone-200 rounded-full h-2 overflow-hidden">
+                  <div
+                    class="h-full rounded-full transition-all duration-300"
+                    class:list={[
+                      prod.progresoPorcentaje >= 100
+                        ? 'bg-emerald-500'
+                        : prod.progresoPorcentaje >= 60
+                        ? 'bg-amber-500'
+                        : 'bg-rose-500',
+                    ]}
+                    style={`width: ${prod.progresoPorcentaje}%`}
+                  ></div>
+                </div>
+
+                {/* Conteo de Elementos */}
+                <div class="grid grid-cols-3 gap-1 pt-1 text-center text-[10px] text-stone-500 border-t border-stone-200/60">
+                  <div>
+                    <span class="font-bold text-stone-800 block">{item.counts.ubicacionesCount}</span>
+                    <span>Sedes</span>
+                  </div>
+                  <div>
+                    <span class="font-bold text-stone-800 block">{item.counts.invitadosCount}</span>
+                    <span>Invitados</span>
+                  </div>
+                  <div>
+                    <span class="font-bold text-stone-800 block">{item.counts.mesasCount}</span>
+                    <span>Mesas</span>
+                  </div>
+                </div>
+
+                {/* Pendientes Warning */}
+                {prod.pendientes.length > 0 && (
+                  <div class="pt-1">
+                    <span class="text-[10px] text-rose-600 font-medium block truncate" title={prod.pendientes.join(', ')}>
+                      ⚠️ Falta: {prod.pendientes[0]} {prod.pendientes.length > 1 ? `(+${prod.pendientes.length - 1} más)` : ''}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* COLUMNA 3: ACCIONES RÁPIDAS */}
+              <div class="flex items-center gap-2 shrink-0 justify-end flex-wrap">
+                {/* Botón Centro de Configuración */}
+                <a
+                  href={`/admin/eventos/${item.id}`}
+                  class="px-3.5 py-2 rounded-xl bg-stone-900 hover:bg-stone-800 text-amber-200 text-xs font-semibold shadow-xs transition-colors flex items-center gap-1.5"
+                >
+                  <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                  <span>Configurar</span>
+                </a>
+
+                {/* Botón Invitados */}
+                <a
+                  href={`/admin/invitados?evento_id=${item.id}`}
+                  class="px-3 py-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-semibold transition-colors"
+                  title="Gestionar lista de invitados del evento"
+                >
+                  Invitados
+                </a>
+
+                {/* Botón Mesas */}
+                <a
+                  href={`/admin/mesas?evento_id=${item.id}`}
+                  class="px-3 py-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-semibold transition-colors"
+                  title="Gestionar asignación de mesas"
+                >
+                  Mesas
+                </a>
+
+                {/* Botón Check-in */}
+                <a
+                  href={`/admin/checkin?evento_id=${item.id}`}
+                  class="px-3 py-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-semibold transition-colors"
+                  title="Abrir panel de recepción para el evento"
+                >
+                  Check-in
+                </a>
+
+                {/* Botón Vista Previa Administrativa */}
+                <a
+                  href={`/admin/eventos/${item.id}/preview`}
+                  class="px-3 py-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-semibold transition-colors flex items-center gap-1"
+                  title="Vista previa administrativa de la invitación"
+                >
+                  <span>👁️</span>
+                  <span>Preview</span>
+                </a>
+
+                {/* Botón Ver Demo / Invitación */}
+                {isLive ? (
+                  <a
+                    href={`/demo/${item.slug}`}
+                    target="_blank"
+                    class="px-3 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-semibold border border-emerald-200 transition-colors flex items-center gap-1"
+                    title="Ver invitación pública activa"
+                  >
+                    <span>Ver demo</span>
+                    <span class="text-[10px]">↗</span>
+                  </a>
+                ) : (
+                  <button
+                    type="button"
+                    class="btn-toggle-publish px-3 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 text-xs font-semibold border border-amber-200 transition-colors"
+                    data-id={item.id}
+                    data-nombre={item.nombre}
+                    data-estado="false"
+                  >
+                    Publicar
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+
+    {/* ESTADO VACÍO */}
+    <div id="no-results" class="hidden p-12 text-center bg-white border border-stone-200/80 rounded-3xl">
+      <div class="w-12 h-12 rounded-xl bg-stone-100 flex items-center justify-center text-stone-400 mx-auto text-xl mb-3">
+        🔍
+      </div>
+      <p class="text-sm font-semibold text-stone-800">No se encontraron eventos</p>
+      <p class="text-xs text-stone-500 mt-1">Ajusta los filtros de búsqueda o etapa de producción.</p>
+    </div>
   </div>
+
+  {/* TOAST FLOTANTE */}
+  <div id="toast-container" class="fixed bottom-6 right-6 z-50 flex flex-col gap-2 max-w-sm pointer-events-none"></div>
+
+  <script is:inline>
+    document.addEventListener('DOMContentLoaded', () => {
+      // Helper: Toasts
+      function showToast(message, type = 'success') {
+        const container = document.getElementById('toast-container');
+        if (!container) return;
+
+        const toast = document.createElement('div');
+        toast.className = `p-3.5 rounded-2xl text-xs font-medium border shadow-lg flex items-center gap-2.5 transition-all transform duration-300 pointer-events-auto ${
+          type === 'success'
+            ? 'bg-emerald-950 text-emerald-100 border-emerald-800'
+            : 'bg-rose-950 text-rose-100 border-rose-800'
+        }`;
+
+        const icon = type === 'success' ? '✓' : '✕';
+        toast.innerHTML = `<span class="w-5 h-5 rounded-full bg-white/15 flex items-center justify-center font-bold text-[10px] shrink-0">${icon}</span><span>${message}</span>`;
+
+        container.appendChild(toast);
+        setTimeout(() => {
+          toast.style.opacity = '0';
+          toast.style.transform = 'translateY(10px)';
+          setTimeout(() => toast.remove(), 300);
+        }, 3500);
+      }
+
+      // Publicar / Despublicar rápido
+      document.querySelectorAll('.btn-toggle-publish').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const id = btn.dataset.id;
+          const nombre = btn.dataset.nombre;
+
+          if (!confirm(`¿Deseas publicar el evento "${nombre}" en línea?`)) {
+            return;
+          }
+
+          btn.disabled = true;
+          btn.textContent = 'Publicando...';
+
+          try {
+            const res = await fetch('/api/admin/eventos', {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ id, estado: true }),
+            });
+
+            const json = await res.json();
+            if (json.success) {
+              showToast(json.message || 'Evento publicado con éxito.');
+              setTimeout(() => window.location.reload(), 600);
+            } else {
+              if (json.bloqueantes && json.bloqueantes.length > 0) {
+                const listStr = json.bloqueantes.map((b: string) => `• ${b}`).join('\n');
+                alert(`No es posible publicar el evento. Faltan requisitos críticos obligatorios:\n\n${listStr}`);
+              } else {
+                showToast(json.error || 'Error al publicar evento.', 'error');
+              }
+              btn.disabled = false;
+              btn.textContent = 'Publicar';
+            }
+          } catch {
+            showToast('Error de red al actualizar estado.', 'error');
+            btn.disabled = false;
+            btn.textContent = 'Publicar';
+          }
+        });
+      });
+
+      // Filtros y Búsqueda en tiempo real
+      const searchInput = document.getElementById('event-search');
+      const clientSelect = document.getElementById('filter-client');
+      const stageBtns = document.querySelectorAll('.filter-stage-btn');
+      let currentStage = 'todos';
+
+      function applyFilters() {
+        const query = (searchInput?.value || '').toLowerCase().trim();
+        const selectedClientId = clientSelect?.value || '';
+        const cards = document.querySelectorAll('.evento-card');
+        let visibleCount = 0;
+
+        cards.forEach((card) => {
+          const nombre = card.dataset.nombre || '';
+          const slug = card.dataset.slug || '';
+          const cliente = card.dataset.cliente || '';
+          const clienteId = card.dataset.clienteId || '';
+          const etapa = card.dataset.etapa || '';
+
+          const matchText = !query || nombre.includes(query) || slug.includes(query) || cliente.includes(query);
+          const matchClient = !selectedClientId || clienteId === selectedClientId;
+          const matchStage = currentStage === 'todos' || etapa === currentStage;
+
+          if (matchText && matchClient && matchStage) {
+            card.classList.remove('hidden');
+            visibleCount++;
+          } else {
+            card.classList.add('hidden');
+          }
+        });
+
+        const noResults = document.getElementById('no-results');
+        if (noResults) {
+          if (visibleCount === 0) {
+            noResults.classList.remove('hidden');
+          } else {
+            noResults.classList.add('hidden');
+          }
+        }
+      }
+
+      if (searchInput) searchInput.addEventListener('input', applyFilters);
+      if (clientSelect) clientSelect.addEventListener('change', applyFilters);
+
+      stageBtns.forEach((btn) => {
+        btn.addEventListener('click', () => {
+          stageBtns.forEach((b) => {
+            b.classList.remove('active', 'bg-white', 'text-stone-800', 'shadow-xs');
+            b.classList.add('text-stone-500');
+          });
+          btn.classList.add('active', 'bg-white', 'text-stone-800', 'shadow-xs');
+          btn.classList.remove('text-stone-500');
+
+          currentStage = btn.dataset.stage || 'todos';
+          applyFilters();
+        });
+      });
+    });
+  </script>
 </AdminLayout>

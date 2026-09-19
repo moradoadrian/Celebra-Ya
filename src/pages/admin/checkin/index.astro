@@ -1,7 +1,7 @@
 ---
 import AdminLayout from '@/components/admin/AdminLayout.astro';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
-import type { Evento, InvitadoItem } from '@/types';
+import type { Evento, InvitadoItem, CheckinFeedItem, RecepcionMetricas } from '@/types';
 
 // 1. Verificación defensiva de autenticación SSR
 const user = Astro.locals.user;
@@ -41,67 +41,196 @@ if ((!requestedEventId || isNaN(requestedEventId)) && eventosList.length > 0) {
 const eventId = requestedEventId && requestedEventId > 0 ? requestedEventId : null;
 const currentEvento = eventosList.find((e) => e.id === eventId) || null;
 
-// 5. Cargar métricas del evento seleccionado
-let totalInvitados = 0;
-let totalConfirmados = 0;
-let totalPasesConfirmados = 0;
-let totalPasesAsignados = 0;
-let totalIngresados = 0;
+// 5. Cargar métricas y datos iniciales en servidor SSR
+let metricas: RecepcionMetricas = {
+  confirmados: 0,
+  ingresados: 0,
+  por_ingresar: 0,
+  asistencia_porcentaje: 0,
+  pases_maximos: 0,
+  invitados_confirmados: 0,
+  invitados_pendientes_rsvp: 0,
+  invitados_rechazados: 0,
+  invitados_ingresaron: 0,
+  invitados_pendientes_ingreso: 0,
+  pases_utilizados: 0,
+  pases_disponibles: 0,
+};
+
+let ultimosIngresosSSR: CheckinFeedItem[] = [];
+let pendientesLlegadaSSR: any[] = [];
 let sqlPendingWarning = false;
+
+// Helper para formatear horas en formato estándar HH:mm
+const formatTimeHHMM = (isoString?: string | null) => {
+  if (!isoString) return '';
+  try {
+    const d = new Date(isoString);
+    return d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false });
+  } catch {
+    return '';
+  }
+};
 
 if (eventId) {
   try {
     // A. Consultar invitados del evento
     const { data: invitadosData } = await supabase
       .from('invitados')
-      .select('id, numero_pases, confirmado, pases_confirmados')
+      .select('id, evento_id, nombre, telefono, numero_pases, confirmado, codigo, pases_confirmados')
       .eq('evento_id', eventId);
 
     const invitados = (invitadosData || []) as InvitadoItem[];
-    totalInvitados = invitados.length;
+    const guestMap = new Map<number, InvitadoItem>();
+    invitados.forEach((inv) => guestMap.set(inv.id, inv));
 
-    for (const inv of invitados) {
-      totalPasesAsignados += Number(inv.numero_pases) || 1;
+    // B. Consultar checkins registrados para el evento
+    let checkinsData: any[] = [];
+    try {
+      const { data: chkRes, error: chkError } = await supabase
+        .from('checkins')
+        .select('id, evento_id, invitado_id, cantidad, created_at')
+        .eq('evento_id', eventId)
+        .order('created_at', { ascending: false });
+
+      if (chkError) {
+        if (chkError.code === 'PGRST205' || chkError.message?.includes('checkins')) {
+          sqlPendingWarning = true;
+        }
+      } else if (chkRes) {
+        checkinsData = chkRes;
+      }
+    } catch {
+      sqlPendingWarning = true;
+    }
+
+    // C. Consultar asignación de mesas defensivamente
+    const mesaMap = new Map<number, string>();
+    try {
+      const { data: asignaciones } = await supabase
+        .from('mesa_invitados')
+        .select('invitado_id, mesas:mesa_id (id, numero)')
+        .in('invitado_id', invitados.map((i) => i.id));
+
+      if (asignaciones) {
+        asignaciones.forEach((asig: any) => {
+          if (asig.mesas && asig.mesas.numero) {
+            mesaMap.set(asig.invitado_id, `Mesa ${asig.mesas.numero}`);
+          }
+        });
+      }
+    } catch {
+      // Ignorar si mesas no están disponibles
+    }
+
+    // D. Calcular totales acumulados por invitado
+    const checkinCountByGuest = new Map<number, number>();
+    checkinsData.forEach((c) => {
+      const prev = checkinCountByGuest.get(c.invitado_id) || 0;
+      checkinCountByGuest.set(c.invitado_id, prev + (Number(c.cantidad) || 0));
+    });
+
+    // E. Calcular métricas principales (Secciones 5 y 6)
+    let confirmados = 0;
+    let pasesMaximos = 0;
+    let invitadosConfirmados = 0;
+    let invitadosPendientesRsvp = 0;
+    let invitadosRechazados = 0;
+
+    invitados.forEach((inv) => {
+      pasesMaximos += Number(inv.numero_pases) || 1;
       const isConf = inv.confirmado === true || inv.confirmado === 'true';
+      const isRech = inv.confirmado === false || inv.confirmado === 'false';
+
       if (isConf) {
-        totalConfirmados++;
-        totalPasesConfirmados +=
+        invitadosConfirmados++;
+        confirmados +=
           inv.pases_confirmados != null
             ? Number(inv.pases_confirmados)
             : Number(inv.numero_pases) || 1;
+      } else if (isRech) {
+        invitadosRechazados++;
+      } else {
+        invitadosPendientesRsvp++;
       }
-    }
+    });
 
-    // B. Consultar checkins registrados para el evento
-    const { data: checkinsData, error: chkError } = await supabase
-      .from('checkins')
-      .select('cantidad')
-      .eq('evento_id', eventId);
+    const ingresados = checkinsData.reduce((sum, c) => sum + (Number(c.cantidad) || 0), 0);
+    const porIngresar = Math.max(0, confirmados - ingresados);
+    const asistenciaPorcentaje =
+      confirmados > 0
+        ? Math.round((ingresados / confirmados) * 1000) / 10
+        : 0;
 
-    if (chkError) {
-      if (chkError.code === 'PGRST205' || chkError.message?.includes('checkins')) {
-        sqlPendingWarning = true;
+    const distinctGuestsInCheckins = new Set(checkinsData.map((c) => c.invitado_id));
+    const invitadosIngresaron = distinctGuestsInCheckins.size;
+
+    let invitadosPendientesIngreso = 0;
+    invitados.forEach((inv) => {
+      const isConf = inv.confirmado === true || inv.confirmado === 'true';
+      if (isConf) {
+        const confPases =
+          inv.pases_confirmados != null
+            ? Number(inv.pases_confirmados)
+            : Number(inv.numero_pases) || 1;
+        const usedPases = checkinCountByGuest.get(inv.id) || 0;
+        const dispPases = Math.max(0, confPases - usedPases);
+
+        if (dispPases > 0) {
+          invitadosPendientesIngreso++;
+          pendientesLlegadaSSR.push({
+            id: inv.id,
+            nombre: inv.nombre,
+            codigo: inv.codigo,
+            pases_confirmados: confPases,
+            pases_utilizados: usedPases,
+            pases_disponibles: dispPases,
+            mesa: mesaMap.get(inv.id) || null,
+            estado_checkin: usedPases === 0 ? 'sin_entradas' : 'entrada_parcial',
+          });
+        }
       }
-    } else if (checkinsData) {
-      totalIngresados = checkinsData.reduce((sum, c) => sum + (Number(c.cantidad) || 0), 0);
-    }
+    });
+
+    metricas = {
+      confirmados,
+      ingresados,
+      por_ingresar: porIngresar,
+      asistencia_porcentaje: asistenciaPorcentaje,
+      pases_maximos: pasesMaximos,
+      invitados_confirmados: invitadosConfirmados,
+      invitados_pendientes_rsvp: invitadosPendientesRsvp,
+      invitados_rechazados: invitadosRechazados,
+      invitados_ingresaron: invitadosIngresaron,
+      invitados_pendientes_ingreso: invitadosPendientesIngreso,
+      pases_utilizados: ingresados,
+      pases_disponibles: porIngresar,
+    };
+
+    ultimosIngresosSSR = checkinsData.slice(0, 15).map((c) => {
+      const g = guestMap.get(c.invitado_id);
+      return {
+        id: c.id,
+        evento_id: c.evento_id,
+        invitado_id: c.invitado_id,
+        invitado_nombre: g?.nombre || 'Invitado',
+        cantidad: Number(c.cantidad) || 1,
+        created_at: c.created_at,
+        hora: formatTimeHHMM(c.created_at),
+        mesa: mesaMap.get(c.invitado_id) || null,
+      };
+    });
   } catch (e) {
     console.error('[Admin Checkin] Error cargando métricas:', e);
   }
 }
-
-const porcentajeAsistencia =
-  totalPasesConfirmados > 0
-    ? Math.min(100, Math.round((totalIngresados / totalPasesConfirmados) * 100))
-    : 0;
-const pasesRestantesEvento = Math.max(0, totalPasesConfirmados - totalIngresados);
 ---
 
-<AdminLayout title="Control de Acceso y Check-in | Celebra-Ya Admin" userEmail={userEmail}>
-  <div class="max-w-5xl mx-auto space-y-8 pb-20">
+<AdminLayout title="Dashboard de Recepción en Vivo | Celebra-Ya Admin" userEmail={userEmail}>
+  <div class="max-w-6xl mx-auto space-y-8 pb-24">
 
     {/* ENCABEZADO Y SELECTOR DE EVENTO */}
-    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-stone-200/80 pb-6">
+    <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-stone-200/80 pb-6">
       <div>
         <div class="flex items-center gap-2 mb-1.5">
           <a
@@ -112,38 +241,54 @@ const pasesRestantesEvento = Math.max(0, totalPasesConfirmados - totalIngresados
             <span>Dashboard</span>
           </a>
           <span class="text-stone-300">/</span>
-          <span class="text-xs font-mono text-stone-400">Control de Acceso</span>
+          <span class="text-xs font-mono text-stone-400">Recepción en Vivo</span>
         </div>
-        <div class="flex items-center gap-3">
+        <div class="flex flex-wrap items-center gap-3">
           <h1 class="text-2xl sm:text-3xl font-serif-luxury font-bold text-stone-900">
-            Check-in de Invitados
+            Dashboard de Recepción
           </h1>
-          <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-300">
-            Recepción en Vivo
+          <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-300 shadow-2xs">
+            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span>Monitoreo en Vivo</span>
+          </span>
+          <span id="sync-status-badge" class="inline-flex items-center gap-1 text-[11px] font-medium text-stone-500 bg-stone-100 px-2.5 py-0.5 rounded-full border border-stone-200">
+            <span>🟢 Sincronizado</span>
           </span>
         </div>
         <p class="text-xs sm:text-sm text-stone-500 mt-1">
-          Escanea el código QR o busca el código de pase para registrar el acceso físico al evento.
+          Control de acceso en vivo, monitoreo de afluencia y registro ágil de invitados para el evento.
         </p>
       </div>
 
-      {/* SELECTOR DE EVENTO */}
-      <div class="flex items-center gap-3">
-        <label for="evento-selector" class="text-xs font-bold uppercase tracking-wider text-stone-500">
-          Evento:
-        </label>
-        <div class="relative min-w-[220px]">
-          <select
-            id="evento-selector"
-            class="w-full pl-3 pr-8 py-2.5 rounded-xl border border-stone-300 bg-white text-xs font-semibold text-stone-800 shadow-2xs focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 cursor-pointer"
-          >
-            {eventosList.map((ev) => (
-              <option value={ev.id} selected={ev.id === eventId}>
-                {ev.nombre}
-              </option>
-            ))}
-          </select>
+      {/* SELECTOR DE EVENTO Y BOTÓN DE REFRESCAR */}
+      <div class="flex flex-wrap items-center gap-3">
+        <div class="flex items-center gap-2">
+          <label for="evento-selector" class="text-xs font-bold uppercase tracking-wider text-stone-500">
+            Evento:
+          </label>
+          <div class="relative min-w-[220px]">
+            <select
+              id="evento-selector"
+              class="w-full pl-3 pr-8 py-2.5 rounded-xl border border-stone-300 bg-white text-xs font-semibold text-stone-800 shadow-2xs focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 cursor-pointer"
+            >
+              {eventosList.map((ev) => (
+                <option value={ev.id} selected={ev.id === eventId}>
+                  {ev.nombre}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
+
+        <button
+          type="button"
+          id="btn-manual-refresh"
+          title="Actualizar datos en tiempo real"
+          class="p-2.5 rounded-xl bg-white hover:bg-stone-50 border border-stone-300 text-stone-700 hover:text-stone-900 shadow-2xs transition-all cursor-pointer flex items-center gap-1.5 text-xs font-semibold"
+        >
+          <span id="refresh-icon" class="inline-block transition-transform">🔄</span>
+          <span class="hidden sm:inline">Actualizar</span>
+        </button>
       </div>
     </div>
 
@@ -165,229 +310,247 @@ const pasesRestantesEvento = Math.max(0, totalPasesConfirmados - totalIngresados
       </div>
     )}
 
-    {/* PANEL DE MÉTRICAS DE ACCESO EN VIVO */}
+    {/* HERO DE MÉTRICAS PRINCIPALES (Secciones 5 y 6) */}
     {currentEvento && (
-      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
-        {/* Invitados Confirmados */}
-        <div class="bg-white p-4 rounded-2xl border border-stone-200 shadow-2xs space-y-1">
-          <p class="text-[10px] font-bold uppercase tracking-wider text-stone-400">Confirmados</p>
-          <p class="text-2xl font-bold font-mono text-stone-900">
-            {totalConfirmados} <span class="text-xs font-normal text-stone-400 font-sans">/ {totalInvitados}</span>
-          </p>
-          <p class="text-[10px] text-stone-500">familias que confirmaron</p>
-        </div>
-
-        {/* Pases Confirmados */}
-        <div class="bg-white p-4 rounded-2xl border border-stone-200 shadow-2xs space-y-1">
-          <p class="text-[10px] font-bold uppercase tracking-wider text-amber-700">Pases Confirmados</p>
-          <p class="text-2xl font-bold font-mono text-amber-600">
-            {totalPasesConfirmados}
-          </p>
-          <p class="text-[10px] text-stone-500">asistentes esperados</p>
-        </div>
-
-        {/* Personas Ingresadas */}
-        <div class="bg-white p-4 rounded-2xl border border-emerald-200 shadow-2xs space-y-1 bg-emerald-50/20">
-          <p class="text-[10px] font-bold uppercase tracking-wider text-emerald-700">Han Ingresado</p>
-          <p class="text-2xl font-bold font-mono text-emerald-600" id="metric-ingresados">
-            {totalIngresados}
-          </p>
-          <p class="text-[10px] text-stone-500">personas en el salón</p>
-        </div>
-
-        {/* Pases Disponibles */}
-        <div class="bg-white p-4 rounded-2xl border border-stone-200 shadow-2xs space-y-1">
-          <p class="text-[10px] font-bold uppercase tracking-wider text-stone-400">Por Ingresar</p>
-          <p class="text-2xl font-bold font-mono text-stone-700" id="metric-restantes">
-            {pasesRestantesEvento}
-          </p>
-          <p class="text-[10px] text-stone-500">pases restantes</p>
-        </div>
-
-        {/* Porcentaje de Asistencia */}
-        <div class="bg-white p-4 rounded-2xl border border-stone-200 shadow-2xs space-y-1">
-          <p class="text-[10px] font-bold uppercase tracking-wider text-stone-400">Asistencia</p>
-          <p class="text-2xl font-bold font-mono text-stone-900" id="metric-porcentaje">
-            {porcentajeAsistencia}%
-          </p>
-          <div class="w-full bg-stone-100 rounded-full h-1.5 overflow-hidden mt-1">
-            <div
-              id="metric-progress-bar"
-              class="bg-emerald-500 h-full rounded-full transition-all duration-500"
-              style={`width: ${porcentajeAsistencia}%`}
-            />
+      <div class="space-y-3">
+        {/* 4 CARDS HERO GRANDES */}
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          
+          {/* Card 1: Confirmados */}
+          <div class="bg-white p-5 rounded-3xl border border-stone-200/90 shadow-xs space-y-2 relative overflow-hidden">
+            <div class="flex items-center justify-between">
+              <span class="text-[10px] font-bold uppercase tracking-[0.15em] text-stone-400">
+                Confirmados
+              </span>
+              <span class="text-xs font-semibold bg-stone-100 text-stone-600 px-2 py-0.5 rounded-full">
+                RSVP Sí
+              </span>
+            </div>
+            <p class="text-3xl sm:text-4xl font-bold font-mono text-stone-900" id="stat-confirmados">
+              {metricas.confirmados}
+            </p>
+            <div class="flex items-center justify-between text-[11px] text-stone-500 pt-1 border-t border-stone-100">
+              <span>Asistentes esperados</span>
+              <span class="font-semibold text-stone-700" id="stat-invitados-conf">
+                {metricas.invitados_confirmados} familias
+              </span>
+            </div>
           </div>
+
+          {/* Card 2: Han Ingresado */}
+          <div class="bg-linear-to-br from-emerald-500/10 via-white to-white p-5 rounded-3xl border border-emerald-200 shadow-xs space-y-2 relative overflow-hidden">
+            <div class="flex items-center justify-between">
+              <span class="text-[10px] font-bold uppercase tracking-[0.15em] text-emerald-800">
+                Han Ingresado
+              </span>
+              <span class="text-xs font-semibold bg-emerald-100 text-emerald-900 px-2 py-0.5 rounded-full border border-emerald-200">
+                En el salón
+              </span>
+            </div>
+            <p class="text-3xl sm:text-4xl font-bold font-mono text-emerald-600" id="stat-ingresados">
+              {metricas.ingresados}
+            </p>
+            <div class="flex items-center justify-between text-[11px] text-emerald-800 pt-1 border-t border-emerald-100/60">
+              <span>Personas recibidas</span>
+              <span class="font-semibold text-emerald-900" id="stat-invitados-ingresaron">
+                {metricas.invitados_ingresaron} familias
+              </span>
+            </div>
+          </div>
+
+          {/* Card 3: Por Ingresar */}
+          <div class="bg-linear-to-br from-amber-500/10 via-white to-white p-5 rounded-3xl border border-amber-200 shadow-xs space-y-2 relative overflow-hidden">
+            <div class="flex items-center justify-between">
+              <span class="text-[10px] font-bold uppercase tracking-[0.15em] text-amber-900">
+                Por Ingresar
+              </span>
+              <span class="text-xs font-semibold bg-amber-100 text-amber-900 px-2 py-0.5 rounded-full border border-amber-200">
+                Faltantes
+              </span>
+            </div>
+            <p class="text-3xl sm:text-4xl font-bold font-mono text-amber-700" id="stat-por-ingresar">
+              {metricas.por_ingresar}
+            </p>
+            <div class="flex items-center justify-between text-[11px] text-amber-800 pt-1 border-t border-amber-100/60">
+              <span>Pases restantes</span>
+              <span class="font-semibold text-amber-950" id="stat-invitados-pendientes">
+                {metricas.invitados_pendientes_ingreso} familias
+              </span>
+            </div>
+          </div>
+
+          {/* Card 4: Porcentaje de Asistencia */}
+          <div class="bg-white p-5 rounded-3xl border border-stone-200/90 shadow-xs space-y-2 relative overflow-hidden">
+            <div class="flex items-center justify-between">
+              <span class="text-[10px] font-bold uppercase tracking-[0.15em] text-stone-400">
+                Asistencia
+              </span>
+              <span class="text-xs font-semibold bg-stone-100 text-stone-600 px-2 py-0.5 rounded-full">
+                Ratio
+              </span>
+            </div>
+            <p class="text-3xl sm:text-4xl font-bold font-mono text-stone-900" id="stat-porcentaje">
+              {metricas.asistencia_porcentaje}%
+            </p>
+            <div class="pt-1">
+              <div class="w-full bg-stone-100 rounded-full h-2 overflow-hidden shadow-inner">
+                <div
+                  id="stat-progress-bar"
+                  class="bg-linear-to-r from-emerald-500 to-teal-500 h-full rounded-full transition-all duration-700"
+                  style={`width: ${Math.min(100, metricas.asistencia_porcentaje)}%`}
+                />
+              </div>
+            </div>
+          </div>
+
         </div>
 
-        {/* Pases Asignados Totales */}
-        <div class="bg-white p-4 rounded-2xl border border-stone-200 shadow-2xs space-y-1">
-          <p class="text-[10px] font-bold uppercase tracking-wider text-stone-400">Pases Máximos</p>
-          <p class="text-2xl font-bold font-mono text-stone-400">
-            {totalPasesAsignados}
-          </p>
-          <p class="text-[10px] text-stone-400">asignados originalmente</p>
+        {/* CINTA DE MÉTRICAS COMPLEMENTARIAS (Sección 6) */}
+        <div class="bg-stone-50 border border-stone-200/80 rounded-2xl px-5 py-3 flex flex-wrap items-center justify-between gap-3 text-xs">
+          <div class="flex items-center gap-2">
+            <span class="text-stone-400 uppercase tracking-wider font-semibold text-[10px]">Pases Asignados:</span>
+            <span class="font-mono font-bold text-stone-800" id="stat-maximos">{metricas.pases_maximos}</span>
+          </div>
+          <div class="h-4 w-px bg-stone-300 hidden sm:block"></div>
+          <div class="flex items-center gap-2">
+            <span class="text-stone-400 uppercase tracking-wider font-semibold text-[10px]">Pendientes RSVP:</span>
+            <span class="font-mono font-bold text-amber-700" id="stat-rsvp-pendientes">{metricas.invitados_pendientes_rsvp}</span>
+          </div>
+          <div class="h-4 w-px bg-stone-300 hidden sm:block"></div>
+          <div class="flex items-center gap-2">
+            <span class="text-stone-400 uppercase tracking-wider font-semibold text-[10px]">No Asistirán:</span>
+            <span class="font-mono font-bold text-stone-500" id="stat-rechazados">{metricas.invitados_rechazados}</span>
+          </div>
+          <div class="h-4 w-px bg-stone-300 hidden sm:block"></div>
+          <div class="flex items-center gap-2">
+            <span class="text-stone-400 uppercase tracking-wider font-semibold text-[10px]">Pases Utilizados:</span>
+            <span class="font-mono font-bold text-emerald-700" id="stat-pases-utilizados">{metricas.pases_utilizados}</span>
+          </div>
         </div>
       </div>
     )}
 
-    {/* ÁREA PRINCIPAL DE CONTROL DE ACCESO */}
+    {/* LAYOUT PRINCIPAL DE RECEPCIÓN (2 Columnas) */}
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-      
-      {/* COLUMNA IZQUIERDA: ESCÁNER Y BÚSQUEDA (5 Cols) */}
-      <div class="lg:col-span-5 space-y-6">
-        <div class="bg-white rounded-3xl border border-stone-200 shadow-sm p-6 sm:p-7 space-y-6">
-          
-          <div class="text-center space-y-1 border-b border-stone-200/80 pb-5">
-            <span class="text-[10px] font-bold uppercase tracking-[0.2em] text-amber-700 bg-amber-50 px-2.5 py-1 rounded-md border border-amber-200">
-              Módulo de Entrada
-            </span>
-            <h2 class="text-xl font-serif-luxury font-bold text-stone-900 pt-1">
-              Validar Invitación
-            </h2>
-            <p class="text-xs text-stone-500">
-              Escanea el QR del invitado o ingresa su código manual.
-            </p>
-          </div>
 
-          {/* OPCIÓN A: BOTÓN DE CÁMARA */}
-          <div class="space-y-3">
+      {/* COLUMNA IZQUIERDA: BÚSQUEDA, ESCÁNER Y OPERACIÓN DE CHECK-IN (7 Cols) */}
+      <div class="lg:col-span-7 space-y-6">
+        
+        {/* CAJA PRINCIPAL DE BÚSQUEDA Y ESCANEO */}
+        <div class="bg-white rounded-3xl border border-stone-200 shadow-sm p-6 sm:p-7 space-y-5">
+          
+          <div class="flex items-center justify-between border-b border-stone-200/80 pb-4">
+            <div>
+              <h2 class="text-lg sm:text-xl font-serif-luxury font-bold text-stone-900">
+                Búsqueda Rápida de Invitados
+              </h2>
+              <p class="text-xs text-stone-500">
+                Escribe nombre, teléfono o código, o utiliza el escáner de cámara.
+              </p>
+            </div>
+            
+            {/* BOTÓN TOGGLE CÁMARA */}
             <button
               type="button"
               id="btn-toggle-camera"
-              class="w-full py-4 px-5 rounded-2xl bg-stone-900 hover:bg-stone-800 text-amber-200 text-xs font-bold uppercase tracking-wider shadow-md transition-all flex items-center justify-center gap-3 cursor-pointer hover:scale-[1.01]"
+              class="px-4 py-2 rounded-xl bg-stone-900 hover:bg-stone-800 text-amber-200 text-xs font-bold transition-all shadow-xs flex items-center gap-2 cursor-pointer shrink-0"
             >
-              <span class="text-lg">📷</span>
-              <span id="btn-camera-text">Escanear Código QR con Cámara</span>
+              <span>📷</span>
+              <span id="btn-camera-label">Escanear QR</span>
             </button>
+          </div>
 
-            {/* CONTENEDOR DE CÁMARA Y VISOR QR */}
-            <div id="camera-box" class="hidden space-y-3 bg-stone-950 p-4 rounded-2xl text-center border border-stone-800 shadow-inner animate-fade-in">
-              <div class="flex items-center justify-between text-xs text-stone-400 pb-2 border-b border-stone-800">
-                <span class="flex items-center gap-1.5">
-                  <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                  <span>Cámara activa</span>
-                </span>
-                <button
-                  type="button"
-                  id="btn-close-camera"
-                  class="text-stone-400 hover:text-white text-xs font-semibold underline cursor-pointer"
-                >
-                  Detener cámara
-                </button>
-              </div>
+          {/* VISOR DE CÁMARA COLAPSABLE */}
+          <div id="camera-box" class="hidden space-y-3 bg-stone-950 p-4 rounded-2xl text-center border border-stone-800 shadow-inner animate-fade-in">
+            <div class="flex items-center justify-between text-xs text-stone-400 pb-2 border-b border-stone-800">
+              <span class="flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span>Cámara activa</span>
+              </span>
+              <button
+                type="button"
+                id="btn-close-camera"
+                class="text-stone-400 hover:text-white text-xs font-semibold underline cursor-pointer"
+              >
+                Cerrar cámara
+              </button>
+            </div>
+            <div id="qr-reader" class="overflow-hidden rounded-xl bg-black min-h-[240px] flex items-center justify-center text-xs text-stone-500">
+              Iniciando cámara...
+            </div>
+            <p class="text-[11px] text-stone-400">
+              Apunta la cámara al código QR de la invitación para identificarlo al instante.
+            </p>
+          </div>
 
-              {/* Viewport del escáner */}
-              <div id="qr-reader" class="overflow-hidden rounded-xl bg-black min-h-[260px] flex items-center justify-center text-xs text-stone-500">
-                Iniciando lente de la cámara...
-              </div>
+          {/* BARRA DE BÚSQUEDA UNIVERSAL */}
+          <div class="relative">
+            <div class="relative flex items-center">
+              <span class="absolute left-4 text-stone-400 text-sm pointer-events-none">🔍</span>
+              <input
+                type="text"
+                id="input-quick-search"
+                placeholder="Buscar por nombre, teléfono o código (Ej. Morado, asdfg)..."
+                autocomplete="off"
+                class="w-full pl-11 pr-10 py-3.5 rounded-2xl border border-stone-300 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 bg-stone-50/70 text-stone-900 text-xs sm:text-sm font-semibold placeholder:font-normal placeholder:text-stone-400 transition-colors shadow-2xs"
+              />
+              <button
+                type="button"
+                id="btn-clear-input"
+                class="hidden absolute right-3.5 text-stone-400 hover:text-stone-700 text-sm cursor-pointer p-1"
+                title="Limpiar"
+              >
+                ✕
+              </button>
+            </div>
 
-              <p class="text-[11px] text-stone-400">
-                Apunta la cámara al código QR de la invitación para escanear automáticamente.
-              </p>
+            {/* LISTA DESPLEGABLE DE RESULTADOS INSTANTÁNEOS */}
+            <div
+              id="search-results-dropdown"
+              class="hidden absolute left-0 right-0 top-full mt-2 bg-white rounded-2xl border border-stone-200 shadow-xl z-30 max-h-72 overflow-y-auto divide-y divide-stone-100"
+            >
+              <!-- Resultados dinámicos renderizados por JS -->
             </div>
           </div>
 
-          {/* SEPARADOR VISUAL */}
-          <div class="flex items-center gap-3">
-            <div class="flex-1 h-px bg-stone-200"></div>
-            <span class="text-[10px] font-bold uppercase tracking-wider text-stone-400">O ingreso manual</span>
-            <div class="flex-1 h-px bg-stone-200"></div>
-          </div>
-
-          {/* OPCIÓN B: ENTRADA MANUAL DEL CÓDIGO */}
-          <form id="form-manual-search" class="space-y-3">
-            <div class="space-y-1.5">
-              <label for="input-codigo" class="block text-xs font-bold uppercase tracking-wider text-stone-700">
-                Código de invitación:
-              </label>
-              <div class="relative">
-                <input
-                  type="text"
-                  id="input-codigo"
-                  name="codigo"
-                  required
-                  placeholder="Ej. FKT-3¿W9 o URL"
-                  autocomplete="off"
-                  autocapitalize="characters"
-                  class="w-full px-4 py-3.5 rounded-xl border border-stone-300 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 bg-stone-50 text-stone-900 font-mono text-sm font-bold tracking-wider uppercase placeholder:font-normal placeholder:normal-case placeholder:text-stone-400 transition-colors"
-                />
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              id="btn-search-manual"
-              class="w-full py-3.5 px-5 rounded-xl bg-amber-500 hover:bg-amber-600 text-stone-950 text-xs font-bold uppercase tracking-wider shadow-xs transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-            >
-              <span>🔍</span>
-              <span>Buscar Invitación</span>
-            </button>
-          </form>
-
-          {/* ATAJOS RÁPIDOS DE INVITADOS DEL EVENTO (CONSULTA RÁPIDA) */}
-          <div class="pt-2 border-t border-stone-200/80 space-y-2">
-            <p class="text-[10px] font-bold uppercase tracking-wider text-stone-400">
-              Consejo de recepción:
-            </p>
-            <p class="text-xs text-stone-500 leading-relaxed">
-              Si la cámara tiene poca luz o el reflejo del móvil del invitado dificulta la lectura, solicita su código alfanumérico para el ingreso manual inmediato.
-            </p>
-          </div>
-
-        </div>
-      </div>
-
-      {/* COLUMNA DERECHA: RESULTADO DE IDENTIFICACIÓN Y REGISTRO (7 Cols) */}
-      <div class="lg:col-span-7 space-y-6">
-
-        {/* FEEDBACK GLOBAL: MENSAJES DE ÉXITO O ERROR */}
-        <div id="checkin-feedback-container" class="space-y-3"></div>
-
-        {/* ESTADO VACÍO (INICIAL SIN BÚSQUEDA) */}
-        <div
-          id="card-empty-state"
-          class="bg-white rounded-3xl border border-dashed border-stone-300 p-12 text-center space-y-4 shadow-2xs"
-        >
-          <div class="w-16 h-16 rounded-2xl bg-stone-100 text-stone-400 flex items-center justify-center text-3xl mx-auto shadow-inner">
-            🎟️
-          </div>
-          <div class="space-y-1">
-            <h3 class="text-lg font-serif-luxury font-bold text-stone-800">
-              Esperando invitación...
-            </h3>
-            <p class="text-xs text-stone-500 max-w-sm mx-auto leading-relaxed">
-              Usa el escáner QR o introduce un código para desplegar la información del invitado, validar su confirmación RSVP y registrar su ingreso físico.
-            </p>
-          </div>
         </div>
 
-        {/* TARJETA DINÁMICA DE INVITACIÓN LOCALIZADA */}
+        {/* FEEDBACK DE OPERACIÓN (Toast / Alert) */}
+        <div id="reception-alert-container"></div>
+
+        {/* TARJETA DINÁMICA DE RECEPCIÓN DEL INVITADO */}
         <div
-          id="card-guest-result"
+          id="guest-card-container"
           class="hidden bg-white rounded-3xl border border-stone-200 shadow-md overflow-hidden animate-fade-in"
         >
-          {/* BARRA SUPERIOR DE COLOR */}
-          <div id="guest-card-accent-bar" class="h-2.5 bg-linear-to-r from-amber-400 via-amber-500 to-amber-400"></div>
+          {/* BARRA DECORATIVA SUPERIOR */}
+          <div id="guest-accent-bar" class="h-2.5 bg-linear-to-r from-amber-400 via-amber-500 to-amber-400"></div>
 
           <div class="p-6 sm:p-8 space-y-6">
-
-            {/* ENCABEZADO DEL INVITADO */}
+            
+            {/* ENCABEZADO: NOMBRE, EVENTO, MESA, CÓDIGO */}
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-stone-200/80 pb-5">
-              <div class="space-y-1">
-                <div class="flex items-center gap-2">
-                  <span id="badge-rsvp" class="px-2.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider">
-                    <!-- Dinámico -->
+              <div class="space-y-1.5">
+                <div class="flex flex-wrap items-center gap-2">
+                  <span id="guest-badge-rsvp" class="px-2.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider">
+                    <!-- RSVP -->
                   </span>
-                  <span id="badge-mesa" class="hidden px-2.5 py-0.5 rounded-md text-[10px] font-semibold bg-stone-100 text-stone-700 border border-stone-200">
-                    <!-- Dinámico -->
+                  <span id="guest-badge-entry-state" class="px-2.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider">
+                    <!-- Estado Entrada -->
+                  </span>
+                  <span id="guest-badge-mesa" class="hidden px-2.5 py-0.5 rounded-md text-[10px] font-semibold bg-stone-100 text-stone-700 border border-stone-200">
+                    <!-- Mesa -->
                   </span>
                 </div>
                 <h3 id="guest-name" class="text-2xl sm:text-3xl font-serif-luxury font-bold text-stone-900">
-                  <!-- Nombre del invitado -->
+                  <!-- Nombre -->
                 </h3>
-                <p id="guest-event-name" class="text-xs text-stone-500">
-                  <!-- Nombre del evento -->
-                </p>
+                <div class="flex items-center gap-3 text-xs text-stone-500">
+                  <span id="guest-event-name"><!-- Evento --></span>
+                  <span id="guest-last-entry-indicator" class="hidden text-emerald-700 font-medium">
+                    • Último ingreso: <strong id="guest-last-entry-time">--:--</strong>
+                  </span>
+                </div>
               </div>
 
               {/* CÓDIGO DEL INVITADO */}
@@ -399,74 +562,70 @@ const pasesRestantesEvento = Math.max(0, totalPasesConfirmados - totalIngresados
               </div>
             </div>
 
-            {/* CUADRÍCULA DE MÉTRICAS DE CAPACIDAD DEL INVITADO */}
+            {/* 4 TILES DE CAPACIDAD DE LA INVITACIÓN */}
             <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              {/* Asignados */}
               <div class="bg-stone-50 p-3.5 rounded-2xl border border-stone-200 text-center space-y-0.5">
                 <p class="text-[10px] font-bold uppercase tracking-wider text-stone-500">Asignados</p>
-                <p id="guest-stat-asignados" class="text-2xl font-bold font-mono text-stone-700">0</p>
+                <p id="card-pases-asignados" class="text-2xl font-bold font-mono text-stone-700">0</p>
                 <p class="text-[9px] text-stone-400">capacidad máx.</p>
               </div>
 
-              {/* Confirmados */}
               <div class="bg-amber-50/60 p-3.5 rounded-2xl border border-amber-200/80 text-center space-y-0.5">
                 <p class="text-[10px] font-bold uppercase tracking-wider text-amber-800">Confirmados</p>
-                <p id="guest-stat-confirmados" class="text-2xl font-bold font-mono text-amber-900">0</p>
+                <p id="card-pases-confirmados" class="text-2xl font-bold font-mono text-amber-900">0</p>
                 <p class="text-[9px] text-amber-700">declararon asistir</p>
               </div>
 
-              {/* Ingresaron */}
               <div class="bg-emerald-50/60 p-3.5 rounded-2xl border border-emerald-200 text-center space-y-0.5">
                 <p class="text-[10px] font-bold uppercase tracking-wider text-emerald-800">Ingresaron</p>
-                <p id="guest-stat-utilizados" class="text-2xl font-bold font-mono text-emerald-600">0</p>
-                <p class="text-[9px] text-emerald-700">ya registrados</p>
+                <p id="card-pases-utilizados" class="text-2xl font-bold font-mono text-emerald-600">0</p>
+                <p class="text-[9px] text-emerald-700">ya en el salón</p>
               </div>
 
-              {/* Disponibles */}
               <div class="bg-stone-900 p-3.5 rounded-2xl border border-stone-900 text-center space-y-0.5 text-white">
                 <p class="text-[10px] font-bold uppercase tracking-wider text-amber-300">Disponibles</p>
-                <p id="guest-stat-disponibles" class="text-2xl font-bold font-mono text-white">0</p>
+                <p id="card-pases-disponibles" class="text-2xl font-bold font-mono text-white">0</p>
                 <p class="text-[9px] text-stone-300">pueden ingresar</p>
               </div>
             </div>
 
-            {/* SECCIÓN INTERACTIVA DE ACCIÓN SEGÚN ESTADO DE RSVP Y DISPONIBILIDAD */}
-            
-            {/* CASO 1: RSVP PENDIENTE */}
-            <div id="section-rsvp-pending" class="hidden bg-amber-50 border border-amber-200 rounded-2xl p-5 text-amber-900 space-y-2">
-              <div class="flex items-center gap-2 font-bold text-xs uppercase tracking-wider text-amber-800">
+            {/* SECCIÓN ACCIONES SEGÚN ESTADO DE RSVP Y DISPONIBILIDAD */}
+
+            {/* Estado A: RSVP Pendiente */}
+            <div id="card-action-pending" class="hidden bg-amber-50 border border-amber-200 rounded-2xl p-5 text-amber-950 space-y-1.5">
+              <div class="flex items-center gap-2 font-bold text-xs uppercase tracking-wider text-amber-900">
                 <span>⚠️</span>
                 <span>RSVP Pendiente</span>
               </div>
-              <p class="text-xs leading-relaxed">
-                Este invitado todavía no ha confirmado su asistencia. Por regla de acceso no es posible registrar entrada hasta que su confirmación sea validada.
+              <p class="text-xs leading-relaxed text-amber-800">
+                Este invitado todavía no ha confirmado su asistencia. Por regla de control de acceso no es posible registrar entrada hasta que su confirmación sea validada.
               </p>
             </div>
 
-            {/* CASO 2: RSVP RECHAZADO (NO ASISTIRÁ) */}
-            <div id="section-rsvp-declined" class="hidden bg-stone-100 border border-stone-300 rounded-2xl p-5 text-stone-700 space-y-2">
+            {/* Estado B: RSVP Rechazado */}
+            <div id="card-action-declined" class="hidden bg-stone-100 border border-stone-300 rounded-2xl p-5 text-stone-700 space-y-1.5">
               <div class="flex items-center gap-2 font-bold text-xs uppercase tracking-wider text-stone-600">
                 <span>✕</span>
-                <span>Invitación Rechazada</span>
+                <span>Invitación Declinada</span>
               </div>
-              <p class="text-xs leading-relaxed">
-                El invitado confirmó previamente que no asistirá a la celebración. Sus pases disponibles se encuentran en 0.
+              <p class="text-xs leading-relaxed text-stone-500">
+                El invitado indicó previamente que no asistirá a la celebración. Sus pases disponibles se encuentran en 0.
               </p>
             </div>
 
-            {/* CASO 3: ENTRADA COMPLETA (0 PASES DISPONIBLES) */}
-            <div id="section-entry-complete" class="hidden bg-sky-50 border border-sky-200 rounded-2xl p-5 text-sky-950 space-y-2">
+            {/* Estado C: Entrada Completa */}
+            <div id="card-action-complete" class="hidden bg-sky-50 border border-sky-200 rounded-2xl p-5 text-sky-950 space-y-1.5">
               <div class="flex items-center gap-2 font-bold text-xs uppercase tracking-wider text-sky-800">
                 <span>✓</span>
                 <span>Entrada Completa</span>
               </div>
-              <p class="text-xs leading-relaxed">
-                Todos los pases confirmados para esta invitación ya fueron utilizados. No es posible registrar ingresos adicionales.
+              <p class="text-xs leading-relaxed text-sky-900">
+                Todos los pases confirmados para esta invitación ya fueron utilizados. No es posible registrar más personas con esta clave.
               </p>
             </div>
 
-            {/* CASO 4: PUEDE REGISTRAR INGRESO (CONFIRMADO Y CON PASES DISPONIBLES) */}
-            <div id="section-register-entry" class="hidden space-y-4 bg-stone-50 border border-stone-200 rounded-2xl p-5 sm:p-6">
+            {/* Estado D: Disponible para Check-in */}
+            <div id="card-action-available" class="hidden space-y-4 bg-stone-50 border border-stone-200 rounded-2xl p-5 sm:p-6">
               <div>
                 <label class="block text-xs font-bold uppercase tracking-wider text-stone-800">
                   ¿Cuántas personas ingresan ahora?
@@ -476,44 +635,181 @@ const pasesRestantesEvento = Math.max(0, totalPasesConfirmados - totalIngresados
                 </p>
               </div>
 
-              {/* CHIPS DE SELECCIÓN DE CANTIDAD RÁPIDA */}
-              <div id="qty-chips-container" class="flex flex-wrap gap-2 pt-1">
-                <!-- Se poblarán dinámicamente con JS (1 .. pases_disponibles) -->
+              {/* CHIPS RÁPIDOS (1 .. pases_disponibles) */}
+              <div id="card-chips-container" class="flex flex-wrap gap-2 pt-1">
+                <!-- Chips interactivos -->
               </div>
 
-              {/* BOTÓN GRANDE DE CONFIRMACIÓN DE CHECK-IN */}
+              {/* BOTÓN DE CONFIRMACIÓN */}
               <button
                 type="button"
-                id="btn-confirm-checkin"
+                id="btn-register-checkin"
                 class="w-full py-4 px-6 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold uppercase tracking-wider shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed hover:scale-[1.01]"
               >
                 <span>🎟️</span>
-                <span id="btn-confirm-checkin-label">Registrar Entrada</span>
+                <span id="btn-register-label">Registrar Entrada</span>
               </button>
             </div>
 
-            {/* HISTORIAL DE CHECKINS PREVIOS DE LA INVITACIÓN */}
-            <div id="section-checkin-history" class="hidden space-y-3 pt-4 border-t border-stone-200/80">
+            {/* HISTORIAL ESPECÍFICO DEL INVITADO */}
+            <div id="card-history-section" class="hidden space-y-3 pt-4 border-t border-stone-200/80">
               <p class="text-[10px] font-bold uppercase tracking-wider text-stone-500">
-                Registro de ingresos de esta invitación:
+                Historial de ingresos de esta invitación:
               </p>
-              <div id="checkin-history-list" class="space-y-2">
-                <!-- Lista dinámica de entradas parciales -->
+              <div id="card-history-list" class="space-y-2">
+                <!-- Items de ingresos previos -->
               </div>
             </div>
 
-            {/* ACCIÓN: BUSCAR OTRA INVITACIÓN */}
+            {/* BOTÓN LIMPIAR */}
             <div class="pt-2 flex justify-end">
               <button
                 type="button"
-                id="btn-clear-search"
+                id="btn-close-guest-card"
                 class="text-xs font-semibold text-stone-500 hover:text-stone-900 underline transition-colors cursor-pointer"
               >
-                ← Limpiar y buscar otra invitación
+                ← Cerrar ficha de invitado
               </button>
             </div>
 
           </div>
+        </div>
+
+        {/* ESTADO VACÍO CUANDO NO HAY INVITADO SELECCIONADO */}
+        <div
+          id="empty-reception-card"
+          class="bg-white rounded-3xl border border-dashed border-stone-300 p-12 text-center space-y-3 shadow-2xs"
+        >
+          <div class="w-16 h-16 rounded-2xl bg-amber-50 text-amber-700 flex items-center justify-center text-3xl mx-auto shadow-inner border border-amber-200/60">
+            🎟️
+          </div>
+          <h3 class="text-lg font-serif-luxury font-bold text-stone-800">
+            Recepción Lista para Operar
+          </h3>
+          <p class="text-xs text-stone-500 max-w-sm mx-auto leading-relaxed">
+            Busca a un invitado por su nombre o teléfono, o escanea su código QR para desplegar su ficha de acceso y registrar la entrada de inmediato.
+          </p>
+        </div>
+
+      </div>
+
+      {/* COLUMNA DERECHA: MONITOREO DE ÚLTIMOS INGRESOS Y PENDIENTES (5 Cols) */}
+      <div class="lg:col-span-5 space-y-6">
+        
+        {/* PANEL CON PESTAÑAS */}
+        <div class="bg-white rounded-3xl border border-stone-200 shadow-sm overflow-hidden">
+          
+          {/* ENCABEZADO DE PESTAÑAS */}
+          <div class="flex border-b border-stone-200 bg-stone-50/60 p-1.5 gap-1.5">
+            <button
+              type="button"
+              id="tab-btn-ultimos"
+              class="flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition-all bg-white text-stone-900 shadow-2xs cursor-pointer"
+            >
+              <span>Últimos Ingresos</span>
+              <span id="tab-count-ultimos" class="ml-1 px-1.5 py-0.2 rounded-full text-[10px] bg-stone-100 text-stone-600">
+                {ultimosIngresosSSR.length}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              id="tab-btn-pendientes"
+              class="flex-1 py-2.5 px-3 rounded-xl text-xs font-semibold text-stone-500 hover:text-stone-900 transition-all cursor-pointer"
+            >
+              <span>Pendientes</span>
+              <span id="tab-count-pendientes" class="ml-1 px-1.5 py-0.2 rounded-full text-[10px] bg-stone-200/70 text-stone-600">
+                {pendientesLlegadaSSR.length}
+              </span>
+            </button>
+          </div>
+
+          {/* CONTENIDO PESTAÑA 1: ÚLTIMOS INGRESOS (Sección 7) */}
+          <div id="tab-content-ultimos" class="p-5 space-y-3">
+            <div class="flex items-center justify-between text-[11px] text-stone-400 font-semibold uppercase tracking-wider pb-1 border-b border-stone-100">
+              <span>Registro de llegada</span>
+              <span>Hora</span>
+            </div>
+
+            <div id="feed-ultimos-ingresos" class="space-y-2.5 max-h-[480px] overflow-y-auto pr-1">
+              {ultimosIngresosSSR.length === 0 ? (
+                <div class="py-12 text-center text-stone-400 space-y-1">
+                  <p class="text-xl">⏳</p>
+                  <p class="text-xs">Aún no hay ingresos registrados en este evento.</p>
+                </div>
+              ) : (
+                ultimosIngresosSSR.map((item) => (
+                  <div
+                    data-guest-id={item.invitado_id}
+                    class="feed-item p-3 rounded-2xl border border-stone-200/80 bg-stone-50/50 hover:bg-stone-50 hover:border-amber-300 transition-all cursor-pointer flex items-center justify-between gap-3 shadow-2xs"
+                  >
+                    <div class="space-y-0.5 min-w-0">
+                      <div class="flex items-center gap-2">
+                        <p class="font-bold text-xs text-stone-900 truncate">
+                          {item.invitado_nombre}
+                        </p>
+                        {item.mesa && (
+                          <span class="text-[10px] font-semibold bg-amber-50 text-amber-900 border border-amber-200/70 px-1.5 py-0.2 rounded-md shrink-0">
+                            {item.mesa}
+                          </span>
+                        )}
+                      </div>
+                      <p class="text-[11px] text-emerald-700 font-semibold flex items-center gap-1">
+                        <span>✓ Ingresaron {item.cantidad} {item.cantidad === 1 ? 'persona' : 'personas'}</span>
+                      </p>
+                    </div>
+                    <span class="font-mono text-xs font-bold text-stone-500 shrink-0 bg-white px-2 py-1 rounded-lg border border-stone-200">
+                      {item.hora}
+                    </span>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* CONTENIDO PESTAÑA 2: PENDIENTES DE LLEGADA */}
+          <div id="tab-content-pendientes" class="hidden p-5 space-y-3">
+            <div class="flex items-center justify-between text-[11px] text-stone-400 font-semibold uppercase tracking-wider pb-1 border-b border-stone-100">
+              <span>Invitados por llegar</span>
+              <span>Disponibles</span>
+            </div>
+
+            <div id="feed-pendientes-llegada" class="space-y-2 max-h-[480px] overflow-y-auto pr-1">
+              {pendientesLlegadaSSR.length === 0 ? (
+                <div class="py-12 text-center text-stone-400 space-y-1">
+                  <p class="text-xl">🎉</p>
+                  <p class="text-xs">¡Excelente! Todos los invitados confirmados ya han ingresado.</p>
+                </div>
+              ) : (
+                pendientesLlegadaSSR.map((item) => (
+                  <div
+                    data-guest-code={item.codigo}
+                    class="pending-item p-3 rounded-2xl border border-stone-200/80 bg-white hover:bg-stone-50 hover:border-amber-300 transition-all cursor-pointer flex items-center justify-between gap-3 shadow-2xs"
+                  >
+                    <div class="space-y-0.5 min-w-0">
+                      <div class="flex items-center gap-2">
+                        <p class="font-bold text-xs text-stone-900 truncate">
+                          {item.nombre}
+                        </p>
+                        {item.mesa && (
+                          <span class="text-[10px] font-semibold bg-stone-100 text-stone-700 px-1.5 py-0.2 rounded-md shrink-0">
+                            {item.mesa}
+                          </span>
+                        )}
+                      </div>
+                      <p class="text-[11px] text-stone-400">
+                        {item.pases_utilizados > 0 ? `${item.pases_utilizados} ya en salón` : 'Aún sin ingresar'}
+                      </p>
+                    </div>
+                    <span class="font-mono text-xs font-bold text-amber-900 bg-amber-50 px-2 py-1 rounded-lg border border-amber-200 shrink-0">
+                      {item.pases_disponibles} pases
+                    </span>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
         </div>
 
       </div>
@@ -521,69 +817,109 @@ const pasesRestantesEvento = Math.max(0, totalPasesConfirmados - totalIngresados
     </div>
 
   </div>
+
+  {/* CONTENEDOR DE TOAST NOTIFICATIONS (Esquina inferior derecha) */}
+  <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
 </AdminLayout>
 
-{/* SCRIPTS DE CONTROL DE ACCESO, SONIDOS Y ESCÁNER */}
+{/* SCRIPTS DE CONTROL EN TIEMPO REAL, POLLING CONTROLADO Y EVENT ENGINE */}
 <script is:inline>
   document.addEventListener('DOMContentLoaded', () => {
-    // 1. Elementos del DOM
+    // 1. Elementos Principales
     const eventoSelector = document.getElementById('evento-selector');
+    const btnManualRefresh = document.getElementById('btn-manual-refresh');
+    const refreshIcon = document.getElementById('refresh-icon');
+    const syncStatusBadge = document.getElementById('sync-status-badge');
+
+    // Métricas del Hero
+    const statConfirmados = document.getElementById('stat-confirmados');
+    const statIngresados = document.getElementById('stat-ingresados');
+    const statPorIngresar = document.getElementById('stat-por-ingresar');
+    const statPorcentaje = document.getElementById('stat-porcentaje');
+    const statProgressBar = document.getElementById('stat-progress-bar');
+    const statInvitadosConf = document.getElementById('stat-invitados-conf');
+    const statInvitadosIngresaron = document.getElementById('stat-invitados-ingresaron');
+    const statInvitadosPendientes = document.getElementById('stat-invitados-pendientes');
+    const statMaximos = document.getElementById('stat-maximos');
+    const statRsvpPendientes = document.getElementById('stat-rsvp-pendientes');
+    const statRechazados = document.getElementById('stat-rechazados');
+    const statPasesUtilizados = document.getElementById('stat-pases-utilizados');
+
+    // Búsqueda rápida y Cámara
+    const inputQuickSearch = document.getElementById('input-quick-search');
+    const btnClearInput = document.getElementById('btn-clear-input');
+    const searchResultsDropdown = document.getElementById('search-results-dropdown');
     const btnToggleCamera = document.getElementById('btn-toggle-camera');
     const btnCloseCamera = document.getElementById('btn-close-camera');
-    const btnCameraText = document.getElementById('btn-camera-text');
+    const btnCameraLabel = document.getElementById('btn-camera-label');
     const cameraBox = document.getElementById('camera-box');
     const qrReader = document.getElementById('qr-reader');
-    const formManualSearch = document.getElementById('form-manual-search');
-    const inputCodigo = document.getElementById('input-codigo');
-    const btnSearchManual = document.getElementById('btn-search-manual');
 
-    const cardEmptyState = document.getElementById('card-empty-state');
-    const cardGuestResult = document.getElementById('card-guest-result');
-    const feedbackContainer = document.getElementById('checkin-feedback-container');
-
+    // Ficha del Invitado
+    const guestCardContainer = document.getElementById('guest-card-container');
+    const emptyReceptionCard = document.getElementById('empty-reception-card');
     const guestName = document.getElementById('guest-name');
     const guestEventName = document.getElementById('guest-event-name');
     const guestCode = document.getElementById('guest-code');
-    const badgeRsvp = document.getElementById('badge-rsvp');
-    const badgeMesa = document.getElementById('badge-mesa');
+    const guestBadgeRsvp = document.getElementById('guest-badge-rsvp');
+    const guestBadgeEntryState = document.getElementById('guest-badge-entry-state');
+    const guestBadgeMesa = document.getElementById('guest-badge-mesa');
+    const guestLastEntryIndicator = document.getElementById('guest-last-entry-indicator');
+    const guestLastEntryTime = document.getElementById('guest-last-entry-time');
 
-    const statAsignados = document.getElementById('guest-stat-asignados');
-    const statConfirmados = document.getElementById('guest-stat-confirmados');
-    const statUtilizados = document.getElementById('guest-stat-utilizados');
-    const statDisponibles = document.getElementById('guest-stat-disponibles');
+    const cardPasesAsignados = document.getElementById('card-pases-asignados');
+    const cardPasesConfirmados = document.getElementById('card-pases-confirmados');
+    const cardPasesUtilizados = document.getElementById('card-pases-utilizados');
+    const cardPasesDisponibles = document.getElementById('card-pases-disponibles');
 
-    const sectionRsvpPending = document.getElementById('section-rsvp-pending');
-    const sectionRsvpDeclined = document.getElementById('section-rsvp-declined');
-    const sectionEntryComplete = document.getElementById('section-entry-complete');
-    const sectionRegisterEntry = document.getElementById('section-register-entry');
-    const qtyChipsContainer = document.getElementById('qty-chips-container');
-    const btnConfirmCheckin = document.getElementById('btn-confirm-checkin');
-    const btnConfirmCheckinLabel = document.getElementById('btn-confirm-checkin-label');
-    const sectionCheckinHistory = document.getElementById('section-checkin-history');
-    const checkinHistoryList = document.getElementById('checkin-history-list');
-    const btnClearSearch = document.getElementById('btn-clear-search');
+    const cardActionPending = document.getElementById('card-action-pending');
+    const cardActionDeclined = document.getElementById('card-action-declined');
+    const cardActionComplete = document.getElementById('card-action-complete');
+    const cardActionAvailable = document.getElementById('card-action-available');
+    const cardChipsContainer = document.getElementById('card-chips-container');
+    const btnRegisterCheckin = document.getElementById('btn-register-checkin');
+    const btnRegisterLabel = document.getElementById('btn-register-label');
+    const cardHistorySection = document.getElementById('card-history-section');
+    const cardHistoryList = document.getElementById('card-history-list');
+    const btnCloseGuestCard = document.getElementById('btn-close-guest-card');
 
-    // Métricas del encabezado
-    const metricIngresados = document.getElementById('metric-ingresados');
-    const metricRestantes = document.getElementById('metric-restantes');
-    const metricPorcentaje = document.getElementById('metric-porcentaje');
-    const metricProgressBar = document.getElementById('metric-progress-bar');
+    // Pestañas Laterales y Feeds
+    const tabBtnUltimos = document.getElementById('tab-btn-ultimos');
+    const tabBtnPendientes = document.getElementById('tab-btn-pendientes');
+    const tabContentUltimos = document.getElementById('tab-content-ultimos');
+    const tabContentPendientes = document.getElementById('tab-content-pendientes');
+    const tabCountUltimos = document.getElementById('tab-count-ultimos');
+    const tabCountPendientes = document.getElementById('tab-count-pendientes');
+    const feedUltimosIngresos = document.getElementById('feed-ultimos-ingresos');
+    const feedPendientesLlegada = document.getElementById('feed-pendientes-llegada');
+    const toastContainer = document.getElementById('toast-container');
+    const alertContainer = document.getElementById('reception-alert-container');
 
+    // Variables de Estado en Cliente
     let currentGuest = null;
     let selectedQuantity = 1;
+    let searchDebounceTimer = null;
+    let pollingInterval = null;
     let html5QrCodeScanner = null;
     let isCameraActive = false;
+    let knownCheckinIds = new Set();
 
-    // Selector de evento reactivo
+    // Inicializar IDs conocidos a partir de los elementos del DOM SSR
+    document.querySelectorAll('.feed-item').forEach((item) => {
+      const gid = item.getAttribute('data-guest-id');
+      if (gid) knownCheckinIds.add(Number(gid));
+    });
+
+    // 2. Selector de Evento: Cambio reactivo con limpieza total de estados
     if (eventoSelector) {
       eventoSelector.addEventListener('change', (e) => {
-        const val = e.target.value;
-        window.location.href = `/admin/checkin?evento_id=${val}`;
+        const evId = e.target.value;
+        window.location.href = `/admin/checkin?evento_id=${evId}`;
       });
     }
 
-    // Efectos de sonido Web Audio API (agradables, sin requerir mp3 externos)
-    const playAudioSuccess = () => {
+    // 3. Audio Chime Sintetizado (Web Audio API)
+    const playChime = () => {
       try {
         const ctx = new (window.AudioContext || window.webkitAudioContext)();
         const osc = ctx.createOscillator();
@@ -592,34 +928,40 @@ const pasesRestantesEvento = Math.max(0, totalPasesConfirmados - totalIngresados
         gain.connect(ctx.destination);
         osc.type = 'sine';
         osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
-        osc.frequency.setValueAtTime(880, ctx.currentTime + 0.1); // A5
-        gain.gain.setValueAtTime(0.2, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.35);
+        osc.frequency.setValueAtTime(880, ctx.currentTime + 0.08); // A5
+        gain.gain.setValueAtTime(0.15, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
         osc.start();
         osc.stop(ctx.currentTime + 0.35);
       } catch {}
     };
 
-    const playAudioError = () => {
-      try {
-        const ctx = new (window.AudioContext || window.webkitAudioContext)();
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(220, ctx.currentTime);
-        osc.frequency.setValueAtTime(164.81, ctx.currentTime + 0.1);
-        gain.gain.setValueAtTime(0.2, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.3);
-      } catch {}
+    // 4. Toast Notification No Bloqueante (Sección 8)
+    const showToast = (title, message) => {
+      if (!toastContainer) return;
+      const toast = document.createElement('div');
+      toast.className = 'pointer-events-auto bg-stone-900/95 text-white border border-stone-700/80 p-4 rounded-2xl shadow-xl flex items-center gap-3 animate-fade-in max-w-sm backdrop-blur-md';
+      toast.innerHTML = `
+        <span class="w-7 h-7 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 flex items-center justify-center font-bold text-xs shrink-0">✓</span>
+        <div class="space-y-0.5 text-xs">
+          <p class="font-bold text-amber-200">${title}</p>
+          <p class="text-stone-300">${message}</p>
+        </div>
+      `;
+      toastContainer.appendChild(toast);
+
+      setTimeout(() => {
+        toast.style.transition = 'opacity 0.4s ease, transform 0.4s ease';
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(8px)';
+        setTimeout(() => toast.remove(), 400);
+      }, 4500);
     };
 
-    // Función para mostrar feedback visual
-    const showFeedback = (type, message) => {
-      feedbackContainer.innerHTML = '';
+    // 5. Alerta fija en contenedor
+    const showAlert = (type, message) => {
+      if (!alertContainer) return;
+      alertContainer.innerHTML = '';
       const div = document.createElement('div');
       div.className = `p-4 rounded-2xl flex items-center justify-between gap-3 shadow-xs animate-fade-in ${
         type === 'success'
@@ -637,168 +979,147 @@ const pasesRestantesEvento = Math.max(0, totalPasesConfirmados - totalIngresados
         </div>
         <button type="button" class="text-stone-400 hover:text-stone-600 text-xs cursor-pointer" onclick="this.parentElement.remove()">✕</button>
       `;
-      feedbackContainer.appendChild(div);
-
-      if (type === 'success') {
-        playAudioSuccess();
-        if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
-      } else {
-        playAudioError();
-        if (navigator.vibrate) navigator.vibrate(200);
-      }
+      alertContainer.appendChild(div);
     };
 
-    // Limpiar pantalla y volver a estado inicial
-    const resetView = () => {
-      currentGuest = null;
-      cardGuestResult.classList.add('hidden');
-      cardEmptyState.classList.remove('hidden');
-      inputCodigo.value = '';
-      feedbackContainer.innerHTML = '';
-    };
+    // 6. Cambio de Pestañas Laterales
+    if (tabBtnUltimos && tabBtnPendientes) {
+      tabBtnUltimos.addEventListener('click', () => {
+        tabBtnUltimos.className = 'flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition-all bg-white text-stone-900 shadow-2xs cursor-pointer';
+        tabBtnPendientes.className = 'flex-1 py-2.5 px-3 rounded-xl text-xs font-semibold text-stone-500 hover:text-stone-900 transition-all cursor-pointer';
+        tabContentUltimos.classList.remove('hidden');
+        tabContentPendientes.classList.add('hidden');
+      });
 
-    if (btnClearSearch) {
-      btnClearSearch.addEventListener('click', resetView);
+      tabBtnPendientes.addEventListener('click', () => {
+        tabBtnPendientes.className = 'flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition-all bg-white text-stone-900 shadow-2xs cursor-pointer';
+        tabBtnUltimos.className = 'flex-1 py-2.5 px-3 rounded-xl text-xs font-semibold text-stone-500 hover:text-stone-900 transition-all cursor-pointer';
+        tabContentPendientes.classList.remove('hidden');
+        tabContentUltimos.classList.add('hidden');
+      });
     }
 
-    // Extraer código si el QR viene formateado como URL
-    const parseCode = (raw) => {
-      if (!raw) return '';
-      const trimmed = raw.trim();
-      try {
-        if (trimmed.includes('://') || trimmed.includes('/demo/')) {
-          const urlObj = new URL(trimmed, window.location.origin);
-          const fromParam = urlObj.searchParams.get('codigo');
-          if (fromParam) return fromParam.trim();
-        }
-      } catch {}
-      return trimmed;
-    };
-
-    // Buscar invitado mediante API SSR
-    const buscarInvitacion = async (codigoRaw) => {
-      const code = parseCode(codigoRaw);
-      if (!code) {
-        showFeedback('error', 'Por favor ingresa un código de invitación válido.');
-        return;
-      }
-
-      btnSearchManual.disabled = true;
-      btnSearchManual.innerHTML = `<span>⏳</span><span>Buscando...</span>`;
-      feedbackContainer.innerHTML = '';
-
-      const currentEvId = eventoSelector ? eventoSelector.value : '';
-
-      try {
-        const queryParams = new URLSearchParams({
-          codigo: code,
-          evento_id: currentEvId,
-        });
-
-        const res = await fetch(`/api/admin/checkin?${queryParams.toString()}`);
-        const result = await res.json();
-
-        if (!res.ok || !result.success) {
-          showFeedback('error', result.error || 'Invitación no encontrada.');
-          cardGuestResult.classList.add('hidden');
-          cardEmptyState.classList.remove('hidden');
-          return;
-        }
-
-        renderGuest(result.data);
-      } catch (err) {
-        console.error('[Checkin Lookup Error]:', err);
-        showFeedback('error', 'Error al conectar con el servidor. Intenta nuevamente.');
-      } finally {
-        btnSearchManual.disabled = false;
-        btnSearchManual.innerHTML = `<span>🔍</span><span>Buscar Invitación</span>`;
-      }
-    };
-
-    // Renderizar datos del invitado en la tarjeta
-    const renderGuest = (guest) => {
+    // 7. Renderizado de la Ficha del Invitado (Sección 11 y 12)
+    const renderGuestCard = (guest) => {
       currentGuest = guest;
-      cardEmptyState.classList.add('hidden');
-      cardGuestResult.classList.remove('hidden');
+      emptyReceptionCard.classList.add('hidden');
+      guestCardContainer.classList.remove('hidden');
 
-      // 1. Datos básicos
+      // Nombre, evento y código
       guestName.textContent = guest.nombre || 'Invitado';
-      guestEventName.textContent = guest.evento_nombre || 'Evento';
+      guestEventName.textContent = guest.evento_nombre || (eventoSelector ? eventoSelector.options[eventoSelector.selectedIndex].text : 'Evento');
       guestCode.textContent = guest.codigo || '—';
 
-      // 2. Mesa
+      // Mesa
       if (guest.mesa) {
-        badgeMesa.textContent = `🪑 ${guest.mesa}`;
-        badgeMesa.classList.remove('hidden');
+        guestBadgeMesa.textContent = `🪑 ${guest.mesa}`;
+        guestBadgeMesa.classList.remove('hidden');
       } else {
-        badgeMesa.classList.add('hidden');
+        guestBadgeMesa.classList.add('hidden');
       }
 
-      // 3. Estado de RSVP
+      // Último ingreso
+      if (guest.ultimo_ingreso) {
+        guestLastEntryTime.textContent = guest.ultimo_ingreso;
+        guestLastEntryIndicator.classList.remove('hidden');
+      } else {
+        guestLastEntryIndicator.classList.add('hidden');
+      }
+
+      // Estados de RSVP y Entrada
       const isConf = guest.confirmado === true || guest.confirmado === 'true';
       const isRech = guest.confirmado === false || guest.confirmado === 'false';
 
       if (isConf) {
-        badgeRsvp.className = 'px-2.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-300';
-        badgeRsvp.textContent = '✓ RSVP Confirmado';
+        guestBadgeRsvp.className = 'px-2.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-300';
+        guestBadgeRsvp.textContent = '✓ RSVP Confirmado';
       } else if (isRech) {
-        badgeRsvp.className = 'px-2.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-rose-100 text-rose-800 border border-rose-300';
-        badgeRsvp.textContent = '✕ No Asistirá';
+        guestBadgeRsvp.className = 'px-2.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-rose-100 text-rose-800 border border-rose-300';
+        guestBadgeRsvp.textContent = '✕ No Asistirá';
       } else {
-        badgeRsvp.className = 'px-2.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-amber-100 text-amber-900 border border-amber-300';
-        badgeRsvp.textContent = '⏳ RSVP Pendiente';
+        guestBadgeRsvp.className = 'px-2.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-amber-100 text-amber-900 border border-amber-300';
+        guestBadgeRsvp.textContent = '⏳ RSVP Pendiente';
       }
 
-      // 4. Métricas de capacidad
-      statAsignados.textContent = guest.numero_pases;
-      statConfirmados.textContent = guest.pases_confirmados;
-      statUtilizados.textContent = guest.pases_utilizados;
-      statDisponibles.textContent = guest.pases_disponibles;
+      // Badge de estado de entrada
+      if (!isConf && !isRech) {
+        guestBadgeEntryState.className = 'hidden';
+      } else if (isRech) {
+        guestBadgeEntryState.className = 'hidden';
+      } else if (guest.pases_utilizados === 0) {
+        guestBadgeEntryState.className = 'px-2.5 py-0.5 rounded-md text-[10px] font-semibold bg-stone-100 text-stone-700 border border-stone-200';
+        guestBadgeEntryState.textContent = 'Sin Entradas';
+      } else if (guest.pases_disponibles <= 0) {
+        guestBadgeEntryState.className = 'px-2.5 py-0.5 rounded-md text-[10px] font-bold bg-sky-100 text-sky-800 border border-sky-300';
+        guestBadgeEntryState.textContent = 'Entrada Completa';
+      } else {
+        guestBadgeEntryState.className = 'px-2.5 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-300';
+        guestBadgeEntryState.textContent = `${guest.pases_utilizados}/${guest.pases_confirmados} Ingresaron`;
+      }
 
-      // 5. Visibilidad de secciones condicionales
-      sectionRsvpPending.classList.add('hidden');
-      sectionRsvpDeclined.classList.add('hidden');
-      sectionEntryComplete.classList.add('hidden');
-      sectionRegisterEntry.classList.add('hidden');
+      // Tiles de Capacidad
+      cardPasesAsignados.textContent = guest.numero_pases;
+      cardPasesConfirmados.textContent = guest.pases_confirmados;
+      cardPasesUtilizados.textContent = guest.pases_utilizados;
+      cardPasesDisponibles.textContent = guest.pases_disponibles;
+
+      // Secciones de acción
+      cardActionPending.classList.add('hidden');
+      cardActionDeclined.classList.add('hidden');
+      cardActionComplete.classList.add('hidden');
+      cardActionAvailable.classList.add('hidden');
 
       if (!isConf && !isRech) {
-        // RSVP Pendiente
-        sectionRsvpPending.classList.remove('hidden');
+        cardActionPending.classList.remove('hidden');
       } else if (isRech) {
-        // Rechazado
-        sectionRsvpDeclined.classList.remove('hidden');
+        cardActionDeclined.classList.remove('hidden');
       } else if (guest.pases_disponibles <= 0) {
-        // Entrada completa
-        sectionEntryComplete.classList.remove('hidden');
+        cardActionComplete.classList.remove('hidden');
       } else {
-        // Confirmado y con lugares disponibles
-        sectionRegisterEntry.classList.remove('hidden');
+        cardActionAvailable.classList.remove('hidden');
         buildQuantityChips(guest.pases_disponibles);
       }
 
-      // 6. Historial de checkins de esta invitación
+      // Historial
       if (guest.historial && guest.historial.length > 0) {
-        sectionCheckinHistory.classList.remove('hidden');
-        checkinHistoryList.innerHTML = '';
-        guest.historial.forEach((item) => {
-          const dateObj = new Date(item.created_at);
-          const timeStr = dateObj.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+        cardHistorySection.classList.remove('hidden');
+        cardHistoryList.innerHTML = '';
+        guest.historial.forEach((h) => {
+          const dateObj = new Date(h.created_at);
+          const timeStr = dateObj.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false });
           const row = document.createElement('div');
           row.className = 'flex items-center justify-between p-2.5 rounded-xl bg-stone-50 border border-stone-200 text-xs';
           row.innerHTML = `
-            <span class="font-semibold text-stone-700">✓ Ingreso de ${item.cantidad} ${item.cantidad === 1 ? 'persona' : 'personas'}</span>
+            <span class="font-semibold text-stone-700">✓ Ingreso de ${h.cantidad} ${h.cantidad === 1 ? 'persona' : 'personas'}</span>
             <span class="font-mono text-stone-400 text-[11px]">${timeStr}</span>
           `;
-          checkinHistoryList.appendChild(row);
+          cardHistoryList.appendChild(row);
         });
       } else {
-        sectionCheckinHistory.classList.add('hidden');
+        cardHistorySection.classList.add('hidden');
+      }
+
+      // Scroll suave a la tarjeta en pantallas móviles
+      if (window.innerWidth < 1024) {
+        guestCardContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
     };
 
-    // Construir chips de cantidad (1 .. pases_disponibles)
+    // Cerrar Ficha del Invitado
+    if (btnCloseGuestCard) {
+      btnCloseGuestCard.addEventListener('click', () => {
+        currentGuest = null;
+        guestCardContainer.classList.add('hidden');
+        emptyReceptionCard.classList.remove('hidden');
+        if (inputQuickSearch) inputQuickSearch.value = '';
+        if (btnClearInput) btnClearInput.classList.add('hidden');
+        if (searchResultsDropdown) searchResultsDropdown.classList.add('hidden');
+      });
+    }
+
+    // 8. Construir Selector de Cantidad en Chips
     const buildQuantityChips = (max) => {
-      qtyChipsContainer.innerHTML = '';
+      cardChipsContainer.innerHTML = '';
       selectedQuantity = Math.min(1, max);
 
       const maxButtons = Math.min(max, 10);
@@ -815,14 +1136,14 @@ const pasesRestantesEvento = Math.max(0, totalPasesConfirmados - totalIngresados
           selectedQuantity = i;
           updateChipSelection();
         });
-        qtyChipsContainer.appendChild(btn);
+        cardChipsContainer.appendChild(btn);
       }
 
       updateChipSelection();
     };
 
     const updateChipSelection = () => {
-      const buttons = qtyChipsContainer.querySelectorAll('button');
+      const buttons = cardChipsContainer.querySelectorAll('button');
       buttons.forEach((b, idx) => {
         const val = idx + 1;
         if (val === selectedQuantity) {
@@ -831,17 +1152,19 @@ const pasesRestantesEvento = Math.max(0, totalPasesConfirmados - totalIngresados
           b.className = 'px-3.5 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer bg-white text-stone-700 border-stone-300 hover:bg-stone-50';
         }
       });
-      btnConfirmCheckinLabel.textContent = `Registrar Entrada (${selectedQuantity} ${selectedQuantity === 1 ? 'persona' : 'personas'})`;
+      if (btnRegisterLabel) {
+        btnRegisterLabel.textContent = `Registrar Entrada (${selectedQuantity} ${selectedQuantity === 1 ? 'persona' : 'personas'})`;
+      }
     };
 
-    // Enviar check-in al endpoint POST
+    // 9. Registrar Check-in (POST /api/admin/checkin)
     const ejecutarCheckin = async () => {
       if (!currentGuest || !currentGuest.codigo) return;
 
-      btnConfirmCheckin.disabled = true;
-      btnConfirmCheckin.innerHTML = `<span class="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin"></span><span>Registrando...</span>`;
+      btnRegisterCheckin.disabled = true;
+      btnRegisterCheckin.innerHTML = `<span class="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin"></span><span>Registrando...</span>`;
 
-      const currentEvId = eventoSelector ? eventoSelector.value : '';
+      const evId = eventoSelector ? eventoSelector.value : '';
 
       try {
         const res = await fetch('/api/admin/checkin', {
@@ -850,70 +1173,338 @@ const pasesRestantesEvento = Math.max(0, totalPasesConfirmados - totalIngresados
           body: JSON.stringify({
             codigo: currentGuest.codigo,
             cantidad: selectedQuantity,
-            evento_id: currentEvId,
+            evento_id: evId,
           }),
         });
 
         const result = await res.json();
 
         if (!res.ok || !result.success) {
-          showFeedback('error', result.error || 'No se pudo registrar la entrada.');
+          showAlert('error', result.error || 'No fue posible registrar la entrada.');
           return;
         }
 
         const data = result.data;
-        showFeedback(
+        playChime();
+        showAlert(
           'success',
-          `Entrada registrada: ${data.cantidad} ${data.cantidad === 1 ? 'persona ingresó' : 'personas ingresaron'}. Pases utilizados: ${data.pases_utilizados} de ${data.pases_confirmados} confirmados (${data.pases_disponibles} restantes).`
+          `Entrada registrada: ${data.cantidad} ${data.cantidad === 1 ? 'persona ingresó' : 'personas ingresaron'}. Pases utilizados: ${data.pases_utilizados}/${data.pases_confirmados}.`
+        );
+        showToast(
+          'Entrada Registrada',
+          `${data.nombre} (${data.cantidad} personas) • ${data.hora || 'Ahora'}`
         );
 
-        // Actualizar métricas del encabezado en vivo
-        if (metricIngresados) {
-          const prev = parseInt(metricIngresados.textContent || '0', 10);
-          metricIngresados.textContent = (prev + data.cantidad).toString();
-        }
-        if (metricRestantes) {
-          const prev = parseInt(metricRestantes.textContent || '0', 10);
-          metricRestantes.textContent = Math.max(0, prev - data.cantidad).toString();
-        }
+        // Recargar datos en vivo inmediatamente
+        await fetchLiveData(true);
 
-        // Recargar datos actualizados del invitado
-        await buscarInvitacion(currentGuest.codigo);
+        // Recargar ficha del invitado
+        await lookupByCode(currentGuest.codigo);
       } catch (err) {
         console.error('[Checkin POST Error]:', err);
-        showFeedback('error', 'Error al procesar el check-in. Verifica la conexión.');
+        showAlert('error', 'Error al procesar el check-in. Verifica la conexión.');
       } finally {
-        btnConfirmCheckin.disabled = false;
-        btnConfirmCheckin.innerHTML = `<span>🎟️</span><span id="btn-confirm-checkin-label">Registrar Entrada</span>`;
+        btnRegisterCheckin.disabled = false;
+        btnRegisterCheckin.innerHTML = `<span>🎟️</span><span id="btn-register-label">Registrar Entrada</span>`;
       }
     };
 
-    if (btnConfirmCheckin) {
-      btnConfirmCheckin.addEventListener('click', ejecutarCheckin);
+    if (btnRegisterCheckin) {
+      btnRegisterCheckin.addEventListener('click', ejecutarCheckin);
     }
 
-    // Manejo de formulario manual
-    if (formManualSearch) {
-      formManualSearch.addEventListener('submit', (e) => {
-        e.preventDefault();
-        const code = inputCodigo.value;
-        buscarInvitacion(code);
+    // 10. Consulta por Código Directo (GET /api/admin/checkin?codigo=...&evento_id=...)
+    const lookupByCode = async (code) => {
+      if (!code) return;
+      const evId = eventoSelector ? eventoSelector.value : '';
+
+      try {
+        const res = await fetch(`/api/admin/checkin?codigo=${encodeURIComponent(code)}&evento_id=${evId}`);
+        const result = await res.json();
+
+        if (!res.ok || !result.success) {
+          showAlert('error', result.error || 'Invitación no encontrada.');
+          return;
+        }
+
+        renderGuestCard(result.data);
+      } catch (err) {
+        console.error('[Lookup Code Error]:', err);
+        showAlert('error', 'Error al consultar invitación.');
+      }
+    };
+
+    // 11. Búsqueda Rápida Universal con Debounce (Sección 10)
+    if (inputQuickSearch) {
+      inputQuickSearch.addEventListener('input', (e) => {
+        const q = e.target.value.trim();
+        if (q.length > 0) {
+          btnClearInput.classList.remove('hidden');
+        } else {
+          btnClearInput.classList.add('hidden');
+          searchResultsDropdown.classList.add('hidden');
+          return;
+        }
+
+        clearTimeout(searchDebounceTimer);
+        searchDebounceTimer = setTimeout(async () => {
+          const evId = eventoSelector ? eventoSelector.value : '';
+          try {
+            const res = await fetch(`/api/admin/checkin?q=${encodeURIComponent(q)}&evento_id=${evId}`);
+            const result = await res.json();
+
+            if (!res.ok || !result.success || !result.data || result.data.length === 0) {
+              searchResultsDropdown.innerHTML = `
+                <div class="p-4 text-center text-xs text-stone-400">
+                  No se encontraron invitados que coincidan con "${q}".
+                </div>
+              `;
+              searchResultsDropdown.classList.remove('hidden');
+              return;
+            }
+
+            searchResultsDropdown.innerHTML = '';
+            result.data.forEach((inv) => {
+              const item = document.createElement('div');
+              item.className = 'p-3 hover:bg-stone-50 cursor-pointer flex items-center justify-between gap-3 transition-colors';
+
+              let badgeHtml = '';
+              if (inv.estado_checkin === 'rsvp_pendiente') {
+                badgeHtml = '<span class="text-[10px] font-bold bg-amber-100 text-amber-900 px-2 py-0.5 rounded-full">RSVP Pendiente</span>';
+              } else if (inv.estado_checkin === 'rechazado') {
+                badgeHtml = '<span class="text-[10px] font-bold bg-rose-100 text-rose-800 px-2 py-0.5 rounded-full">No Asistirá</span>';
+              } else if (inv.estado_checkin === 'entrada_completa') {
+                badgeHtml = '<span class="text-[10px] font-bold bg-sky-100 text-sky-800 px-2 py-0.5 rounded-full">Entrada Completa</span>';
+              } else {
+                badgeHtml = `<span class="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">${inv.pases_disponibles} Disp.</span>`;
+              }
+
+              item.innerHTML = `
+                <div class="space-y-0.5 min-w-0">
+                  <div class="flex items-center gap-2">
+                    <span class="font-bold text-xs text-stone-900">${inv.nombre}</span>
+                    ${inv.mesa ? `<span class="text-[10px] text-stone-500 bg-stone-100 px-1.5 py-0.2 rounded-md font-semibold">${inv.mesa}</span>` : ''}
+                  </div>
+                  <p class="text-[11px] text-stone-400 font-mono">Código: ${inv.codigo} ${inv.telefono ? `• Tel: ${inv.telefono}` : ''}</p>
+                </div>
+                ${badgeHtml}
+              `;
+
+              item.addEventListener('click', () => {
+                searchResultsDropdown.classList.add('hidden');
+                lookupByCode(inv.codigo);
+              });
+
+              searchResultsDropdown.appendChild(item);
+            });
+
+            searchResultsDropdown.classList.remove('hidden');
+          } catch (err) {
+            console.error('[Search Input Error]:', err);
+          }
+        }, 220);
+      });
+
+      // Cerrar dropdown al hacer click fuera
+      document.addEventListener('click', (e) => {
+        if (!searchResultsDropdown.contains(e.target) && e.target !== inputQuickSearch) {
+          searchResultsDropdown.classList.add('hidden');
+        }
       });
     }
 
-    // Manejo de cámara con Html5Qrcode
+    if (btnClearInput) {
+      btnClearInput.addEventListener('click', () => {
+        inputQuickSearch.value = '';
+        btnClearInput.classList.add('hidden');
+        searchResultsDropdown.classList.add('hidden');
+      });
+    }
+
+    // 12. Clicks en elementos del Feed Lateral (Últimos y Pendientes)
+    document.addEventListener('click', (e) => {
+      const pendingItem = e.target.closest('.pending-item');
+      if (pendingItem) {
+        const code = pendingItem.getAttribute('data-guest-code');
+        if (code) lookupByCode(code);
+        return;
+      }
+    });
+
+    // 13. Motor de Actualización en Tiempo Real y Polling Controlado (Sección 9)
+    const fetchLiveData = async (isManual = false) => {
+      const evId = eventoSelector ? eventoSelector.value : '';
+      if (!evId) return;
+
+      if (isManual && refreshIcon) {
+        refreshIcon.classList.add('animate-spin');
+      }
+
+      try {
+        const res = await fetch(`/api/admin/checkin?live=true&evento_id=${evId}`);
+        const result = await res.json();
+
+        if (res.ok && result.success && result.data) {
+          const { metricas: m, ultimos_ingresos: u, pendientes_llegada: p } = result.data;
+
+          // A. Actualizar métricas del hero
+          if (statConfirmados) statConfirmados.textContent = m.confirmados;
+          if (statIngresados) statIngresados.textContent = m.ingresados;
+          if (statPorIngresar) statPorIngresar.textContent = m.por_ingresar;
+          if (statPorcentaje) statPorcentaje.textContent = `${m.asistencia_porcentaje}%`;
+          if (statProgressBar) statProgressBar.style.width = `${Math.min(100, m.asistencia_porcentaje)}%`;
+          if (statInvitadosConf) statInvitadosConf.textContent = `${m.invitados_confirmados} familias`;
+          if (statInvitadosIngresaron) statInvitadosIngresaron.textContent = `${m.invitados_ingresaron} familias`;
+          if (statInvitadosPendientes) statInvitadosPendientes.textContent = `${m.invitados_pendientes_ingreso} familias`;
+          if (statMaximos) statMaximos.textContent = m.pases_maximos;
+          if (statRsvpPendientes) statRsvpPendientes.textContent = m.invitados_pendientes_rsvp;
+          if (statRechazados) statRechazados.textContent = m.invitados_rechazados;
+          if (statPasesUtilizados) statPasesUtilizados.textContent = m.pases_utilizados;
+
+          // B. Detectar nuevos checkins para notificación discreta
+          if (u && u.length > 0) {
+            const newestCheckin = u[0];
+            if (!knownCheckinIds.has(newestCheckin.id)) {
+              knownCheckinIds.add(newestCheckin.id);
+              if (!isManual) {
+                playChime();
+                showToast(
+                  'Nuevo Acceso Registrado',
+                  `${newestCheckin.invitado_nombre} (+${newestCheckin.cantidad} personas) • ${newestCheckin.hora}`
+                );
+              }
+            }
+          }
+
+          // C. Re-renderizar lista de últimos ingresos
+          if (feedUltimosIngresos && u) {
+            tabCountUltimos.textContent = u.length;
+            if (u.length === 0) {
+              feedUltimosIngresos.innerHTML = `
+                <div class="py-12 text-center text-stone-400 space-y-1">
+                  <p class="text-xl">⏳</p>
+                  <p class="text-xs">Aún no hay ingresos registrados en este evento.</p>
+                </div>
+              `;
+            } else {
+              feedUltimosIngresos.innerHTML = '';
+              u.forEach((item) => {
+                knownCheckinIds.add(item.id);
+                const div = document.createElement('div');
+                div.className = 'feed-item p-3 rounded-2xl border border-stone-200/80 bg-stone-50/50 hover:bg-stone-50 hover:border-amber-300 transition-all cursor-pointer flex items-center justify-between gap-3 shadow-2xs';
+                div.innerHTML = `
+                  <div class="space-y-0.5 min-w-0">
+                    <div class="flex items-center gap-2">
+                      <p class="font-bold text-xs text-stone-900 truncate">${item.invitado_nombre}</p>
+                      ${item.mesa ? `<span class="text-[10px] font-semibold bg-amber-50 text-amber-900 border border-amber-200/70 px-1.5 py-0.2 rounded-md shrink-0">${item.mesa}</span>` : ''}
+                    </div>
+                    <p class="text-[11px] text-emerald-700 font-semibold flex items-center gap-1">
+                      <span>✓ Ingresaron ${item.cantidad} ${item.cantidad === 1 ? 'persona' : 'personas'}</span>
+                    </p>
+                  </div>
+                  <span class="font-mono text-xs font-bold text-stone-500 shrink-0 bg-white px-2 py-1 rounded-lg border border-stone-200">
+                    ${item.hora}
+                  </span>
+                `;
+                feedUltimosIngresos.appendChild(div);
+              });
+            }
+          }
+
+          // D. Re-renderizar lista de pendientes de llegada
+          if (feedPendientesLlegada && p) {
+            tabCountPendientes.textContent = p.length;
+            if (p.length === 0) {
+              feedPendientesLlegada.innerHTML = `
+                <div class="py-12 text-center text-stone-400 space-y-1">
+                  <p class="text-xl">🎉</p>
+                  <p class="text-xs">¡Excelente! Todos los invitados confirmados ya han ingresado.</p>
+                </div>
+              `;
+            } else {
+              feedPendientesLlegada.innerHTML = '';
+              p.forEach((item) => {
+                const div = document.createElement('div');
+                div.setAttribute('data-guest-code', item.codigo);
+                div.className = 'pending-item p-3 rounded-2xl border border-stone-200/80 bg-white hover:bg-stone-50 hover:border-amber-300 transition-all cursor-pointer flex items-center justify-between gap-3 shadow-2xs';
+                div.innerHTML = `
+                  <div class="space-y-0.5 min-w-0">
+                    <div class="flex items-center gap-2">
+                      <p class="font-bold text-xs text-stone-900 truncate">${item.nombre}</p>
+                      ${item.mesa ? `<span class="text-[10px] font-semibold bg-stone-100 text-stone-700 px-1.5 py-0.2 rounded-md shrink-0">${item.mesa}</span>` : ''}
+                    </div>
+                    <p class="text-[11px] text-stone-400">${item.pases_utilizados > 0 ? `${item.pases_utilizados} ya en salón` : 'Aún sin ingresar'}</p>
+                  </div>
+                  <span class="font-mono text-xs font-bold text-amber-900 bg-amber-50 px-2 py-1 rounded-lg border border-amber-200 shrink-0">
+                    ${item.pases_disponibles} pases
+                  </span>
+                `;
+                feedPendientesLlegada.appendChild(div);
+              });
+            }
+          }
+
+          if (syncStatusBadge) {
+            syncStatusBadge.innerHTML = '<span>🟢 Sincronizado</span>';
+          }
+        }
+      } catch (err) {
+        console.error('[Live Polling Error]:', err);
+        if (syncStatusBadge) {
+          syncStatusBadge.innerHTML = '<span class="text-rose-600">🔴 Desconectado</span>';
+        }
+      } finally {
+        if (isManual && refreshIcon) {
+          setTimeout(() => refreshIcon.classList.remove('animate-spin'), 400);
+        }
+      }
+    };
+
+    if (btnManualRefresh) {
+      btnManualRefresh.addEventListener('click', () => fetchLiveData(true));
+    }
+
+    // Iniciar ciclo de polling controlado (cada 7 segundos)
+    const startPolling = () => {
+      if (pollingInterval) clearInterval(pollingInterval);
+      pollingInterval = setInterval(() => {
+        if (!document.hidden) {
+          fetchLiveData(false);
+        }
+      }, 7000);
+    };
+
+    const stopPolling = () => {
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
+        pollingInterval = null;
+      }
+    };
+
+    startPolling();
+
+    // Detener polling si la pestaña está oculta para ahorrar recursos
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        stopPolling();
+      } else {
+        fetchLiveData(false);
+        startPolling();
+      }
+    });
+
+    // 14. Manejo de Cámara QR (html5-qrcode)
     const startCamera = async () => {
       cameraBox.classList.remove('hidden');
-      btnCameraText.textContent = 'Cámara en ejecución...';
+      btnCameraLabel.textContent = 'Cerrar cámara';
       isCameraActive = true;
 
-      // Cargar script html5-qrcode dinámicamente si no existe
       if (!window.Html5Qrcode) {
         const script = document.createElement('script');
         script.src = 'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js';
         script.onload = () => initializeQrScanner();
         script.onerror = () => {
-          showFeedback('error', 'No fue posible cargar el escáner de cámara. Usa el código manual.');
+          showAlert('error', 'No fue posible cargar el escáner de cámara. Usa la búsqueda por texto.');
           stopCamera();
         };
         document.body.appendChild(script);
@@ -931,16 +1522,21 @@ const pasesRestantesEvento = Math.max(0, totalPasesConfirmados - totalIngresados
           { facingMode: "environment" },
           config,
           (decodedText) => {
-            // Código detectado con éxito
             stopCamera();
-            buscarInvitacion(decodedText);
+            let clean = decodedText.trim();
+            try {
+              if (clean.includes('://') || clean.includes('/demo/')) {
+                const urlObj = new URL(clean, window.location.origin);
+                const fromParam = urlObj.searchParams.get('codigo');
+                if (fromParam) clean = fromParam.trim();
+              }
+            } catch {}
+            lookupByCode(clean);
           },
-          () => {
-            // Frame sin QR (normal en cada frame)
-          }
+          () => {}
         ).catch((err) => {
           console.error('[Camera Start Error]:', err);
-          showFeedback('error', 'No se pudo acceder a la cámara. Revisa los permisos en tu navegador.');
+          showAlert('error', 'No se pudo acceder a la cámara. Revisa los permisos del navegador.');
           stopCamera();
         });
       } catch (err) {
@@ -958,16 +1554,13 @@ const pasesRestantesEvento = Math.max(0, totalPasesConfirmados - totalIngresados
       }
       isCameraActive = false;
       cameraBox.classList.add('hidden');
-      btnCameraText.textContent = 'Escanear Código QR con Cámara';
+      btnCameraLabel.textContent = 'Escanear QR';
     };
 
     if (btnToggleCamera) {
       btnToggleCamera.addEventListener('click', () => {
-        if (isCameraActive) {
-          stopCamera();
-        } else {
-          startCamera();
-        }
+        if (isCameraActive) stopCamera();
+        else startCamera();
       });
     }
 

@@ -133,7 +133,52 @@ export interface CheckinDetalleInvitado {
   pases_confirmados: number;
   pases_utilizados: number;
   pases_disponibles: number;
+  estado_checkin?: 'rsvp_pendiente' | 'rechazado' | 'sin_entradas' | 'entrada_parcial' | 'entrada_completa';
+  ultimo_ingreso?: string | null;
   mesa?: string | null;
   historial?: CheckinItem[];
+}
+
+export interface RecepcionMetricas {
+  confirmados: number;
+  ingresados: number;
+  por_ingresar: number;
+  asistencia_porcentaje: number;
+  pases_maximos: number;
+  invitados_confirmados: number;
+  invitados_pendientes_rsvp: number;
+  invitados_rechazados: number;
+  invitados_ingresaron: number;
+  invitados_pendientes_ingreso: number;
+  pases_utilizados: number;
+  pases_disponibles: number;
+}
+
+export interface CheckinFeedItem {
+  id: number;
+  evento_id: number;
+  invitado_id: number;
+  invitado_nombre: string;
+  cantidad: number;
+  created_at: string;
+  hora: string;
+  evento_nombre?: string;
+  mesa?: string | null;
+}
+
+export interface InvitadoBusquedaItem {
+  id: number;
+  evento_id: number;
+  nombre: string;
+  telefono?: string | null;
+  codigo: string;
+  confirmado: boolean | string | null;
+  numero_pases: number;
+  pases_confirmados: number;
+  pases_utilizados: number;
+  pases_disponibles: number;
+  estado_checkin: 'rsvp_pendiente' | 'rechazado' | 'sin_entradas' | 'entrada_parcial' | 'entrada_completa';
+  ultimo_ingreso?: string | null;
+  mesa?: string | null;
 }
 

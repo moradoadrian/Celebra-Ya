@@ -1,5 +1,6 @@
 import type { APIRoute } from 'astro';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
+import { isAdmin } from '@/lib/admin-auth';
 import {
   evaluarProgresoEvento,
   calcularMetricasProduccion,
@@ -27,7 +28,7 @@ export const GET: APIRoute = async (context) => {
     error: authError,
   } = await supabase.auth.getUser();
 
-  if (authError || !user) {
+  if (authError || !isAdmin(user)) {
     return new Response(
       JSON.stringify({
         success: false,
@@ -168,7 +169,7 @@ export const POST: APIRoute = async (context) => {
     error: authError,
   } = await supabase.auth.getUser();
 
-  if (authError || !user) {
+  if (authError || !isAdmin(user)) {
     return new Response(
       JSON.stringify({
         success: false,
@@ -349,7 +350,7 @@ export const PATCH: APIRoute = async (context) => {
     error: authError,
   } = await supabase.auth.getUser();
 
-  if (authError || !user) {
+  if (authError || !isAdmin(user)) {
     return new Response(
       JSON.stringify({ success: false, error: 'Sesión no autorizada.' }),
       { status: 401, headers: { 'Content-Type': 'application/json' } }

@@ -501,6 +501,10 @@ const formatTableDate = (dateStr?: string) => {
   <div id="toast-container" class="fixed bottom-6 right-6 z-50 flex flex-col gap-2 max-w-sm pointer-events-none"></div>
 
   <script is:inline>
+    // Escapa texto antes de interpolarlo en innerHTML (los mensajes pueden incluir datos de la BD)
+    const escapeHtml = (value) =>
+      String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+
     document.addEventListener('DOMContentLoaded', () => {
       // Helper: Toasts
       function showToast(message, type = 'success') {
@@ -515,7 +519,7 @@ const formatTableDate = (dateStr?: string) => {
         }`;
 
         const icon = type === 'success' ? '✓' : '✕';
-        toast.innerHTML = `<span class="w-5 h-5 rounded-full bg-white/15 flex items-center justify-center font-bold text-[10px] shrink-0">${icon}</span><span>${message}</span>`;
+        toast.innerHTML = `<span class="w-5 h-5 rounded-full bg-white/15 flex items-center justify-center font-bold text-[10px] shrink-0">${icon}</span><span>${escapeHtml(message)}</span>`;
 
         container.appendChild(toast);
         setTimeout(() => {

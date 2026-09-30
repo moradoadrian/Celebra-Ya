@@ -1,5 +1,6 @@
 import type { APIRoute } from 'astro';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
+import { isAdmin } from '@/lib/admin-auth';
 
 // Helper para formatear horas en formato militar/estándar HH:mm
 const formatTimeHHMM = (isoString?: string | null) => {
@@ -33,7 +34,7 @@ export const GET: APIRoute = async (context) => {
     error: authError,
   } = await supabase.auth.getUser();
 
-  if (authError || !user) {
+  if (authError || !isAdmin(user)) {
     return new Response(
       JSON.stringify({ success: false, error: 'Sesión no autorizada. Inicia sesión nuevamente.' }),
       { status: 401, headers: { 'Content-Type': 'application/json' } }
@@ -527,7 +528,7 @@ export const POST: APIRoute = async (context) => {
     error: authError,
   } = await supabase.auth.getUser();
 
-  if (authError || !user) {
+  if (authError || !isAdmin(user)) {
     return new Response(
       JSON.stringify({ success: false, error: 'Sesión no autorizada. Inicia sesión nuevamente.' }),
       { status: 401, headers: { 'Content-Type': 'application/json' } }

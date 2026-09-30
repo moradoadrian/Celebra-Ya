@@ -1,6 +1,7 @@
 ---
 import Layout from '@/layouts/Layout.astro';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
+import { isAdmin } from '@/lib/admin-auth';
 
 let errorMessage = '';
 
@@ -25,6 +26,10 @@ if (Astro.request.method === 'POST') {
 
       if (error) {
         errorMessage = 'Credenciales inválidas. Verifica tu correo y contraseña.';
+      } else if (data.session && !isAdmin(data.user)) {
+        // Credenciales válidas pero sin rol de administrador: no dejar la sesión abierta
+        await supabase.auth.signOut();
+        errorMessage = 'Tu cuenta no tiene permisos de administrador.';
       } else if (data.session) {
         return Astro.redirect('/admin');
       }

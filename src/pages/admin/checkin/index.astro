@@ -824,6 +824,10 @@ if (eventId) {
 
 {/* SCRIPTS DE CONTROL EN TIEMPO REAL, POLLING CONTROLADO Y EVENT ENGINE */}
 <script is:inline>
+  // Escapa texto antes de interpolarlo en innerHTML (nombres, códigos y mensajes vienen de la BD)
+  const escapeHtml = (value) =>
+    String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+
   document.addEventListener('DOMContentLoaded', () => {
     // 1. Elementos Principales
     const eventoSelector = document.getElementById('evento-selector');
@@ -944,8 +948,8 @@ if (eventId) {
       toast.innerHTML = `
         <span class="w-7 h-7 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 flex items-center justify-center font-bold text-xs shrink-0">✓</span>
         <div class="space-y-0.5 text-xs">
-          <p class="font-bold text-amber-200">${title}</p>
-          <p class="text-stone-300">${message}</p>
+          <p class="font-bold text-amber-200">${escapeHtml(title)}</p>
+          <p class="text-stone-300">${escapeHtml(message)}</p>
         </div>
       `;
       toastContainer.appendChild(toast);
@@ -975,7 +979,7 @@ if (eventId) {
           }">
             ${type === 'success' ? '✓' : '✕'}
           </span>
-          <span>${message}</span>
+          <span>${escapeHtml(message)}</span>
         </div>
         <button type="button" class="text-stone-400 hover:text-stone-600 text-xs cursor-pointer" onclick="this.parentElement.remove()">✕</button>
       `;
@@ -1256,7 +1260,7 @@ if (eventId) {
             if (!res.ok || !result.success || !result.data || result.data.length === 0) {
               searchResultsDropdown.innerHTML = `
                 <div class="p-4 text-center text-xs text-stone-400">
-                  No se encontraron invitados que coincidan con "${q}".
+                  No se encontraron invitados que coincidan con "${escapeHtml(q)}".
                 </div>
               `;
               searchResultsDropdown.classList.remove('hidden');
@@ -1282,10 +1286,10 @@ if (eventId) {
               item.innerHTML = `
                 <div class="space-y-0.5 min-w-0">
                   <div class="flex items-center gap-2">
-                    <span class="font-bold text-xs text-stone-900">${inv.nombre}</span>
-                    ${inv.mesa ? `<span class="text-[10px] text-stone-500 bg-stone-100 px-1.5 py-0.2 rounded-md font-semibold">${inv.mesa}</span>` : ''}
+                    <span class="font-bold text-xs text-stone-900">${escapeHtml(inv.nombre)}</span>
+                    ${inv.mesa ? `<span class="text-[10px] text-stone-500 bg-stone-100 px-1.5 py-0.2 rounded-md font-semibold">${escapeHtml(inv.mesa)}</span>` : ''}
                   </div>
-                  <p class="text-[11px] text-stone-400 font-mono">Código: ${inv.codigo} ${inv.telefono ? `• Tel: ${inv.telefono}` : ''}</p>
+                  <p class="text-[11px] text-stone-400 font-mono">Código: ${escapeHtml(inv.codigo)} ${inv.telefono ? `• Tel: ${escapeHtml(inv.telefono)}` : ''}</p>
                 </div>
                 ${badgeHtml}
               `;
@@ -1395,15 +1399,15 @@ if (eventId) {
                 div.innerHTML = `
                   <div class="space-y-0.5 min-w-0">
                     <div class="flex items-center gap-2">
-                      <p class="font-bold text-xs text-stone-900 truncate">${item.invitado_nombre}</p>
-                      ${item.mesa ? `<span class="text-[10px] font-semibold bg-amber-50 text-amber-900 border border-amber-200/70 px-1.5 py-0.2 rounded-md shrink-0">${item.mesa}</span>` : ''}
+                      <p class="font-bold text-xs text-stone-900 truncate">${escapeHtml(item.invitado_nombre)}</p>
+                      ${item.mesa ? `<span class="text-[10px] font-semibold bg-amber-50 text-amber-900 border border-amber-200/70 px-1.5 py-0.2 rounded-md shrink-0">${escapeHtml(item.mesa)}</span>` : ''}
                     </div>
                     <p class="text-[11px] text-emerald-700 font-semibold flex items-center gap-1">
                       <span>✓ Ingresaron ${item.cantidad} ${item.cantidad === 1 ? 'persona' : 'personas'}</span>
                     </p>
                   </div>
                   <span class="font-mono text-xs font-bold text-stone-500 shrink-0 bg-white px-2 py-1 rounded-lg border border-stone-200">
-                    ${item.hora}
+                    ${escapeHtml(item.hora)}
                   </span>
                 `;
                 feedUltimosIngresos.appendChild(div);
@@ -1430,8 +1434,8 @@ if (eventId) {
                 div.innerHTML = `
                   <div class="space-y-0.5 min-w-0">
                     <div class="flex items-center gap-2">
-                      <p class="font-bold text-xs text-stone-900 truncate">${item.nombre}</p>
-                      ${item.mesa ? `<span class="text-[10px] font-semibold bg-stone-100 text-stone-700 px-1.5 py-0.2 rounded-md shrink-0">${item.mesa}</span>` : ''}
+                      <p class="font-bold text-xs text-stone-900 truncate">${escapeHtml(item.nombre)}</p>
+                      ${item.mesa ? `<span class="text-[10px] font-semibold bg-stone-100 text-stone-700 px-1.5 py-0.2 rounded-md shrink-0">${escapeHtml(item.mesa)}</span>` : ''}
                     </div>
                     <p class="text-[11px] text-stone-400">${item.pases_utilizados > 0 ? `${item.pases_utilizados} ya en salón` : 'Aún sin ingresar'}</p>
                   </div>

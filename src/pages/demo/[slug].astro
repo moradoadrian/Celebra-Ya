@@ -47,11 +47,11 @@ let codigoInvalido = false;
 
 if (codigoParam) {
   try {
-    const { data: invData, error: invError } = await supabase
-      .from('invitados')
-      .select('*')
-      .eq('codigo', codigoParam)
-      .maybeSingle();
+    // RPC acotada al evento: el rol anon no tiene acceso directo a public.invitados
+    const { data: invData, error: invError } = await supabase.rpc('obtener_invitacion', {
+      p_codigo: codigoParam,
+      p_evento_id: evento.id,
+    });
 
     // Validar existencia y aislamiento por evento_id
     if (invError || !invData || invData.evento_id !== evento.id) {

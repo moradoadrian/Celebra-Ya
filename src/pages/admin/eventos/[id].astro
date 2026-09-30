@@ -1144,6 +1144,10 @@ const clienteAsignado = evento?.cliente_id
 
     {/* CLIENT-SIDE ENHANCEMENT: ENVÍO ASÍNCRONO SIN PÉRDIDA DE DATOS Y PREVIEW DINÁMICO */}
     <script is:inline>
+      // Escapa texto antes de interpolarlo en innerHTML (los mensajes pueden incluir datos de la BD)
+      const escapeHtml = (value) =>
+        String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+
       document.addEventListener('DOMContentLoaded', () => {
         const form = document.getElementById('event-form');
         const submitBtn = document.getElementById('submit-btn');
@@ -1212,7 +1216,7 @@ const clienteAsignado = evento?.cliente_id
                     <div class="flex items-center gap-3">
                       <span class="w-7 h-7 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold text-sm shrink-0">✓</span>
                       <div>
-                        <p class="text-xs sm:text-sm font-semibold">${result.message || 'Evento actualizado correctamente.'}</p>
+                        <p class="text-xs sm:text-sm font-semibold">${escapeHtml(result.message || 'Evento actualizado correctamente.')}</p>
                         <p class="text-[11px] text-emerald-700">Los cambios ya están reflejados en la base de datos.</p>
                       </div>
                     </div>
@@ -1232,7 +1236,7 @@ const clienteAsignado = evento?.cliente_id
                       <span class="w-7 h-7 rounded-full bg-rose-500 text-white flex items-center justify-center font-bold text-sm shrink-0">✕</span>
                       <div>
                         <p class="text-xs sm:text-sm font-semibold">No pudimos guardar los cambios.</p>
-                        <p class="text-[11px] text-rose-700">${result.error || 'Verifica los campos ingresados e intenta nuevamente.'}</p>
+                        <p class="text-[11px] text-rose-700">${escapeHtml(result.error || 'Verifica los campos ingresados e intenta nuevamente.')}</p>
                       </div>
                     </div>
                   </div>

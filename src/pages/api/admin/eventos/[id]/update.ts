@@ -1,5 +1,6 @@
 import type { APIRoute } from 'astro';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
+import { isAdmin } from '@/lib/admin-auth';
 import { validarRequisitosPublicacion } from '@/lib/event-production';
 import type { Evento } from '@/types';
 
@@ -52,7 +53,7 @@ export const POST: APIRoute = async (context) => {
     error: authError,
   } = await supabase.auth.getUser();
 
-  if (authError || !user) {
+  if (authError || !isAdmin(user)) {
     const accept = request.headers.get('accept') || '';
     if (accept.includes('text/html')) {
       return context.redirect('/admin/login');

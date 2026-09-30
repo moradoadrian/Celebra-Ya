@@ -114,6 +114,8 @@ ALTER TABLE public.invitados ADD CONSTRAINT check_pases_confirmados_non_negative
   CHECK (pases_confirmados IS NULL OR pases_confirmados >= 0);
 
 -- 3. Otorgar permisos sobre la tabla
+-- ⚠️ Los permisos anon y las políticas "USING (true)" de esta fase quedaron
+--    reemplazados por la FASE 25 (acceso público solo vía funciones RPC).
 -- Administrador autenticado: lectura, inserción, actualización, eliminación
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.invitados TO authenticated;
 -- Invitados públicos (anon): lectura y actualización de confirmación RSVP
@@ -407,5 +409,315 @@ FOR ALL
 TO authenticated
 USING (true)
 WITH CHECK (true);
+
+-- ==============================================================================
+-- FASE 25: ENDURECIMIENTO DE SEGURIDAD (ROL ADMIN, RLS DE INVITADOS, RPC)
+-- Reemplaza las políticas permisivas de las fases 16, 17, 18 y 20.
+-- Aplicar en el SQL Editor de Supabase. Es idempotente.
+--
+-- ANTES de aplicar (o inmediatamente después), marca tu cuenta como administradora
+-- o perderás el acceso al panel (ver paso 0). Después cierra sesión y vuelve a entrar
+-- para que el JWT incluya el rol.
+-- ==============================================================================
+
+-- 0. Asignar rol admin a las cuentas administradoras (app_metadata solo es editable
+--    con privilegios de servidor, el usuario no puede modificarlo desde el cliente).
+--    Reemplaza el correo y ejecuta una vez por cada administrador:
+-- UPDATE auth.users
+--   SET raw_app_meta_data = COALESCE(raw_app_meta_data, '{}'::jsonb) || '{"role": "admin"}'::jsonb
+--   WHERE email = 'TU_CORREO_ADMIN@ejemplo.com';
+
+-- 1. Función auxiliar: ¿el JWT actual pertenece a un administrador?
+--    Debe coincidir con isAdmin() en src/lib/admin-auth.ts
+CREATE OR REPLACE FUNCTION public.is_admin()
+RETURNS BOOLEAN
+LANGUAGE sql
+STABLE
+SET search_path = ''
+AS $$
+  SELECT COALESCE(auth.jwt() -> 'app_metadata' ->> 'role', '') = 'admin';
+$$;
+
+GRANT EXECUTE ON FUNCTION public.is_admin() TO anon, authenticated;
+
+-- 2. public.invitados: el rol anon ya no tiene acceso directo a la tabla.
+--    La invitación pública y el RSVP pasan por las funciones del paso 5.
+DROP POLICY IF EXISTS "Permitir lectura publica de invitado por codigo" ON public.invitados;
+DROP POLICY IF EXISTS "Permitir actualizacion RSVP de invitado por codigo" ON public.invitados;
+REVOKE ALL ON public.invitados FROM anon;
+
+-- 3. Tablas administrativas: acceso total solo para administradores
+DROP POLICY IF EXISTS "Permitir gestion total de invitados a usuarios autenticados" ON public.invitados;
+DROP POLICY IF EXISTS "Solo administradores gestionan invitados" ON public.invitados;
+CREATE POLICY "Solo administradores gestionan invitados"
+ON public.invitados FOR ALL TO authenticated
+USING (public.is_admin()) WITH CHECK (public.is_admin());
+
+DROP POLICY IF EXISTS "Permitir gestion total de mesas a usuarios autenticados" ON public.mesas;
+DROP POLICY IF EXISTS "Solo administradores gestionan mesas" ON public.mesas;
+CREATE POLICY "Solo administradores gestionan mesas"
+ON public.mesas FOR ALL TO authenticated
+USING (public.is_admin()) WITH CHECK (public.is_admin());
+
+DROP POLICY IF EXISTS "Permitir gestion total de mesa_invitados a usuarios autenticados" ON public.mesa_invitados;
+DROP POLICY IF EXISTS "Solo administradores gestionan mesa_invitados" ON public.mesa_invitados;
+CREATE POLICY "Solo administradores gestionan mesa_invitados"
+ON public.mesa_invitados FOR ALL TO authenticated
+USING (public.is_admin()) WITH CHECK (public.is_admin());
+
+DROP POLICY IF EXISTS "Permitir gestion total de checkins a usuarios autenticados" ON public.checkins;
+DROP POLICY IF EXISTS "Solo administradores gestionan checkins" ON public.checkins;
+CREATE POLICY "Solo administradores gestionan checkins"
+ON public.checkins FOR ALL TO authenticated
+USING (public.is_admin()) WITH CHECK (public.is_admin());
+
+DROP POLICY IF EXISTS "Permitir gestion total de clientes a usuarios autenticados" ON public.clientes;
+DROP POLICY IF EXISTS "Solo administradores gestionan clientes" ON public.clientes;
+CREATE POLICY "Solo administradores gestionan clientes"
+ON public.clientes FOR ALL TO authenticated
+USING (public.is_admin()) WITH CHECK (public.is_admin());
+
+-- 4. Tablas de contenido cuyas políticas de escritura no están en este archivo:
+--    una política RESTRICTIVA se combina con AND sobre las permisivas existentes,
+--    así que un usuario autenticado sin rol admin queda bloqueado sin importar
+--    qué políticas se hayan creado desde el dashboard. (Solo tiene efecto si RLS
+--    está habilitado en la tabla: ver la consulta de diagnóstico al final.)
+DO $$
+DECLARE
+  t TEXT;
+BEGIN
+  FOREACH t IN ARRAY ARRAY['eventos', 'ubicaciones', 'programa_evento', 'galeria', 'historias', 'mesa_regalos']
+  LOOP
+    EXECUTE format('DROP POLICY IF EXISTS "Restringir autenticados a administradores" ON public.%I', t);
+    EXECUTE format(
+      'CREATE POLICY "Restringir autenticados a administradores" ON public.%I
+         AS RESTRICTIVE FOR ALL TO authenticated
+         USING (public.is_admin()) WITH CHECK (public.is_admin())',
+      t
+    );
+  END LOOP;
+END $$;
+
+-- 5. Funciones públicas para la invitación (reemplazan el acceso anon a invitados)
+
+-- 5.A Consulta de una invitación por código dentro de un evento publicado.
+--     Devuelve solo los campos que necesita el pase digital (sin teléfono).
+CREATE OR REPLACE FUNCTION public.obtener_invitacion(
+    p_codigo TEXT,
+    p_evento_id BIGINT
+)
+RETURNS JSON
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_invitado RECORD;
+BEGIN
+    IF p_codigo IS NULL OR btrim(p_codigo) = '' OR p_evento_id IS NULL THEN
+        RETURN NULL;
+    END IF;
+
+    SELECT i.id, i.evento_id, i.nombre, i.numero_pases, i.confirmado, i.pases_confirmados, i.codigo
+    INTO v_invitado
+    FROM public.invitados i
+    JOIN public.eventos e ON e.id = i.evento_id
+    WHERE i.codigo = btrim(p_codigo)
+      AND i.evento_id = p_evento_id
+      AND e.estado = 'true'
+    LIMIT 1;
+
+    IF NOT FOUND THEN
+        RETURN NULL;
+    END IF;
+
+    RETURN row_to_json(v_invitado);
+END;
+$$;
+
+-- 5.B Registro de RSVP: solo modifica confirmado y pases_confirmados del invitado
+--     cuyo código y evento coinciden, con las reglas de pases aplicadas en la BD.
+CREATE OR REPLACE FUNCTION public.responder_rsvp(
+    p_codigo TEXT,
+    p_evento_id BIGINT,
+    p_confirmado BOOLEAN,
+    p_pases INTEGER
+)
+RETURNS JSON
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_invitado RECORD;
+    v_max_pases INTEGER;
+    v_pases INTEGER;
+BEGIN
+    IF p_codigo IS NULL OR btrim(p_codigo) = '' OR p_evento_id IS NULL OR p_confirmado IS NULL THEN
+        RETURN json_build_object('success', false, 'status', 400, 'error', 'Datos de confirmación incompletos.');
+    END IF;
+
+    SELECT i.* INTO v_invitado
+    FROM public.invitados i
+    JOIN public.eventos e ON e.id = i.evento_id
+    WHERE i.codigo = btrim(p_codigo)
+      AND i.evento_id = p_evento_id
+      AND e.estado = 'true'
+    LIMIT 1
+    FOR UPDATE OF i;
+
+    IF NOT FOUND THEN
+        RETURN json_build_object('success', false, 'status', 404, 'error', 'Invitación no encontrada con el código proporcionado.');
+    END IF;
+
+    v_max_pases := GREATEST(1, COALESCE(v_invitado.numero_pases, 1));
+
+    IF p_confirmado THEN
+        IF p_pases IS NULL OR p_pases < 1 THEN
+            RETURN json_build_object('success', false, 'status', 400, 'error', 'Para confirmar asistencia, la cantidad de personas debe ser de al menos 1.');
+        END IF;
+        IF p_pases > v_max_pases THEN
+            RETURN json_build_object('success', false, 'status', 400, 'error',
+                format('La cantidad de personas solicitada (%s) supera el máximo permitido de pases asignados (%s).', p_pases, v_max_pases));
+        END IF;
+        v_pases := p_pases;
+    ELSE
+        v_pases := 0;
+    END IF;
+
+    UPDATE public.invitados
+    SET confirmado = p_confirmado,
+        pases_confirmados = v_pases
+    WHERE id = v_invitado.id;
+
+    RETURN json_build_object(
+        'success', true,
+        'status', 200,
+        'data', json_build_object(
+            'id', v_invitado.id,
+            'nombre', v_invitado.nombre,
+            'confirmado', p_confirmado,
+            'pases_confirmados', v_pases,
+            'numero_pases', v_max_pases
+        )
+    );
+END;
+$$;
+
+-- Supabase concede EXECUTE a anon/authenticated por defecto en funciones nuevas:
+-- se revoca todo y se concede explícitamente solo lo necesario.
+REVOKE ALL ON FUNCTION public.obtener_invitacion(TEXT, BIGINT) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.responder_rsvp(TEXT, BIGINT, BOOLEAN, INTEGER) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.obtener_invitacion(TEXT, BIGINT) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.responder_rsvp(TEXT, BIGINT, BOOLEAN, INTEGER) TO anon, authenticated;
+
+-- 6. registrar_checkin: exige rol admin, fija search_path y deja de ser ejecutable
+--    por anon (antes heredaba EXECUTE de PUBLIC y era SECURITY DEFINER).
+CREATE OR REPLACE FUNCTION public.registrar_checkin(
+    p_codigo TEXT,
+    p_cantidad INTEGER,
+    p_evento_id BIGINT DEFAULT NULL
+)
+RETURNS JSON
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_invitado RECORD;
+    v_pases_utilizados INTEGER;
+    v_pases_disponibles INTEGER;
+    v_checkin_id BIGINT;
+BEGIN
+    -- SECURITY DEFINER ignora RLS: validar explícitamente el rol del llamador
+    IF NOT public.is_admin() THEN
+        RETURN json_build_object('success', false, 'status', 403, 'error', 'Acceso denegado: se requiere rol de administrador.');
+    END IF;
+
+    -- Validar cantidad
+    IF p_cantidad IS NULL OR p_cantidad <= 0 THEN
+        RETURN json_build_object('success', false, 'status', 400, 'error', 'La cantidad debe ser un entero mayor a 0.');
+    END IF;
+
+    -- Bloquear y obtener al invitado para evitar condiciones de carrera (FOR UPDATE)
+    SELECT * INTO v_invitado
+    FROM public.invitados
+    WHERE UPPER(TRIM(codigo)) = UPPER(TRIM(p_codigo))
+    FOR UPDATE;
+
+    IF NOT FOUND THEN
+        RETURN json_build_object('success', false, 'status', 404, 'error', 'Invitación no encontrada. El código no corresponde a un invitado válido.');
+    END IF;
+
+    -- Validar aislamiento por evento
+    IF p_evento_id IS NOT NULL AND v_invitado.evento_id <> p_evento_id THEN
+        RETURN json_build_object('success', false, 'status', 403, 'error', 'El invitado no pertenece al evento especificado.');
+    END IF;
+
+    -- Validar RSVP
+    IF v_invitado.confirmado IS NULL THEN
+        RETURN json_build_object('success', false, 'status', 409, 'error', 'RSVP pendiente: Este invitado todavía no ha confirmado su asistencia.');
+    END IF;
+
+    IF v_invitado.confirmado = false THEN
+        RETURN json_build_object('success', false, 'status', 409, 'error', 'Invitación rechazada: El invitado indicó que no asistirá.');
+    END IF;
+
+    -- Validar pases confirmados
+    IF v_invitado.pases_confirmados IS NULL OR v_invitado.pases_confirmados <= 0 THEN
+        RETURN json_build_object('success', false, 'status', 409, 'error', 'El invitado no cuenta con pases confirmados.');
+    END IF;
+
+    -- Calcular pases ya utilizados
+    SELECT COALESCE(SUM(cantidad), 0) INTO v_pases_utilizados
+    FROM public.checkins
+    WHERE invitado_id = v_invitado.id;
+
+    v_pases_disponibles := v_invitado.pases_confirmados - v_pases_utilizados;
+
+    IF v_pases_disponibles <= 0 THEN
+        RETURN json_build_object('success', false, 'status', 400, 'error', 'Entrada completa: Todos los pases confirmados ya fueron utilizados.');
+    END IF;
+
+    IF p_cantidad > v_pases_disponibles THEN
+        RETURN json_build_object(
+            'success', false,
+            'status', 400,
+            'error', format('No es posible registrar %s personas. Solo quedan %s pases disponibles.', p_cantidad, v_pases_disponibles)
+        );
+    END IF;
+
+    -- Insertar registro en checkins
+    INSERT INTO public.checkins (evento_id, invitado_id, cantidad)
+    VALUES (v_invitado.evento_id, v_invitado.id, p_cantidad)
+    RETURNING id INTO v_checkin_id;
+
+    -- Retornar resultado exitoso con métricas actualizadas
+    RETURN json_build_object(
+        'success', true,
+        'status', 200,
+        'message', 'Entrada registrada correctamente.',
+        'data', json_build_object(
+            'checkin_id', v_checkin_id,
+            'invitado_id', v_invitado.id,
+            'nombre', v_invitado.nombre,
+            'evento_id', v_invitado.evento_id,
+            'cantidad', p_cantidad,
+            'pases_confirmados', v_invitado.pases_confirmados,
+            'pases_utilizados', v_pases_utilizados + p_cantidad,
+            'pases_disponibles', v_pases_disponibles - p_cantidad
+        )
+    );
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.registrar_checkin(TEXT, INTEGER, BIGINT) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.registrar_checkin(TEXT, INTEGER, BIGINT) TO authenticated;
+
+-- 7. Diagnóstico (solo lectura): verifica que RLS esté habilitado y revisa las políticas.
+--    Cualquier tabla con rowsecurity = false ignora TODAS las políticas anteriores.
+-- SELECT tablename, rowsecurity FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename;
+-- SELECT tablename, policyname, permissive, roles, cmd FROM pg_policies WHERE schemaname = 'public' ORDER BY tablename;
 
 

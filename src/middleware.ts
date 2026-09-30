@@ -1,5 +1,6 @@
 import { defineMiddleware } from 'astro:middleware';
 import { createSupabaseServerClient } from './lib/supabase-server';
+import { isAdmin } from './lib/admin-auth';
 
 export const onRequest = defineMiddleware(async (context, next) => {
   const { pathname } = context.url;
@@ -14,19 +15,22 @@ export const onRequest = defineMiddleware(async (context, next) => {
     const { data: { user } } = await supabase.auth.getUser();
 
     const isLoginPage = pathname === '/admin/login';
+    const isLogoutPage = pathname === '/admin/logout';
+    const esAdmin = isAdmin(user);
 
-    // Si no está autenticado y no está en /admin/login, redirigir a /admin/login
-    if (!user && !isLoginPage) {
+    // Si no es administrador y no está en /admin/login (o cerrando sesión), redirigir a /admin/login.
+    // Una sesión válida sin rol admin (p. ej. una cuenta registrada por terceros) no da acceso.
+    if (!esAdmin && !isLoginPage && !isLogoutPage) {
       return context.redirect('/admin/login');
     }
 
-    // Si ya está autenticado e intenta ir a /admin/login, redirigir al panel /admin
-    if (user && isLoginPage) {
+    // Si ya es administrador e intenta ir a /admin/login, redirigir al panel /admin
+    if (esAdmin && isLoginPage) {
       return context.redirect('/admin');
     }
 
-    // Compartir el usuario autenticado en context.locals para las vistas
-    context.locals.user = user;
+    // Compartir el usuario administrador en context.locals para las vistas
+    context.locals.user = esAdmin ? user : null;
   }
 
   return next();

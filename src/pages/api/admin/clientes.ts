@@ -1,5 +1,6 @@
 import type { APIRoute } from 'astro';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
+import { isAdmin } from '@/lib/admin-auth';
 import type { ClienteItem, ClienteMetricas } from '@/types';
 
 // Validador de formato de correo electrónico
@@ -27,7 +28,7 @@ export const GET: APIRoute = async (context) => {
     error: authError,
   } = await supabase.auth.getUser();
 
-  if (authError || !user) {
+  if (authError || !isAdmin(user)) {
     return new Response(
       JSON.stringify({
         success: false,
@@ -163,7 +164,7 @@ export const POST: APIRoute = async (context) => {
     error: authError,
   } = await supabase.auth.getUser();
 
-  if (authError || !user) {
+  if (authError || !isAdmin(user)) {
     return new Response(
       JSON.stringify({
         success: false,
@@ -299,7 +300,7 @@ export const PUT: APIRoute = async (context) => {
     error: authError,
   } = await supabase.auth.getUser();
 
-  if (authError || !user) {
+  if (authError || !isAdmin(user)) {
     return new Response(
       JSON.stringify({
         success: false,

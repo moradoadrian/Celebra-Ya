@@ -13,7 +13,7 @@ const displayEmail = userEmail || Astro.locals.user?.email || 'Administrador';
 ---
 
 <!doctype html>
-<html lang="es" class="h-full bg-stone-100">
+<html lang="es" class="bg-stone-50">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -21,93 +21,130 @@ const displayEmail = userEmail || Astro.locals.user?.email || 'Administrador';
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Cormorant+Garamond:wght@600;700&display=swap" rel="stylesheet" />
-    <style>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <style is:global>
+      /* Tipografía del panel: una sola familia sans, cercana y legible */
       body {
-        font-family: 'Montserrat', sans-serif;
+        font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
       }
+      /* Los títulos del panel usaban una serif de lujo; aquí se muestran con la misma sans en negrita */
       .font-serif-luxury {
-        font-family: 'Cormorant Garamond', Georgia, serif;
+        font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+        letter-spacing: -0.01em;
       }
     </style>
   </head>
-  <body class="h-full antialiased flex flex-col md:flex-row bg-stone-100 text-stone-800">
-    
-    {/* SIDEBAR OSCURO Y ELEGANTE */}
-    <aside class="w-full md:w-64 bg-stone-900 border-b md:border-b-0 md:border-r border-stone-800 shrink-0 flex flex-col justify-between">
-      <div>
-        {/* LOGO / MARCA TEXTUAL */}
-        <div class="p-6 border-b border-stone-800/80">
-          <a href="/admin" class="flex items-baseline gap-2 group">
-            <span class="font-serif-luxury text-xl font-bold tracking-widest text-amber-200 uppercase">
-              CELEBRA-YA
-            </span>
-            <span class="text-[9px] uppercase tracking-wider bg-amber-400/15 text-amber-300 px-2 py-0.5 rounded-full font-bold border border-amber-400/30">
-              ADMIN
-            </span>
-          </a>
-          <p class="text-[10px] text-stone-400 uppercase tracking-widest mt-1">Gestión de Invitaciones</p>
-        </div>
+  <body class="min-h-screen antialiased bg-stone-50 text-stone-800">
 
-        {/* NAVEGACIÓN */}
-        <div class="py-6">
-          <AdminNav currentPath={currentPath} />
-        </div>
+    {/* BARRA SUPERIOR (MÓVIL) */}
+    <header class="md:hidden sticky top-0 z-30 h-14 bg-white/95 backdrop-blur border-b border-stone-200 px-4 flex items-center justify-between">
+      <a href="/admin" class="flex items-center gap-2">
+        <span class="w-8 h-8 rounded-xl bg-violet-600 text-white flex items-center justify-center text-sm font-extrabold">C</span>
+        <span class="text-sm font-bold text-stone-900">Celebra-Ya</span>
+      </a>
+      <button
+        type="button"
+        id="admin-menu-open"
+        aria-label="Abrir menú"
+        aria-controls="admin-sidebar"
+        aria-expanded="false"
+        class="w-10 h-10 -mr-2 rounded-xl flex items-center justify-center text-stone-600 hover:bg-stone-100 cursor-pointer"
+      >
+        <svg width="22" height="22" class="w-5.5 h-5.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+      </button>
+    </header>
+
+    {/* FONDO AL ABRIR EL MENÚ EN MÓVIL */}
+    <div id="admin-overlay" class="md:hidden fixed inset-0 z-40 bg-stone-900/40 hidden"></div>
+
+    {/* MENÚ LATERAL: cajón en móvil, fijo en escritorio */}
+    <aside
+      id="admin-sidebar"
+      class="fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] md:w-64 bg-white border-r border-stone-200 flex flex-col -translate-x-full md:translate-x-0 transition-transform duration-200"
+    >
+      <div class="h-16 px-5 flex items-center justify-between border-b border-stone-100 shrink-0">
+        <a href="/admin" class="flex items-center gap-2.5">
+          <span class="w-9 h-9 rounded-xl bg-violet-600 text-white flex items-center justify-center text-base font-extrabold">C</span>
+          <span>
+            <span class="block text-sm font-bold text-stone-900 leading-tight">Celebra-Ya</span>
+            <span class="block text-xs text-stone-500 leading-tight">Panel de administración</span>
+          </span>
+        </a>
+        <button
+          type="button"
+          id="admin-menu-close"
+          aria-label="Cerrar menú"
+          class="md:hidden w-9 h-9 -mr-2 rounded-xl flex items-center justify-center text-stone-500 hover:bg-stone-100 cursor-pointer"
+        >
+          <svg width="20" height="20" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
       </div>
 
-      {/* FOOTER DEL SIDEBAR */}
-      <div class="p-4 border-t border-stone-800 bg-stone-950/50">
-        <div class="flex items-center gap-3">
-          <div class="w-8 h-8 rounded-full bg-amber-500/20 border border-amber-400/30 flex items-center justify-center text-amber-300 text-xs font-bold shrink-0">
+      <div class="flex-1 overflow-y-auto py-4">
+        <AdminNav currentPath={currentPath} />
+      </div>
+
+      {/* USUARIO */}
+      <div class="p-4 border-t border-stone-100 shrink-0">
+        <div class="flex items-center gap-3 p-2 rounded-2xl bg-stone-50">
+          <div class="w-9 h-9 rounded-full bg-violet-100 text-violet-700 flex items-center justify-center text-sm font-bold shrink-0">
             {displayEmail.charAt(0).toUpperCase()}
           </div>
-          <div class="overflow-hidden min-w-0">
-            <p class="text-[11px] font-semibold text-stone-200 truncate">{displayEmail}</p>
-            <span class="text-[9px] text-emerald-400 flex items-center gap-1">
-              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-              En línea
-            </span>
+          <div class="min-w-0 flex-1">
+            <p class="text-xs font-semibold text-stone-800 truncate">{displayEmail}</p>
+            <p class="text-xs text-stone-500">Administrador</p>
           </div>
         </div>
       </div>
     </aside>
 
     {/* ÁREA PRINCIPAL */}
-    <div class="flex-1 flex flex-col min-w-0 overflow-y-auto bg-stone-100">
-      {/* HEADER LIMPIO */}
-      <header class="h-16 border-b border-stone-200 bg-white px-6 sm:px-8 flex items-center justify-between shrink-0 shadow-xs">
-        <div class="flex items-center gap-2 text-xs">
-          <span class="font-medium text-stone-400">Celebra-Ya</span>
-          <span class="text-stone-300">/</span>
-          <span class="font-semibold text-stone-800">Panel de Administración</span>
-        </div>
-
-        <div class="flex items-center gap-4">
-          <a
-            href="/demo/boda-sofia-alejandro"
-            target="_blank"
-            class="text-xs text-stone-600 hover:text-amber-600 transition-colors flex items-center gap-1.5 font-medium"
-          >
-            <span>Ver demo pública</span>
-            <svg width="14" height="14" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-            </svg>
-          </a>
-          <div class="h-4 w-px bg-stone-200"></div>
-          <a
-            href="/admin/logout"
-            class="text-xs text-stone-500 hover:text-rose-600 transition-colors flex items-center gap-1 font-medium"
-          >
-            Salir
-          </a>
-        </div>
+    <div class="md:pl-64 min-h-screen flex flex-col">
+      {/* BARRA SUPERIOR (ESCRITORIO) */}
+      <header class="hidden md:flex h-16 px-8 items-center justify-end gap-2 bg-white border-b border-stone-200 shrink-0">
+        <a
+          href="/demo/boda-sofia-alejandro"
+          target="_blank"
+          class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-stone-600 hover:text-violet-700 hover:bg-violet-50 transition-colors"
+        >
+          <span>Ver demo pública</span>
+          <svg width="14" height="14" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+          </svg>
+        </a>
       </header>
 
-      {/* CONTENEDOR PRINCIPAL CLARO */}
-      <main class="flex-1 p-6 sm:p-8 md:p-10 max-w-7xl w-full mx-auto">
+      <main class="flex-1 w-full max-w-7xl mx-auto px-4 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
         <slot />
       </main>
     </div>
 
+    <script is:inline>
+      (() => {
+        const sidebar = document.getElementById('admin-sidebar');
+        const overlay = document.getElementById('admin-overlay');
+        const openBtn = document.getElementById('admin-menu-open');
+        const closeBtn = document.getElementById('admin-menu-close');
+        if (!sidebar || !overlay || !openBtn || !closeBtn) return;
+
+        const setOpen = (open) => {
+          sidebar.classList.toggle('-translate-x-full', !open);
+          overlay.classList.toggle('hidden', !open);
+          openBtn.setAttribute('aria-expanded', String(open));
+          document.body.classList.toggle('overflow-hidden', open);
+        };
+
+        openBtn.addEventListener('click', () => setOpen(true));
+        closeBtn.addEventListener('click', () => setOpen(false));
+        overlay.addEventListener('click', () => setOpen(false));
+        document.addEventListener('keydown', (e) => {
+          if (e.key === 'Escape') setOpen(false);
+        });
+      })();
+    </script>
   </body>
 </html>

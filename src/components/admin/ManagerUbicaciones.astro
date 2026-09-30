@@ -15,7 +15,7 @@ const { eventoId, items = [] } = Astro.props;
     <div>
       <div class="flex items-center gap-2.5">
         <span class="w-8 h-8 rounded-xl bg-amber-50 border border-amber-200/80 text-amber-700 flex items-center justify-center text-sm font-bold">
-          📍
+          <svg class="inline-block w-[1.15em] h-[1.15em] align-[-0.2em] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0zM19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" /></svg>
         </span>
         <h2 class="text-base font-semibold text-stone-900">Ubicaciones del Evento</h2>
         <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-stone-100 text-stone-600 border border-stone-200/80" id="ubicaciones-counter">
@@ -31,7 +31,7 @@ const { eventoId, items = [] } = Astro.props;
       <button
         type="button"
         id="btn-add-ubicacion"
-        class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-stone-900 hover:bg-stone-800 text-amber-200 text-xs font-semibold tracking-wide transition-all shadow-xs cursor-pointer"
+        class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-semibold tracking-wide transition-all shadow-xs cursor-pointer"
       >
         <span>+</span>
         <span>Agregar ubicación</span>
@@ -43,9 +43,9 @@ const { eventoId, items = [] } = Astro.props;
   <div id="ubicaciones-list" class="space-y-3">
     {items.length === 0 ? (
       <div id="ubicaciones-empty" class="text-center py-10 px-4 border-2 border-dashed border-stone-200 rounded-xl">
-        <p class="text-2xl mb-2">🗺️</p>
+        <p class="text-2xl mb-2"><svg class="inline-block w-[1.15em] h-[1.15em] align-[-0.2em] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 6.75V15m6-6v8.25m.503 3.498l4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934c-.317.159-.69.159-1.006 0L9.503 3.252a1.125 1.125 0 00-1.006 0L3.622 5.689C3.24 5.88 3 6.27 3 6.695V19.18c0 .836.88 1.38 1.628 1.006l3.869-1.934c.317-.159.69-.159 1.006 0l4.994 2.497c.317.158.69.158 1.006 0z" /></svg></p>
         <p class="text-xs font-semibold text-stone-700">Esta invitación todavía no tiene ubicaciones registradas.</p>
-        <p class="text-[11px] text-stone-400 mt-0.5">Agrega la iglesia, templo, jardín o salón del evento.</p>
+        <p class="text-xs text-stone-400 mt-0.5">Agrega la iglesia, templo, jardín o salón del evento.</p>
       </div>
     ) : (
       items.map((item) => (
@@ -55,22 +55,22 @@ const { eventoId, items = [] } = Astro.props;
         >
           <div class="space-y-1">
             <div class="flex items-center gap-2">
-              <span class="text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-amber-100/70 text-amber-900 border border-amber-200/60">
+              <span class="text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-amber-100/70 text-amber-900 border border-amber-200/60">
                 {item.tipo || 'Lugar'}
               </span>
               <h3 class="text-sm font-semibold text-stone-900">{item.nombre}</h3>
             </div>
             <p class="text-xs text-stone-600 flex items-start gap-1">
-              <span class="text-stone-400">📍</span>
+              <span class="text-stone-400"><svg class="inline-block w-[1.15em] h-[1.15em] align-[-0.2em] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0zM19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" /></svg></span>
               <span>{item.direccion}</span>
             </p>
-            <div class="flex items-center gap-3 pt-1 text-[11px]">
+            <div class="flex items-center gap-3 pt-1 text-xs">
               {item.google_maps && (
                 <a
                   href={item.google_maps.startsWith('http') ? item.google_maps : `https://${item.google_maps}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  class="text-amber-700 hover:text-amber-800 underline flex items-center gap-1"
+                  class="text-amber-700 hover:text-violet-700 underline flex items-center gap-1"
                 >
                   <span>Google Maps ↗</span>
                 </a>
@@ -141,7 +141,7 @@ const { eventoId, items = [] } = Astro.props;
             name="nombre"
             required
             placeholder="Ej. Parroquia del Carmen o Hacienda San José"
-            class="w-full px-3.5 py-2 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-xs text-stone-900"
+            class="w-full px-3.5 py-2 rounded-xl border border-stone-300 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 text-xs text-stone-900"
           />
         </div>
 
@@ -153,7 +153,7 @@ const { eventoId, items = [] } = Astro.props;
             id="ubicacion-tipo"
             name="tipo"
             required
-            class="w-full px-3.5 py-2 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-xs text-stone-900 bg-white"
+            class="w-full px-3.5 py-2 rounded-xl border border-stone-300 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 text-xs text-stone-900 bg-white"
           >
             <option value="Ceremonia Religiosa">Ceremonia Religiosa</option>
             <option value="Ceremonia Civil">Ceremonia Civil</option>
@@ -176,7 +176,7 @@ const { eventoId, items = [] } = Astro.props;
             required
             rows="2"
             placeholder="Ej. Calle Morelos #123, Col. Centro, Celaya, Gto."
-            class="w-full px-3.5 py-2 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-xs text-stone-900"
+            class="w-full px-3.5 py-2 rounded-xl border border-stone-300 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 text-xs text-stone-900"
           ></textarea>
         </div>
 
@@ -190,7 +190,7 @@ const { eventoId, items = [] } = Astro.props;
               id="ubicacion-gmaps"
               name="google_maps"
               placeholder="https://maps.google.com/..."
-              class="w-full px-3.5 py-2 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-xs text-stone-900 font-mono"
+              class="w-full px-3.5 py-2 rounded-xl border border-stone-300 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 text-xs text-stone-900 font-mono"
             />
           </div>
 
@@ -203,7 +203,7 @@ const { eventoId, items = [] } = Astro.props;
               id="ubicacion-waze"
               name="waze"
               placeholder="https://waze.com/ul/..."
-              class="w-full px-3.5 py-2 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-xs text-stone-900 font-mono"
+              class="w-full px-3.5 py-2 rounded-xl border border-stone-300 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 text-xs text-stone-900 font-mono"
             />
           </div>
         </div>
@@ -221,7 +221,7 @@ const { eventoId, items = [] } = Astro.props;
           <button
             type="submit"
             id="btn-save-ubicacion"
-            class="px-5 py-2 rounded-xl bg-stone-900 hover:bg-stone-800 text-amber-200 text-xs font-bold shadow-xs cursor-pointer"
+            class="px-5 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold shadow-xs cursor-pointer"
           >
             Guardar ubicación
           </button>
@@ -234,7 +234,7 @@ const { eventoId, items = [] } = Astro.props;
   <dialog id="modal-confirm-delete-ubicacion" class="rounded-2xl backdrop:bg-stone-900/60 p-0 border border-stone-200 shadow-2xl max-w-sm w-full bg-white text-stone-800 m-auto">
     <div class="p-6 text-center space-y-4">
       <div class="w-12 h-12 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center text-xl mx-auto border border-rose-100">
-        🗑️
+        <svg class="inline-block w-[1.15em] h-[1.15em] align-[-0.2em] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
       </div>
       <div>
         <h3 class="text-sm font-bold text-stone-900">¿Eliminar esta ubicación?</h3>

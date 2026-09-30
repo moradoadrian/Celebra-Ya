@@ -216,7 +216,7 @@ const totalRsvpPendientesAsignados = mesasDetalladas.reduce((sum, m) => sum + m.
           <select
             name="evento_id"
             onchange="this.form.submit()"
-            class="px-3.5 py-2.5 rounded-xl border border-stone-300 bg-white text-xs font-semibold text-stone-800 shadow-2xs focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20"
+            class="px-3.5 py-2.5 rounded-xl border border-stone-300 bg-white text-xs font-semibold text-stone-800 shadow-2xs focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20"
           >
             {eventosList.map((ev) => (
               <option value={ev.id} selected={ev.id === eventId}>
@@ -229,7 +229,7 @@ const totalRsvpPendientesAsignados = mesasDetalladas.reduce((sum, m) => sum + m.
         <button
           type="button"
           id="btn-open-new-mesa"
-          class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-stone-900 hover:bg-stone-800 text-amber-200 text-xs font-bold tracking-wide shadow-xs transition-all transform hover:-translate-y-0.5 cursor-pointer"
+          class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold tracking-wide shadow-xs transition-all transform hover:-translate-y-0.5 cursor-pointer"
         >
           <span class="text-base leading-none font-bold">+</span>
           <span>Nueva mesa</span>
@@ -241,7 +241,7 @@ const totalRsvpPendientesAsignados = mesasDetalladas.reduce((sum, m) => sum + m.
     {sqlPendingWarning && (
       <div class="bg-amber-50 border border-amber-300 text-amber-900 p-5 rounded-2xl shadow-xs space-y-2 animate-fade-in">
         <div class="flex items-center gap-2.5 font-bold text-sm">
-          <span>⚠️</span>
+          <span><svg class="inline-block w-[1.15em] h-[1.15em] align-[-0.2em] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" /></svg></span>
           <span>Tablas de Mesas pendientes en Supabase</span>
         </div>
         <p class="text-xs text-amber-800 leading-relaxed">
@@ -263,44 +263,44 @@ const totalRsvpPendientesAsignados = mesasDetalladas.reduce((sum, m) => sum + m.
       
       {/* 1. Total Mesas */}
       <div class="bg-white border border-stone-200/80 rounded-2xl p-4 shadow-xs">
-        <p class="text-[10px] font-bold uppercase tracking-wider text-stone-400">Total Mesas</p>
+        <p class="text-[11px] font-bold uppercase tracking-wider text-stone-400">Total Mesas</p>
         <p class="text-2xl font-bold font-serif-luxury text-stone-900 mt-1">{totalMesas}</p>
-        <p class="text-[10px] text-stone-500 mt-0.5">en el salón</p>
+        <p class="text-[11px] text-stone-500 mt-0.5">en el salón</p>
       </div>
 
       {/* 2. Capacidad Total */}
       <div class="bg-white border border-stone-200/80 rounded-2xl p-4 shadow-xs">
-        <p class="text-[10px] font-bold uppercase tracking-wider text-stone-400">Capacidad Total</p>
+        <p class="text-[11px] font-bold uppercase tracking-wider text-stone-400">Capacidad Total</p>
         <p class="text-2xl font-bold font-serif-luxury text-stone-900 mt-1">{capacidadTotal}</p>
-        <p class="text-[10px] text-stone-500 mt-0.5">asientos físicos</p>
+        <p class="text-[11px] text-stone-500 mt-0.5">asientos físicos</p>
       </div>
 
       {/* 3. Pases Confirmados Asignados */}
       <div class="bg-white border border-stone-200/80 rounded-2xl p-4 shadow-xs">
-        <p class="text-[10px] font-bold uppercase tracking-wider text-emerald-600">Ocupación</p>
+        <p class="text-[11px] font-bold uppercase tracking-wider text-emerald-600">Ocupación</p>
         <p class="text-2xl font-bold font-serif-luxury text-emerald-700 mt-1">{pasesConfirmadosAsignados}</p>
-        <p class="text-[10px] text-stone-500 mt-0.5">confirmados en mesa</p>
+        <p class="text-[11px] text-stone-500 mt-0.5">confirmados en mesa</p>
       </div>
 
       {/* 4. Lugares Disponibles */}
       <div class="bg-white border border-stone-200/80 rounded-2xl p-4 shadow-xs">
-        <p class="text-[10px] font-bold uppercase tracking-wider text-amber-700">Disponibles</p>
+        <p class="text-[11px] font-bold uppercase tracking-wider text-amber-700">Disponibles</p>
         <p class="text-2xl font-bold font-serif-luxury text-amber-800 mt-1">{lugaresDisponiblesGlobal}</p>
-        <p class="text-[10px] text-stone-500 mt-0.5">asientos libres</p>
+        <p class="text-[11px] text-stone-500 mt-0.5">asientos libres</p>
       </div>
 
       {/* 5. Invitados sin Mesa */}
       <div class="bg-white border border-stone-200/80 rounded-2xl p-4 shadow-xs">
-        <p class="text-[10px] font-bold uppercase tracking-wider text-stone-400">Sin Mesa</p>
+        <p class="text-[11px] font-bold uppercase tracking-wider text-stone-400">Sin Mesa</p>
         <p class="text-2xl font-bold font-serif-luxury text-stone-700 mt-1">{totalInvitadosSinMesa}</p>
-        <p class="text-[10px] text-stone-500 mt-0.5">por ubicar</p>
+        <p class="text-[11px] text-stone-500 mt-0.5">por ubicar</p>
       </div>
 
       {/* 6. RSVP Pendientes en Mesa */}
       <div class="bg-white border border-stone-200/80 rounded-2xl p-4 shadow-xs">
-        <p class="text-[10px] font-bold uppercase tracking-wider text-amber-600">RSVP Pend.</p>
+        <p class="text-[11px] font-bold uppercase tracking-wider text-amber-600">RSVP Pend.</p>
         <p class="text-2xl font-bold font-serif-luxury text-amber-600 mt-1">{totalRsvpPendientesAsignados}</p>
-        <p class="text-[10px] text-stone-500 mt-0.5">asignados sin RSVP</p>
+        <p class="text-[11px] text-stone-500 mt-0.5">asignados sin RSVP</p>
       </div>
 
     </div>
@@ -322,7 +322,7 @@ const totalRsvpPendientesAsignados = mesasDetalladas.reduce((sum, m) => sum + m.
         {mesasDetalladas.length === 0 ? (
           <div class="bg-white border border-stone-200/80 rounded-3xl p-12 text-center space-y-4 shadow-xs">
             <div class="w-16 h-16 rounded-2xl bg-stone-100 border border-stone-200 text-stone-400 flex items-center justify-center text-3xl mx-auto shadow-xs">
-              🪑
+              <svg class="inline-block w-[1.15em] h-[1.15em] align-[-0.2em] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6a2 2 0 012-2h12a2 2 0 012 2v2H4V6zm0 4h16v3a1 1 0 01-1 1h-2v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6h-2v6a1 1 0 01-1 1H8a1 1 0 01-1-1v-6H5a1 1 0 01-1-1v-3z" /></svg>
             </div>
             <div>
               <h3 class="text-base font-bold text-stone-900">No hay mesas registradas en este evento</h3>
@@ -334,7 +334,7 @@ const totalRsvpPendientesAsignados = mesasDetalladas.reduce((sum, m) => sum + m.
               <button
                 type="button"
                 id="btn-empty-add-mesa"
-                class="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-stone-900 hover:bg-stone-800 text-amber-200 text-xs font-bold shadow-xs transition-colors cursor-pointer"
+                class="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold shadow-xs transition-colors cursor-pointer"
               >
                 <span>+</span>
                 <span>Crear primera mesa</span>
@@ -347,20 +347,20 @@ const totalRsvpPendientesAsignados = mesasDetalladas.reduce((sum, m) => sum + m.
               const pctOcupacion = Math.min(100, Math.round((mesa.ocupacionConfirmada / mesa.capacidad) * 100));
 
               return (
-                <div class="bg-white border border-stone-200/90 rounded-2xl p-5 shadow-xs space-y-4 hover:border-amber-300/80 transition-colors">
+                <div class="bg-white border border-stone-200/90 rounded-2xl p-5 shadow-xs space-y-4 hover:border-violet-300 transition-colors">
                   
                   {/* CABECERA DE LA MESA */}
                   <div class="flex items-start justify-between gap-3 border-b border-stone-100 pb-3.5">
                     <div>
                       <div class="flex items-center gap-2">
-                        <span class="w-7 h-7 rounded-lg bg-stone-900 text-amber-300 font-bold font-mono text-xs flex items-center justify-center">
+                        <span class="w-7 h-7 rounded-lg bg-violet-600 text-white font-bold font-mono text-xs flex items-center justify-center">
                           {mesa.numero}
                         </span>
                         <h3 class="text-base font-bold text-stone-900">
                           Mesa {mesa.numero}
                         </h3>
                       </div>
-                      <p class="text-[11px] text-stone-500 mt-1">
+                      <p class="text-xs text-stone-500 mt-1">
                         Capacidad física: <strong class="text-stone-800">{mesa.capacidad}</strong> lugares
                       </p>
                     </div>
@@ -368,17 +368,17 @@ const totalRsvpPendientesAsignados = mesasDetalladas.reduce((sum, m) => sum + m.
                     {/* BADGE DE ESTADO DE LA MESA */}
                     <div class="text-right shrink-0">
                       {mesa.estado === 'completa' ? (
-                        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-stone-100 text-stone-800 border border-stone-300">
+                        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider bg-stone-100 text-stone-800 border border-stone-300">
                           <span>●</span>
                           <span>Completa</span>
                         </span>
                       ) : mesa.estado === 'sobrecupo' ? (
-                        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-rose-50 text-rose-700 border border-rose-200">
-                          <span>⚠</span>
+                        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider bg-rose-50 text-rose-700 border border-rose-200">
+                          <span><svg class="inline-block w-[1.15em] h-[1.15em] align-[-0.2em] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" /></svg></span>
                           <span>Sobrecupo</span>
                         </span>
                       ) : (
-                        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-800 border border-emerald-200">
+                        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-800 border border-emerald-200">
                           <span>✓</span>
                           <span>{mesa.lugaresDisponibles} libres</span>
                         </span>
@@ -412,7 +412,7 @@ const totalRsvpPendientesAsignados = mesasDetalladas.reduce((sum, m) => sum + m.
 
                     {/* AVISO DE RSVP PENDIENTES */}
                     {mesa.totalPendientes > 0 && (
-                      <p class="text-[11px] text-amber-700/90 font-medium flex items-center gap-1 pt-0.5">
+                      <p class="text-xs text-amber-700/90 font-medium flex items-center gap-1 pt-0.5">
                         <span>⏳</span>
                         <span>{mesa.totalPendientes} {mesa.totalPendientes === 1 ? 'invitado tiene' : 'invitados tienen'} RSVP pendiente.</span>
                       </p>
@@ -421,7 +421,7 @@ const totalRsvpPendientesAsignados = mesasDetalladas.reduce((sum, m) => sum + m.
 
                   {/* LISTA DE INVITADOS ASIGNADOS A ESTA MESA */}
                   <div class="space-y-2 pt-1 border-t border-stone-100">
-                    <p class="text-[10px] font-bold uppercase tracking-wider text-stone-400">
+                    <p class="text-[11px] font-bold uppercase tracking-wider text-stone-400">
                       Invitados Asignados ({mesa.invitadosAsignados.length})
                     </p>
 
@@ -443,15 +443,15 @@ const totalRsvpPendientesAsignados = mesasDetalladas.reduce((sum, m) => sum + m.
                                 </p>
                                 <div class="flex items-center gap-1.5 mt-0.5">
                                   {isConf ? (
-                                    <span class="text-[10px] font-bold text-emerald-800 bg-emerald-100/70 px-1.5 py-0.2 rounded">
+                                    <span class="text-[11px] font-bold text-emerald-800 bg-emerald-100/70 px-1.5 py-0.2 rounded">
                                       {invitado.pases_confirmados || 1} {invitado.pases_confirmados === 1 ? 'lugar' : 'lugares'}
                                     </span>
                                   ) : isDeclined ? (
-                                    <span class="text-[10px] font-medium text-stone-500 bg-stone-200/60 px-1.5 py-0.2 rounded">
+                                    <span class="text-[11px] font-medium text-stone-500 bg-stone-200/60 px-1.5 py-0.2 rounded">
                                       No asistirá (0 lugares)
                                     </span>
                                   ) : (
-                                    <span class="text-[10px] font-semibold text-amber-800 bg-amber-100/80 px-1.5 py-0.2 rounded">
+                                    <span class="text-[11px] font-semibold text-amber-800 bg-amber-100/80 px-1.5 py-0.2 rounded">
                                       RSVP Pend. ({invitado.numero_pases} pases)
                                     </span>
                                   )}
@@ -462,7 +462,7 @@ const totalRsvpPendientesAsignados = mesasDetalladas.reduce((sum, m) => sum + m.
                               <div class="flex items-center gap-1 shrink-0">
                                 <button
                                   type="button"
-                                  class="btn-move-invitado px-2 py-1 rounded-lg text-[11px] font-semibold text-stone-600 hover:text-stone-900 bg-white hover:bg-stone-100 border border-stone-200 transition-colors cursor-pointer"
+                                  class="btn-move-invitado px-2 py-1 rounded-lg text-xs font-semibold text-stone-600 hover:text-stone-900 bg-white hover:bg-stone-100 border border-stone-200 transition-colors cursor-pointer"
                                   data-invitado-id={invitado.id}
                                   data-invitado-nombre={invitado.nombre}
                                   data-mesa-actual-id={mesa.id}
@@ -473,7 +473,7 @@ const totalRsvpPendientesAsignados = mesasDetalladas.reduce((sum, m) => sum + m.
                                 </button>
                                 <button
                                   type="button"
-                                  class="btn-unassign-invitado px-2 py-1 rounded-lg text-[11px] font-semibold text-rose-600 hover:text-rose-800 bg-white hover:bg-rose-50 border border-stone-200 transition-colors cursor-pointer"
+                                  class="btn-unassign-invitado px-2 py-1 rounded-lg text-xs font-semibold text-rose-600 hover:text-rose-800 bg-white hover:bg-rose-50 border border-stone-200 transition-colors cursor-pointer"
                                   data-invitado-id={invitado.id}
                                   data-invitado-nombre={invitado.nombre}
                                   title="Quitar de esta mesa"
@@ -492,7 +492,7 @@ const totalRsvpPendientesAsignados = mesasDetalladas.reduce((sum, m) => sum + m.
                   <div class="flex items-center justify-between pt-3 border-t border-stone-100">
                     <button
                       type="button"
-                      class="btn-assign-to-table text-xs font-bold text-amber-800 hover:text-amber-950 flex items-center gap-1 cursor-pointer"
+                      class="btn-assign-to-table text-xs font-bold text-violet-700 hover:text-violet-900 flex items-center gap-1 cursor-pointer"
                       data-mesa-id={mesa.id}
                       data-mesa-numero={mesa.numero}
                       data-mesa-capacidad={mesa.capacidad}
@@ -548,9 +548,9 @@ const totalRsvpPendientesAsignados = mesasDetalladas.reduce((sum, m) => sum + m.
 
         {invitadosSinMesa.length === 0 ? (
           <div class="text-center py-8 space-y-2">
-            <span class="text-2xl">🎉</span>
+            <span class="text-2xl"><svg class="inline-block w-[1.15em] h-[1.15em] align-[-0.2em] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg></span>
             <p class="text-xs font-semibold text-stone-800">¡Todos los invitados están asignados a una mesa!</p>
-            <p class="text-[11px] text-stone-500">No hay invitados pendientes de ubicación para este evento.</p>
+            <p class="text-xs text-stone-500">No hay invitados pendientes de ubicación para este evento.</p>
           </div>
         ) : (
           <div class="max-h-[600px] overflow-y-auto space-y-2.5 pr-1">
@@ -566,15 +566,15 @@ const totalRsvpPendientesAsignados = mesasDetalladas.reduce((sum, m) => sum + m.
                     </p>
                     <div class="flex items-center gap-2 mt-1">
                       {isConf ? (
-                        <span class="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-1.5 py-0.5 rounded">
+                        <span class="text-[11px] font-bold text-emerald-800 bg-emerald-100 px-1.5 py-0.5 rounded">
                           {inv.pases_confirmados || 1} {inv.pases_confirmados === 1 ? 'confirmado' : 'confirmados'}
                         </span>
                       ) : isDeclined ? (
-                        <span class="text-[10px] font-medium text-stone-500 bg-stone-200 px-1.5 py-0.5 rounded">
+                        <span class="text-[11px] font-medium text-stone-500 bg-stone-200 px-1.5 py-0.5 rounded">
                           No asistirá (0)
                         </span>
                       ) : (
-                        <span class="text-[10px] font-semibold text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded">
+                        <span class="text-[11px] font-semibold text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded">
                           RSVP Pend. ({inv.numero_pases} pases)
                         </span>
                       )}
@@ -583,7 +583,7 @@ const totalRsvpPendientesAsignados = mesasDetalladas.reduce((sum, m) => sum + m.
 
                   <button
                     type="button"
-                    class="btn-quick-assign-guest shrink-0 px-3 py-1.5 rounded-xl bg-stone-900 hover:bg-stone-800 text-amber-200 text-xs font-bold transition-colors shadow-2xs cursor-pointer"
+                    class="btn-quick-assign-guest shrink-0 px-3 py-1.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold transition-colors shadow-2xs cursor-pointer"
                     data-invitado-id={inv.id}
                     data-invitado-nombre={inv.nombre}
                     data-pases={inv.pases_confirmados || (isConf ? inv.numero_pases : 0)}
@@ -629,9 +629,9 @@ const totalRsvpPendientesAsignados = mesasDetalladas.reduce((sum, m) => sum + m.
               min="1"
               required
               placeholder="Ej. 1"
-              class="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-xs text-stone-900 font-mono"
+              class="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 text-xs text-stone-900 font-mono"
             />
-            <p class="text-[10px] text-stone-500 mt-1">
+            <p class="text-[11px] text-stone-500 mt-1">
               El número debe ser único dentro de este evento.
             </p>
           </div>
@@ -649,9 +649,9 @@ const totalRsvpPendientesAsignados = mesasDetalladas.reduce((sum, m) => sum + m.
               max="100"
               required
               placeholder="Ej. 10"
-              class="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-xs text-stone-900 font-mono"
+              class="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 text-xs text-stone-900 font-mono"
             />
-            <p class="text-[10px] text-stone-500 mt-1">
+            <p class="text-[11px] text-stone-500 mt-1">
               Número máximo de personas que pueden ocupar físicamente la mesa.
             </p>
           </div>
@@ -669,7 +669,7 @@ const totalRsvpPendientesAsignados = mesasDetalladas.reduce((sum, m) => sum + m.
             <button
               type="submit"
               id="btn-save-mesa"
-              class="px-5 py-2 rounded-xl bg-stone-900 hover:bg-stone-800 text-amber-200 text-xs font-bold shadow-xs cursor-pointer"
+              class="px-5 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold shadow-xs cursor-pointer"
             >
               Guardar mesa
             </button>
@@ -703,7 +703,7 @@ const totalRsvpPendientesAsignados = mesasDetalladas.reduce((sum, m) => sum + m.
             <select
               id="assign-invitado-select"
               required
-              class="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-xs text-stone-900 bg-white"
+              class="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 text-xs text-stone-900 bg-white"
             >
               <option value="">Selecciona un invitado...</option>
               {/* Opción para todos los invitados del evento */}
@@ -723,7 +723,7 @@ const totalRsvpPendientesAsignados = mesasDetalladas.reduce((sum, m) => sum + m.
             <select
               id="assign-mesa-select"
               required
-              class="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-xs text-stone-900 bg-white"
+              class="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 text-xs text-stone-900 bg-white"
             >
               <option value="">Selecciona la mesa...</option>
               {mesasDetalladas.map((m) => (
@@ -747,7 +747,7 @@ const totalRsvpPendientesAsignados = mesasDetalladas.reduce((sum, m) => sum + m.
             <button
               type="submit"
               id="btn-save-assign"
-              class="px-5 py-2 rounded-xl bg-stone-900 hover:bg-stone-800 text-amber-200 text-xs font-bold shadow-xs cursor-pointer"
+              class="px-5 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold shadow-xs cursor-pointer"
             >
               Confirmar asignación
             </button>
@@ -762,7 +762,7 @@ const totalRsvpPendientesAsignados = mesasDetalladas.reduce((sum, m) => sum + m.
     <dialog id="modal-confirm-delete-mesa" class="rounded-2xl backdrop:bg-stone-900/60 p-0 border border-stone-200 shadow-2xl max-w-sm w-full bg-white text-stone-800 m-auto">
       <div class="p-6 text-center space-y-4">
         <div class="w-12 h-12 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center text-xl mx-auto border border-rose-100">
-          🗑️
+          <svg class="inline-block w-[1.15em] h-[1.15em] align-[-0.2em] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
         </div>
         <div>
           <h3 class="text-sm font-bold text-stone-900">¿Eliminar esta mesa?</h3>

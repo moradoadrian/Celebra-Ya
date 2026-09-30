@@ -18,7 +18,7 @@ const sortedItems = [...items].sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0));
     <div>
       <div class="flex items-center gap-2.5">
         <span class="w-8 h-8 rounded-xl bg-amber-50 border border-amber-200/80 text-amber-700 flex items-center justify-center text-sm font-bold">
-          🎁
+          <svg class="inline-block w-[1.15em] h-[1.15em] align-[-0.2em] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M21 11.25v8.25a1.5 1.5 0 01-1.5 1.5H5.25a1.5 1.5 0 01-1.5-1.5v-8.25M12 4.875A2.625 2.625 0 109.375 7.5H12m0-2.625V7.5m0-2.625A2.625 2.625 0 1114.625 7.5H12m0 0V21m-8.625-9.75h18c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125h-18c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" /></svg>
         </span>
         <h2 class="text-base font-semibold text-stone-900">Mesa de Regalos y Sugerencias</h2>
         <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-stone-100 text-stone-600 border border-stone-200/80" id="mesa-regalos-counter">
@@ -34,7 +34,7 @@ const sortedItems = [...items].sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0));
       <button
         type="button"
         id="btn-add-mesa-regalos"
-        class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-stone-900 hover:bg-stone-800 text-amber-200 text-xs font-semibold tracking-wide transition-all shadow-xs cursor-pointer"
+        class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-semibold tracking-wide transition-all shadow-xs cursor-pointer"
       >
         <span>+</span>
         <span>Agregar opción</span>
@@ -46,9 +46,9 @@ const sortedItems = [...items].sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0));
   <div id="mesa-regalos-list" class="space-y-3">
     {sortedItems.length === 0 ? (
       <div id="mesa-regalos-empty" class="text-center py-10 px-4 border-2 border-dashed border-stone-200 rounded-xl">
-        <p class="text-2xl mb-2">🎀</p>
+        <p class="text-2xl mb-2"><svg class="inline-block w-[1.15em] h-[1.15em] align-[-0.2em] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M21 11.25v8.25a1.5 1.5 0 01-1.5 1.5H5.25a1.5 1.5 0 01-1.5-1.5v-8.25M12 4.875A2.625 2.625 0 109.375 7.5H12m0-2.625V7.5m0-2.625A2.625 2.625 0 1114.625 7.5H12m0 0V21m-8.625-9.75h18c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125h-18c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" /></svg></p>
         <p class="text-xs font-semibold text-stone-700">Esta invitación todavía no tiene opciones de mesa de regalos.</p>
-        <p class="text-[11px] text-stone-400 mt-0.5">Agrega Liverpool, Amazon, sobre en recepción o datos bancarios.</p>
+        <p class="text-xs text-stone-400 mt-0.5">Agrega Liverpool, Amazon, sobre en recepción o datos bancarios.</p>
       </div>
     ) : (
       sortedItems.map((item) => (
@@ -62,7 +62,7 @@ const sortedItems = [...items].sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0));
             </span>
             <div class="space-y-1">
               <div class="flex items-center gap-2">
-                <span class="text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-amber-100/70 text-amber-900 border border-amber-200/60">
+                <span class="text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-amber-100/70 text-amber-900 border border-amber-200/60">
                   {item.tipo}
                 </span>
                 <h3 class="text-sm font-semibold text-stone-900">{item.nombre}</h3>
@@ -71,7 +71,7 @@ const sortedItems = [...items].sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0));
                 <p class="text-xs text-stone-600">{item.descripcion}</p>
               )}
               {item.datos && (
-                <p class="text-[11px] font-mono text-stone-500 bg-stone-100/80 px-2 py-0.5 rounded inline-block">
+                <p class="text-xs font-mono text-stone-500 bg-stone-100/80 px-2 py-0.5 rounded inline-block">
                   {typeof item.datos === 'object' ? JSON.stringify(item.datos) : item.datos}
                 </p>
               )}
@@ -81,7 +81,7 @@ const sortedItems = [...items].sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0));
                     href={item.url.startsWith('http') ? item.url : `https://${item.url}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    class="text-[11px] text-amber-700 hover:text-amber-800 underline font-medium inline-flex items-center gap-1"
+                    class="text-xs text-amber-700 hover:text-violet-700 underline font-medium inline-flex items-center gap-1"
                   >
                     <span>Ir a la tienda ↗</span>
                   </a>
@@ -143,7 +143,7 @@ const sortedItems = [...items].sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0));
               id="mesa-regalos-tipo"
               name="tipo"
               required
-              class="w-full px-3.5 py-2 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-xs text-stone-900 bg-white"
+              class="w-full px-3.5 py-2 rounded-xl border border-stone-300 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 text-xs text-stone-900 bg-white"
             >
               <option value="Mesa de Regalos">Mesa de Regalos</option>
               <option value="Liverpool">Liverpool</option>
@@ -165,7 +165,7 @@ const sortedItems = [...items].sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0));
               name="orden"
               min="1"
               value={sortedItems.length + 1}
-              class="w-full px-3.5 py-2 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-xs text-stone-900 font-mono"
+              class="w-full px-3.5 py-2 rounded-xl border border-stone-300 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 text-xs text-stone-900 font-mono"
             />
           </div>
         </div>
@@ -180,7 +180,7 @@ const sortedItems = [...items].sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0));
             name="nombre"
             required
             placeholder="Ej. Liverpool, Amazon Wishlist o Lluvia de Sobres"
-            class="w-full px-3.5 py-2 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-xs text-stone-900"
+            class="w-full px-3.5 py-2 rounded-xl border border-stone-300 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 text-xs text-stone-900"
           />
         </div>
 
@@ -193,7 +193,7 @@ const sortedItems = [...items].sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0));
             id="mesa-regalos-url"
             name="url"
             placeholder="https://www.liverpool.com.mx/tienda/..."
-            class="w-full px-3.5 py-2 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-xs text-stone-900 font-mono"
+            class="w-full px-3.5 py-2 rounded-xl border border-stone-300 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 text-xs text-stone-900 font-mono"
           />
         </div>
 
@@ -206,7 +206,7 @@ const sortedItems = [...items].sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0));
             name="datos"
             rows="2"
             placeholder="Ej. CLABE: 012345678901234567 | Banco BBVA | Titular: ..."
-            class="w-full px-3.5 py-2 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-xs text-stone-900"
+            class="w-full px-3.5 py-2 rounded-xl border border-stone-300 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 text-xs text-stone-900"
           ></textarea>
         </div>
 
@@ -219,7 +219,7 @@ const sortedItems = [...items].sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0));
             name="descripcion"
             rows="2"
             placeholder="Ej. Su presencia es nuestro mejor regalo, pero si desean tener un detalle..."
-            class="w-full px-3.5 py-2 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-xs text-stone-900"
+            class="w-full px-3.5 py-2 rounded-xl border border-stone-300 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 text-xs text-stone-900"
           ></textarea>
         </div>
 
@@ -236,7 +236,7 @@ const sortedItems = [...items].sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0));
           <button
             type="submit"
             id="btn-save-mesa-regalos"
-            class="px-5 py-2 rounded-xl bg-stone-900 hover:bg-stone-800 text-amber-200 text-xs font-bold shadow-xs cursor-pointer"
+            class="px-5 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold shadow-xs cursor-pointer"
           >
             Guardar opción
           </button>
@@ -249,7 +249,7 @@ const sortedItems = [...items].sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0));
   <dialog id="modal-confirm-delete-mesa-regalos" class="rounded-2xl backdrop:bg-stone-900/60 p-0 border border-stone-200 shadow-2xl max-w-sm w-full bg-white text-stone-800 m-auto">
     <div class="p-6 text-center space-y-4">
       <div class="w-12 h-12 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center text-xl mx-auto border border-rose-100">
-        🗑️
+        <svg class="inline-block w-[1.15em] h-[1.15em] align-[-0.2em] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
       </div>
       <div>
         <h3 class="text-sm font-bold text-stone-900">¿Eliminar esta opción de regalo?</h3>

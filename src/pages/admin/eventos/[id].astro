@@ -148,7 +148,7 @@ const clienteAsignado = evento?.cliente_id
   <AdminLayout title="Evento no encontrado | Celebra-Ya Admin" userEmail={userEmail}>
     <div class="max-w-xl mx-auto py-16 px-4 text-center space-y-6">
       <div class="w-16 h-16 rounded-2xl bg-stone-200/70 border border-stone-300 text-stone-500 flex items-center justify-center text-2xl mx-auto shadow-xs">
-        🔍
+        <svg class="inline-block w-[1.15em] h-[1.15em] align-[-0.2em] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" /></svg>
       </div>
       <div>
         <h1 class="text-2xl sm:text-3xl font-serif-luxury font-bold text-stone-900">
@@ -161,7 +161,7 @@ const clienteAsignado = evento?.cliente_id
       <div class="pt-2">
         <a
           href="/admin"
-          class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-stone-900 hover:bg-stone-800 text-amber-200 font-semibold text-xs tracking-wide transition-all shadow-xs"
+          class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-semibold text-xs tracking-wide transition-all shadow-xs"
         >
           <span>←</span>
           <span>Volver a eventos</span>
@@ -208,29 +208,29 @@ const clienteAsignado = evento?.cliente_id
             href={`/admin/checkin?evento_id=${evento.id}`}
             class="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition-colors"
           >
-            <span>🎟️</span>
+            <span><svg class="inline-block w-[1.15em] h-[1.15em] align-[-0.2em] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 6v.75m0 3v.75m0 3v.75m0 3V18m-9-5.25h5.25M7.5 15h3M3.375 5.25c-.621 0-1.125.504-1.125 1.125v3.026a2.999 2.999 0 010 5.198v3.026c0 .621.504 1.125 1.125 1.125h17.25c.621 0 1.125-.504 1.125-1.125v-3.026a2.999 2.999 0 010-5.198V6.375c0-.621-.504-1.125-1.125-1.125H3.375z" /></svg></span>
             <span>Check-in</span>
           </a>
           <a
             href={`/admin/mesas?evento_id=${evento.id}`}
             class="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-white hover:bg-stone-50 text-stone-700 text-xs font-semibold border border-stone-300/80 shadow-xs transition-colors"
           >
-            <span>🪑</span>
+            <span><svg class="inline-block w-[1.15em] h-[1.15em] align-[-0.2em] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6a2 2 0 012-2h12a2 2 0 012 2v2H4V6zm0 4h16v3a1 1 0 01-1 1h-2v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6h-2v6a1 1 0 01-1 1H8a1 1 0 01-1-1v-6H5a1 1 0 01-1-1v-3z" /></svg></span>
             <span>Mesas</span>
           </a>
           <a
             href={`/admin/invitados?evento_id=${evento.id}`}
-            class="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-stone-950 text-xs font-bold shadow-xs transition-colors"
+            class="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold shadow-xs transition-colors"
           >
-            <span>👥</span>
+            <span><svg class="inline-block w-[1.15em] h-[1.15em] align-[-0.2em] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" /></svg></span>
             <span>Invitados ({totalInvitadosCount})</span>
           </a>
           <a
             id="preview-admin-top"
             href={`/admin/eventos/${evento.id}/preview`}
-            class="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-stone-900 hover:bg-stone-800 text-amber-300 text-xs font-semibold shadow-xs transition-colors"
+            class="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-semibold shadow-xs transition-colors"
           >
-            <span>👁️</span>
+            <span><svg class="inline-block w-[1.15em] h-[1.15em] align-[-0.2em] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178zM15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg></span>
             <span>Vista Previa</span>
           </a>
           {isPublicado && (
@@ -258,7 +258,7 @@ const clienteAsignado = evento?.cliente_id
               <span class="w-7 h-7 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold text-sm shrink-0">✓</span>
               <div>
                 <p class="text-xs sm:text-sm font-semibold">Evento actualizado correctamente.</p>
-                <p class="text-[11px] text-emerald-700">Los cambios ya están reflejados en la base de datos.</p>
+                <p class="text-xs text-emerald-700">Los cambios ya están reflejados en la base de datos.</p>
               </div>
             </div>
           </div>
@@ -270,7 +270,7 @@ const clienteAsignado = evento?.cliente_id
               <span class="w-7 h-7 rounded-full bg-rose-500 text-white flex items-center justify-center font-bold text-sm shrink-0">✕</span>
               <div>
                 <p class="text-xs sm:text-sm font-semibold">No pudimos guardar los cambios.</p>
-                <p class="text-[11px] text-rose-700">{decodeURIComponent(errorParam)}</p>
+                <p class="text-xs text-rose-700">{decodeURIComponent(errorParam)}</p>
               </div>
             </div>
           </div>
@@ -279,19 +279,19 @@ const clienteAsignado = evento?.cliente_id
 
       {/* AVISO DE CIERRE / ARCHIVO HISTÓRICO SI EL EVENTO ESTÁ FINALIZADO (PASO 10 DEL CICLO) */}
       {metricasOperativas?.esFinalizado && (
-        <div class="bg-stone-900 border border-stone-800 text-stone-100 p-5 rounded-3xl shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div class="bg-white border border-stone-200 text-stone-800 p-5 rounded-3xl shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div class="flex items-center gap-3.5">
-            <span class="w-10 h-10 rounded-2xl bg-stone-800 text-amber-300 flex items-center justify-center text-xl shrink-0">
-              🏛️
+            <span class="w-10 h-10 rounded-2xl bg-stone-100 text-stone-700 flex items-center justify-center text-xl shrink-0">
+              <svg class="inline-block w-[1.15em] h-[1.15em] align-[-0.2em] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" /></svg>
             </span>
             <div>
               <div class="flex items-center gap-2">
-                <h3 class="text-sm font-bold text-white font-serif-luxury text-base">Evento Finalizado (Ciclo Completo)</h3>
-                <span class="text-[10px] uppercase font-bold bg-amber-400/20 text-amber-300 px-2 py-0.5 rounded border border-amber-400/30">
+                <h3 class="text-base font-bold text-stone-900 font-serif-luxury">Evento Finalizado (Ciclo Completo)</h3>
+                <span class="text-[11px] uppercase font-bold bg-stone-100 text-stone-600 px-2 py-0.5 rounded-md border border-stone-200">
                   Histórico Preservado
                 </span>
               </div>
-              <p class="text-xs text-stone-400 mt-0.5 leading-relaxed">
+              <p class="text-xs text-stone-500 mt-0.5 leading-relaxed">
                 Este evento ya concluyó su fecha operativa. Los registros históricos de invitados, confirmaciones RSVP, distribución de mesas y check-ins de recepción se conservan íntegros para auditoría y consulta.
               </p>
             </div>
@@ -299,7 +299,7 @@ const clienteAsignado = evento?.cliente_id
           <div class="shrink-0 flex items-center gap-2">
             <a
               href={`/admin/checkin?evento_id=${evento.id}`}
-              class="px-3.5 py-2 rounded-xl bg-stone-800 hover:bg-stone-700 text-amber-300 text-xs font-semibold border border-stone-700 transition-colors"
+              class="px-3.5 py-2 rounded-xl bg-violet-50 hover:bg-violet-100 text-violet-700 text-xs font-semibold border border-violet-200 transition-colors"
             >
               Auditoría de check-ins ↗
             </a>
@@ -315,20 +315,20 @@ const clienteAsignado = evento?.cliente_id
           <div class="bg-white border border-stone-200/80 rounded-2xl p-5 shadow-xs flex flex-col justify-between">
             <div>
               <div class="flex items-center justify-between">
-                <span class="text-[11px] font-semibold uppercase tracking-wider text-stone-500">Invitados & RSVP</span>
-                <span class="text-base">👥</span>
+                <span class="text-xs font-semibold uppercase tracking-wider text-stone-500">Invitados & RSVP</span>
+                <span class="text-base"><svg class="inline-block w-[1.15em] h-[1.15em] align-[-0.2em] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" /></svg></span>
               </div>
               <div class="mt-2">
                 <span class="text-2xl font-bold font-serif-luxury text-stone-900">{metricasOperativas.totalInvitados}</span>
                 <span class="text-xs text-stone-500 ml-1 font-medium">({metricasOperativas.totalPases} pases)</span>
               </div>
-              <div class="mt-2 space-y-0.5 text-[11px] text-stone-600">
+              <div class="mt-2 space-y-0.5 text-xs text-stone-600">
                 <p class="text-emerald-700 font-medium">✓ {metricasOperativas.invitadosConfirmados} confirmados ({metricasOperativas.pasesConfirmados} pases)</p>
                 <p class="text-stone-500">⏳ {metricasOperativas.invitadosPendientes} pendientes • ✕ {metricasOperativas.invitadosRechazados} declinados</p>
               </div>
             </div>
             <div class="pt-3 mt-3 border-t border-stone-100">
-              <a href={`/admin/invitados?evento_id=${evento.id}`} class="text-xs font-bold text-amber-800 hover:text-amber-900 underline flex items-center justify-between">
+              <a href={`/admin/invitados?evento_id=${evento.id}`} class="text-xs font-bold text-violet-700 hover:text-violet-900 underline flex items-center justify-between">
                 <span>Gestionar invitados</span>
                 <span>→</span>
               </a>
@@ -339,20 +339,20 @@ const clienteAsignado = evento?.cliente_id
           <div class="bg-white border border-stone-200/80 rounded-2xl p-5 shadow-xs flex flex-col justify-between">
             <div>
               <div class="flex items-center justify-between">
-                <span class="text-[11px] font-semibold uppercase tracking-wider text-stone-500">Mesas & Asientos</span>
-                <span class="text-base">🪑</span>
+                <span class="text-xs font-semibold uppercase tracking-wider text-stone-500">Mesas & Asientos</span>
+                <span class="text-base"><svg class="inline-block w-[1.15em] h-[1.15em] align-[-0.2em] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6a2 2 0 012-2h12a2 2 0 012 2v2H4V6zm0 4h16v3a1 1 0 01-1 1h-2v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6h-2v6a1 1 0 01-1 1H8a1 1 0 01-1-1v-6H5a1 1 0 01-1-1v-3z" /></svg></span>
               </div>
               <div class="mt-2">
                 <span class="text-2xl font-bold font-serif-luxury text-stone-900">{metricasOperativas.totalMesas}</span>
                 <span class="text-xs text-stone-500 ml-1 font-medium">mesas configuradas</span>
               </div>
-              <div class="mt-2 text-[11px] text-stone-600">
+              <div class="mt-2 text-xs text-stone-600">
                 <p class="text-stone-700 font-medium">{metricasOperativas.capacidadMesas} asientos disponibles</p>
                 <p class="text-stone-500 mt-0.5">{metricasOperativas.totalMesas > 0 ? 'Distribución activa' : 'Sin distribución asignada'}</p>
               </div>
             </div>
             <div class="pt-3 mt-3 border-t border-stone-100">
-              <a href={`/admin/mesas?evento_id=${evento.id}`} class="text-xs font-bold text-amber-800 hover:text-amber-900 underline flex items-center justify-between">
+              <a href={`/admin/mesas?evento_id=${evento.id}`} class="text-xs font-bold text-violet-700 hover:text-violet-900 underline flex items-center justify-between">
                 <span>Configurar mesas</span>
                 <span>→</span>
               </a>
@@ -363,17 +363,17 @@ const clienteAsignado = evento?.cliente_id
           <div class="bg-white border border-stone-200/80 rounded-2xl p-5 shadow-xs flex flex-col justify-between">
             <div>
               <div class="flex items-center justify-between">
-                <span class="text-[11px] font-semibold uppercase tracking-wider text-stone-500">Recepción / Check-in</span>
-                <span class="text-base">🎟️</span>
+                <span class="text-xs font-semibold uppercase tracking-wider text-stone-500">Recepción / Check-in</span>
+                <span class="text-base"><svg class="inline-block w-[1.15em] h-[1.15em] align-[-0.2em] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 6v.75m0 3v.75m0 3v.75m0 3V18m-9-5.25h5.25M7.5 15h3M3.375 5.25c-.621 0-1.125.504-1.125 1.125v3.026a2.999 2.999 0 010 5.198v3.026c0 .621.504 1.125 1.125 1.125h17.25c.621 0 1.125-.504 1.125-1.125v-3.026a2.999 2.999 0 010-5.198V6.375c0-.621-.504-1.125-1.125-1.125H3.375z" /></svg></span>
               </div>
               <div class="mt-2">
                 <span class="text-2xl font-bold font-serif-luxury text-indigo-900">{metricasOperativas.pasesIngresados}</span>
                 <span class="text-xs text-stone-500 ml-1 font-medium">personas ingresadas</span>
               </div>
-              <div class="mt-2 text-[11px] text-stone-600">
+              <div class="mt-2 text-xs text-stone-600">
                 <div class="flex items-center justify-between mb-1">
                   <span class="font-medium text-stone-700">{metricasOperativas.asistenciaPorcentaje}% de asistencia</span>
-                  <span class="text-stone-400 font-mono text-[10px]">{metricasOperativas.pasesIngresados}/{metricasOperativas.pasesConfirmados || metricasOperativas.totalPases}</span>
+                  <span class="text-stone-400 font-mono text-[11px]">{metricasOperativas.pasesIngresados}/{metricasOperativas.pasesConfirmados || metricasOperativas.totalPases}</span>
                 </div>
                 <div class="w-full bg-stone-100 rounded-full h-1.5 overflow-hidden">
                   <div class="h-full bg-indigo-500 rounded-full" style={`width: ${metricasOperativas.asistenciaPorcentaje}%`}></div>
@@ -392,13 +392,13 @@ const clienteAsignado = evento?.cliente_id
           <div class="bg-white border border-stone-200/80 rounded-2xl p-5 shadow-xs flex flex-col justify-between">
             <div>
               <div class="flex items-center justify-between">
-                <span class="text-[11px] font-semibold uppercase tracking-wider text-stone-500">Ciclo de Vida</span>
-                <span class="text-base">🚀</span>
+                <span class="text-xs font-semibold uppercase tracking-wider text-stone-500">Ciclo de Vida</span>
+                <span class="text-base"><svg class="inline-block w-[1.15em] h-[1.15em] align-[-0.2em] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" /></svg></span>
               </div>
               <div class="mt-2 flex items-center gap-2">
                 <span class="text-xl font-bold font-serif-luxury text-stone-900">{produccion?.etapaLabel}</span>
               </div>
-              <div class="mt-2 text-[11px] space-y-1">
+              <div class="mt-2 text-xs space-y-1">
                 <div class="flex items-center gap-1.5">
                   <span class="w-2 h-2 rounded-full" class:list={[isPublicado ? 'bg-emerald-500' : 'bg-amber-500']}></span>
                   <span class="font-bold" class:list={[isPublicado ? 'text-emerald-700' : 'text-amber-700']}>
@@ -409,7 +409,7 @@ const clienteAsignado = evento?.cliente_id
               </div>
             </div>
             <div class="pt-3 mt-3 border-t border-stone-100">
-              <a href={`/admin/eventos/${evento.id}/preview`} class="text-xs font-bold text-stone-800 hover:text-amber-800 underline flex items-center justify-between">
+              <a href={`/admin/eventos/${evento.id}/preview`} class="text-xs font-bold text-stone-800 hover:text-violet-700 underline flex items-center justify-between">
                 <span>Vista previa admin</span>
                 <span>→</span>
               </a>
@@ -425,7 +425,7 @@ const clienteAsignado = evento?.cliente_id
           <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-stone-100 pb-4">
             <div>
               <div class="flex items-center gap-2 mb-1">
-                <span class="text-[10px] uppercase font-bold tracking-wider text-amber-800 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200/70">
+                <span class="text-[11px] uppercase font-bold tracking-wider text-amber-800 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200/70">
                   Ciclo de Producción
                 </span>
                 <span class="text-stone-300">•</span>
@@ -456,7 +456,7 @@ const clienteAsignado = evento?.cliente_id
                 Estado de Preparación de la Invitación
               </h2>
               <p class="text-xs text-stone-500 mt-0.5">
-                Cliente responsable: {clienteAsignado ? <a href="/admin/clientes" class="font-semibold text-stone-800 hover:text-amber-700 underline">{clienteAsignado.nombre}</a> : <span class="text-rose-600 font-medium">⚠️ Sin cliente asignado</span>}
+                Cliente responsable: {clienteAsignado ? <a href="/admin/clientes" class="font-semibold text-stone-800 hover:text-violet-700 underline">{clienteAsignado.nombre}</a> : <span class="text-rose-600 font-medium"><svg class="inline-block w-[1.15em] h-[1.15em] align-[-0.2em] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" /></svg> Sin cliente asignado</span>}
               </p>
             </div>
 
@@ -465,7 +465,7 @@ const clienteAsignado = evento?.cliente_id
                 <span class="text-xs font-bold text-stone-800 block">
                   {produccion.itemsCompletados} de {produccion.totalItems} completados
                 </span>
-                <span class="text-[11px] text-amber-800 font-semibold">
+                <span class="text-xs text-amber-800 font-semibold">
                   {produccion.progresoPorcentaje}% listo para operar
                 </span>
               </div>
@@ -515,7 +515,7 @@ const clienteAsignado = evento?.cliente_id
                 ]}
               >
                 <span
-                  class="w-5 h-5 rounded-full flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5"
+                  class="w-5 h-5 rounded-full flex items-center justify-center font-bold text-[11px] shrink-0 mt-0.5"
                   class:list={[
                     item.completado ? 'bg-emerald-500 text-white' : 'bg-stone-200 text-stone-500',
                   ]}
@@ -525,13 +525,13 @@ const clienteAsignado = evento?.cliente_id
                 <div class="min-w-0 flex-1">
                   <div class="flex items-center justify-between gap-1">
                     <div class="flex items-center gap-1.5 min-w-0">
-                      <span class="font-bold text-[11px] truncate">{item.label}</span>
+                      <span class="font-bold text-xs truncate">{item.label}</span>
                       {item.esBloqueante ? (
-                        <span class="text-[9px] font-bold text-rose-700 bg-rose-50 border border-rose-200/80 px-1.5 py-0.5 rounded shrink-0">
+                        <span class="text-[11px] font-bold text-rose-700 bg-rose-50 border border-rose-200/80 px-1.5 py-0.5 rounded shrink-0">
                           Bloqueante
                         </span>
                       ) : (
-                        <span class="text-[9px] font-medium text-stone-500 bg-stone-100 px-1.5 py-0.5 rounded shrink-0">
+                        <span class="text-[11px] font-medium text-stone-500 bg-stone-100 px-1.5 py-0.5 rounded shrink-0">
                           Opcional
                         </span>
                       )}
@@ -539,13 +539,13 @@ const clienteAsignado = evento?.cliente_id
                     {item.accionUrl && !item.completado && (
                       <a
                         href={item.accionUrl}
-                        class="text-[10px] text-amber-700 hover:text-amber-900 font-bold shrink-0 underline ml-1"
+                        class="text-[11px] text-violet-700 hover:text-violet-900 font-bold shrink-0 underline ml-1"
                       >
                         {item.accionTexto || 'Completar'}
                       </a>
                     )}
                   </div>
-                  <p class="text-[10px] text-stone-500 mt-0.5 leading-tight">{item.detalle}</p>
+                  <p class="text-[11px] text-stone-500 mt-0.5 leading-tight">{item.detalle}</p>
                 </div>
               </div>
             ))}
@@ -572,7 +572,7 @@ const clienteAsignado = evento?.cliente_id
                 Datos identificadores principales del evento y enlace público.
               </p>
             </div>
-            <span class="text-[11px] font-mono text-stone-400 bg-stone-100 px-2 py-0.5 rounded-md">
+            <span class="text-xs font-mono text-stone-400 bg-stone-100 px-2 py-0.5 rounded-md">
               Obligatorio
             </span>
           </div>
@@ -584,7 +584,7 @@ const clienteAsignado = evento?.cliente_id
                 <label for="cliente_id" class="block text-xs font-bold uppercase tracking-wider text-amber-950">
                   Cliente Responsable del Evento *
                 </label>
-                <a href="/admin/clientes" target="_blank" class="text-[11px] text-amber-800 hover:underline font-semibold">
+                <a href="/admin/clientes" target="_blank" class="text-xs text-amber-800 hover:underline font-semibold">
                   + Gestionar clientes ↗
                 </a>
               </div>
@@ -592,7 +592,7 @@ const clienteAsignado = evento?.cliente_id
                 id="cliente_id"
                 name="cliente_id"
                 required
-                class="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-stone-900 text-xs font-medium bg-white"
+                class="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 text-stone-900 text-xs font-medium bg-white"
               >
                 <option value="">-- Selecciona el cliente asignado a este evento --</option>
                 {clientes.map((c) => (
@@ -614,7 +614,7 @@ const clienteAsignado = evento?.cliente_id
                 name="nombre"
                 required
                 value={evento.nombre}
-                class="w-full px-4 py-2.5 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-stone-900 text-sm transition-all"
+                class="w-full px-4 py-2.5 rounded-xl border border-stone-300 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 text-stone-900 text-sm transition-all"
                 placeholder="Ej. César & Cristal o Boda Sofía & Alejandro"
               />
             </div>
@@ -628,7 +628,7 @@ const clienteAsignado = evento?.cliente_id
                 id="tipo_evento"
                 name="tipo_evento"
                 required
-                class="w-full px-4 py-2.5 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-stone-900 text-sm transition-all bg-white"
+                class="w-full px-4 py-2.5 rounded-xl border border-stone-300 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 text-stone-900 text-sm transition-all bg-white"
               >
                 <option value="Boda" selected={evento.tipo_evento === 'Boda'}>Boda</option>
                 <option value="XV Años" selected={evento.tipo_evento === 'XV Años'}>XV Años</option>
@@ -653,11 +653,11 @@ const clienteAsignado = evento?.cliente_id
                   required
                   pattern="^[a-z0-9]+(?:-[a-z0-9]+)*$"
                   value={evento.slug}
-                  class="w-full px-4 py-2.5 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-stone-900 font-mono text-xs transition-all"
+                  class="w-full px-4 py-2.5 rounded-xl border border-stone-300 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 text-stone-900 font-mono text-xs transition-all"
                   placeholder="ej. boda-cesar-adrian"
                 />
               </div>
-              <p class="text-[11px] text-stone-400 mt-1">
+              <p class="text-xs text-stone-400 mt-1">
                 URL actual: <code class="font-mono text-stone-600 bg-stone-100 px-1 py-0.5 rounded" id="slug-preview-text">/demo/{evento.slug}</code>
               </p>
             </div>
@@ -673,7 +673,7 @@ const clienteAsignado = evento?.cliente_id
                 name="fecha_evento"
                 required
                 value={evento.fecha_evento}
-                class="w-full px-4 py-2.5 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-stone-900 text-sm transition-all"
+                class="w-full px-4 py-2.5 rounded-xl border border-stone-300 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 text-stone-900 text-sm transition-all"
               />
             </div>
 
@@ -688,9 +688,9 @@ const clienteAsignado = evento?.cliente_id
                 name="hora_evento"
                 value={evento.hora_evento || ''}
                 placeholder="Ej. 17:00 o 18:30"
-                class="w-full px-4 py-2.5 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-stone-900 text-sm transition-all"
+                class="w-full px-4 py-2.5 rounded-xl border border-stone-300 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 text-stone-900 text-sm transition-all"
               />
-              <p class="text-[11px] text-stone-400 mt-1">Formato 24 hrs o texto informativo.</p>
+              <p class="text-xs text-stone-400 mt-1">Formato 24 hrs o texto informativo.</p>
             </div>
 
             {/* Estado del Evento (Toggle / Selector de Bloques) */}
@@ -714,7 +714,7 @@ const clienteAsignado = evento?.cliente_id
                       <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
                       <span class="text-xs font-bold text-stone-900">PUBLICADO</span>
                     </div>
-                    <p class="text-[11px] text-stone-500 mt-0.5">Visible para invitados en su enlace público.</p>
+                    <p class="text-xs text-stone-500 mt-0.5">Visible para invitados en su enlace público.</p>
                   </div>
                 </label>
 
@@ -725,14 +725,14 @@ const clienteAsignado = evento?.cliente_id
                     name="estado"
                     value="false"
                     checked={!isPublicado}
-                    class="w-4 h-4 text-amber-600 focus:ring-amber-500 border-stone-300"
+                    class="w-4 h-4 text-amber-600 focus:ring-violet-500 border-stone-300"
                   />
                   <div>
                     <div class="flex items-center gap-1.5">
                       <span class="w-2 h-2 rounded-full bg-amber-500"></span>
                       <span class="text-xs font-bold text-stone-900">BORRADOR</span>
                     </div>
-                    <p class="text-[11px] text-stone-500 mt-0.5">En edición o preparación privada.</p>
+                    <p class="text-xs text-stone-500 mt-0.5">En edición o preparación privada.</p>
                   </div>
                 </label>
 
@@ -763,10 +763,10 @@ const clienteAsignado = evento?.cliente_id
                 id="portada_url"
                 name="portada_url"
                 value={evento.portada_url || ''}
-                class="w-full px-4 py-2.5 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-stone-900 font-mono text-xs transition-all"
+                class="w-full px-4 py-2.5 rounded-xl border border-stone-300 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 text-stone-900 font-mono text-xs transition-all"
                 placeholder="https://images.pexels.com/... o enlace de tu imagen"
               />
-              <p class="text-[11px] text-stone-400 mt-1">Ingresa el enlace HTTPS directo a la fotografía principal.</p>
+              <p class="text-xs text-stone-400 mt-1">Ingresa el enlace HTTPS directo a la fotografía principal.</p>
 
               {/* Previsualización miniatura */}
               <div class="mt-3 flex items-center gap-4 p-3 bg-stone-50 rounded-xl border border-stone-200/60">
@@ -783,7 +783,7 @@ const clienteAsignado = evento?.cliente_id
                 </div>
                 <div>
                   <p class="text-xs font-semibold text-stone-700">Previsualización de Portada</p>
-                  <p class="text-[11px] text-stone-400">Se actualizará en tiempo real si pegas una nueva URL.</p>
+                  <p class="text-xs text-stone-400">Se actualizará en tiempo real si pegas una nueva URL.</p>
                 </div>
               </div>
             </div>
@@ -798,7 +798,7 @@ const clienteAsignado = evento?.cliente_id
                 id="subtitulo_hero"
                 name="subtitulo_hero"
                 value={evento.subtitulo_hero || ''}
-                class="w-full px-4 py-2.5 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-stone-900 text-sm transition-all"
+                class="w-full px-4 py-2.5 rounded-xl border border-stone-300 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 text-stone-900 text-sm transition-all"
                 placeholder="Ej. Acompáñanos en este momento inolvidable de nuestras vidas"
               />
             </div>
@@ -813,7 +813,7 @@ const clienteAsignado = evento?.cliente_id
                 id="iniciales_monograma"
                 name="iniciales_monograma"
                 value={evento.iniciales_monograma || ''}
-                class="w-full px-4 py-2.5 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-stone-900 text-sm font-serif-luxury transition-all"
+                class="w-full px-4 py-2.5 rounded-xl border border-stone-300 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 text-stone-900 text-sm font-serif-luxury transition-all"
                 placeholder="Ej. C & C o ALE & SOFI"
               />
             </div>
@@ -828,7 +828,7 @@ const clienteAsignado = evento?.cliente_id
                 id="frase_bienvenida"
                 name="frase_bienvenida"
                 value={evento.frase_bienvenida || ''}
-                class="w-full px-4 py-2.5 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-stone-900 text-sm transition-all"
+                class="w-full px-4 py-2.5 rounded-xl border border-stone-300 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 text-stone-900 text-sm transition-all"
                 placeholder="Ej. ¡Llegó el día, acompáñanos a celebrar!"
               />
             </div>
@@ -855,10 +855,10 @@ const clienteAsignado = evento?.cliente_id
               id="musica_url"
               name="musica_url"
               value={evento.musica_url || ''}
-              class="w-full px-4 py-2.5 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-stone-900 font-mono text-xs transition-all"
+              class="w-full px-4 py-2.5 rounded-xl border border-stone-300 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 text-stone-900 font-mono text-xs transition-all"
               placeholder="https://ejemplo.com/audio/cancion-nupcial.mp3"
             />
-            <p class="text-[11px] text-stone-400 mt-1">Debe ser un archivo accesible públicamente (ej. MP3 o WAV).</p>
+            <p class="text-xs text-stone-400 mt-1">Debe ser un archivo accesible públicamente (ej. MP3 o WAV).</p>
           </div>
         </div>
 
@@ -881,7 +881,7 @@ const clienteAsignado = evento?.cliente_id
               id="ubicacion_resumen"
               name="ubicacion_resumen"
               rows="3"
-              class="w-full px-4 py-2.5 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-stone-900 text-sm transition-all"
+              class="w-full px-4 py-2.5 rounded-xl border border-stone-300 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 text-stone-900 text-sm transition-all"
               placeholder="Ej. La ceremonia religiosa será en el Templo del Carmen ubicado en el Centro de Celaya, Gto."
             >{evento.ubicacion_resumen || ''}</textarea>
           </div>
@@ -909,7 +909,7 @@ const clienteAsignado = evento?.cliente_id
                 id="codigo_vestimenta_titulo"
                 name="codigo_vestimenta_titulo"
                 value={evento.codigo_vestimenta_titulo || ''}
-                class="w-full px-4 py-2.5 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-stone-900 text-sm transition-all"
+                class="w-full px-4 py-2.5 rounded-xl border border-stone-300 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 text-stone-900 text-sm transition-all"
                 placeholder="Ej. Rigurosa Etiqueta / Formal / Guayabera Elegante"
               />
             </div>
@@ -924,7 +924,7 @@ const clienteAsignado = evento?.cliente_id
                 id="codigo_vestimenta_caballeros"
                 name="codigo_vestimenta_caballeros"
                 value={evento.codigo_vestimenta_caballeros || ''}
-                class="w-full px-4 py-2.5 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-stone-900 text-sm transition-all"
+                class="w-full px-4 py-2.5 rounded-xl border border-stone-300 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 text-stone-900 text-sm transition-all"
                 placeholder="Ej. Traje oscuro o smoking"
               />
             </div>
@@ -939,7 +939,7 @@ const clienteAsignado = evento?.cliente_id
                 id="codigo_vestimenta_damas"
                 name="codigo_vestimenta_damas"
                 value={evento.codigo_vestimenta_damas || ''}
-                class="w-full px-4 py-2.5 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-stone-900 text-sm transition-all"
+                class="w-full px-4 py-2.5 rounded-xl border border-stone-300 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 text-stone-900 text-sm transition-all"
                 placeholder="Ej. Vestido largo de noche"
               />
             </div>
@@ -953,7 +953,7 @@ const clienteAsignado = evento?.cliente_id
                 id="codigo_vestimenta_notas"
                 name="codigo_vestimenta_notas"
                 rows="2"
-                class="w-full px-4 py-2.5 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-stone-900 text-sm transition-all"
+                class="w-full px-4 py-2.5 rounded-xl border border-stone-300 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 text-stone-900 text-sm transition-all"
                 placeholder="Ej. Nos reservamos el color blanco exclusivamente para la novia."
               >{evento.codigo_vestimenta_notas || ''}</textarea>
             </div>
@@ -982,7 +982,7 @@ const clienteAsignado = evento?.cliente_id
                 id="whatsapp_confirmacion"
                 name="whatsapp_confirmacion"
                 value={evento.whatsapp_confirmacion || ''}
-                class="w-full px-4 py-2.5 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-stone-900 text-sm transition-all"
+                class="w-full px-4 py-2.5 rounded-xl border border-stone-300 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 text-stone-900 text-sm transition-all"
                 placeholder="Ej. 4614210058 o texto con instrucciones"
               />
             </div>
@@ -997,7 +997,7 @@ const clienteAsignado = evento?.cliente_id
                 id="fecha_limite_confirmacion"
                 name="fecha_limite_confirmacion"
                 value={evento.fecha_limite_confirmacion || ''}
-                class="w-full px-4 py-2.5 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-stone-900 text-sm transition-all"
+                class="w-full px-4 py-2.5 rounded-xl border border-stone-300 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 text-stone-900 text-sm transition-all"
                 placeholder="Ej. 2026-11-30 o Lo antes posible"
               />
             </div>
@@ -1023,7 +1023,7 @@ const clienteAsignado = evento?.cliente_id
               id="frase_despedida"
               name="frase_despedida"
               rows="2"
-              class="w-full px-4 py-2.5 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-stone-900 text-sm transition-all"
+              class="w-full px-4 py-2.5 rounded-xl border border-stone-300 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 text-stone-900 text-sm transition-all"
               placeholder="Ej. ¡Esperamos contar con tu valiosa presencia en este día tan especial!"
             >{evento.frase_despedida || ''}</textarea>
           </div>
@@ -1041,7 +1041,7 @@ const clienteAsignado = evento?.cliente_id
           <button
             type="submit"
             id="submit-btn"
-            class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-3 rounded-xl bg-stone-900 hover:bg-stone-800 text-amber-200 text-xs font-bold tracking-wide shadow-md hover:shadow-lg transition-all transform hover:-translate-y-0.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-3 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold tracking-wide shadow-md hover:shadow-lg transition-all transform hover:-translate-y-0.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <svg id="save-icon" width="14" height="14" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
@@ -1053,16 +1053,16 @@ const clienteAsignado = evento?.cliente_id
       </form>
 
       {/* SECCIÓN: ACCESO DIRECTO AL MÓDULO DE INVITADOS Y FAMILIAS */}
-      <div class="bg-gradient-to-r from-amber-50 via-orange-50/40 to-stone-50 border border-amber-200/80 rounded-2xl p-6 sm:p-7 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-5">
+      <div class="bg-amber-50 border border-amber-200/80 rounded-2xl p-6 sm:p-7 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-5">
         <div class="space-y-1.5">
           <div class="flex items-center gap-2.5 flex-wrap">
             <span class="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-900 border border-amber-300/60 flex items-center justify-center text-base">
-              👥
+              <svg class="inline-block w-[1.15em] h-[1.15em] align-[-0.2em] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" /></svg>
             </span>
             <h3 class="text-base font-bold text-stone-900">
               Gestión de Invitados y Familias
             </h3>
-            <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-200/70 text-amber-950 border border-amber-300">
+            <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-200/70 text-amber-950 border border-amber-300">
               {totalInvitadosCount} {totalInvitadosCount === 1 ? 'registro' : 'registros'} ({totalPasesCount} pases)
             </span>
           </div>
@@ -1073,7 +1073,7 @@ const clienteAsignado = evento?.cliente_id
 
         <a
           href={`/admin/invitados?evento_id=${evento.id}`}
-          class="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-stone-900 hover:bg-stone-800 text-amber-200 text-xs font-bold shadow-md hover:shadow-lg transition-all shrink-0 cursor-pointer"
+          class="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold shadow-md hover:shadow-lg transition-all shrink-0 cursor-pointer"
         >
           <span>Administrar Invitados</span>
           <span class="text-amber-400">→</span>
@@ -1081,16 +1081,16 @@ const clienteAsignado = evento?.cliente_id
       </div>
 
       {/* SECCIÓN: ACCESO DIRECTO AL MÓDULO DE MESAS Y ASIGNACIONES */}
-      <div class="bg-gradient-to-r from-stone-50 via-amber-50/30 to-stone-50 border border-stone-200/80 rounded-2xl p-6 sm:p-7 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-5">
+      <div class="bg-white border border-stone-200/80 rounded-2xl p-6 sm:p-7 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-5">
         <div class="space-y-1.5">
           <div class="flex items-center gap-2.5 flex-wrap">
-            <span class="w-8 h-8 rounded-xl bg-stone-800 text-amber-300 border border-stone-700 flex items-center justify-center text-base">
-              🪑
+            <span class="w-8 h-8 rounded-xl bg-violet-50 text-violet-700 border border-violet-100 flex items-center justify-center text-base">
+              <svg class="inline-block w-[1.15em] h-[1.15em] align-[-0.2em] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6a2 2 0 012-2h12a2 2 0 012 2v2H4V6zm0 4h16v3a1 1 0 01-1 1h-2v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6h-2v6a1 1 0 01-1 1H8a1 1 0 01-1-1v-6H5a1 1 0 01-1-1v-3z" /></svg>
             </span>
             <h3 class="text-base font-bold text-stone-900">
               Distribución de Mesas y Asignación
             </h3>
-            <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-stone-100 text-stone-800 border border-stone-200">
+            <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-stone-100 text-stone-800 border border-stone-200">
               Módulo de Salón
             </span>
           </div>
@@ -1101,7 +1101,7 @@ const clienteAsignado = evento?.cliente_id
 
         <a
           href={`/admin/mesas?evento_id=${evento.id}`}
-          class="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-stone-900 hover:bg-stone-800 text-amber-200 text-xs font-bold shadow-md hover:shadow-lg transition-all shrink-0 cursor-pointer"
+          class="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold shadow-md hover:shadow-lg transition-all shrink-0 cursor-pointer"
         >
           <span>Gestionar Mesas</span>
           <span class="text-amber-400">→</span>
@@ -1217,7 +1217,7 @@ const clienteAsignado = evento?.cliente_id
                       <span class="w-7 h-7 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold text-sm shrink-0">✓</span>
                       <div>
                         <p class="text-xs sm:text-sm font-semibold">${escapeHtml(result.message || 'Evento actualizado correctamente.')}</p>
-                        <p class="text-[11px] text-emerald-700">Los cambios ya están reflejados en la base de datos.</p>
+                        <p class="text-xs text-emerald-700">Los cambios ya están reflejados en la base de datos.</p>
                       </div>
                     </div>
                   </div>
@@ -1236,7 +1236,7 @@ const clienteAsignado = evento?.cliente_id
                       <span class="w-7 h-7 rounded-full bg-rose-500 text-white flex items-center justify-center font-bold text-sm shrink-0">✕</span>
                       <div>
                         <p class="text-xs sm:text-sm font-semibold">No pudimos guardar los cambios.</p>
-                        <p class="text-[11px] text-rose-700">${escapeHtml(result.error || 'Verifica los campos ingresados e intenta nuevamente.')}</p>
+                        <p class="text-xs text-rose-700">${escapeHtml(result.error || 'Verifica los campos ingresados e intenta nuevamente.')}</p>
                       </div>
                     </div>
                   </div>
@@ -1253,7 +1253,7 @@ const clienteAsignado = evento?.cliente_id
                     <span class="w-7 h-7 rounded-full bg-rose-500 text-white flex items-center justify-center font-bold text-sm shrink-0">✕</span>
                     <div>
                       <p class="text-xs sm:text-sm font-semibold">No pudimos guardar los cambios.</p>
-                      <p class="text-[11px] text-rose-700">Error de conexión con el servidor. Intenta de nuevo.</p>
+                      <p class="text-xs text-rose-700">Error de conexión con el servidor. Intenta de nuevo.</p>
                     </div>
                   </div>
                 </div>
